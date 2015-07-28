@@ -15,6 +15,15 @@ def lngamma(val):
         val[val < sys.float_info.min] = sys.float_info.min
         return gammaln(val)
 
+def cov(a, b):
+    # the below was in the figure i sent to dave
+    v = (a - sum(a)/a.shape[0]) * (b - sum(b)/b.shape[0])
+    return sum(v)/v.shape[0]
+
+def var(a):
+    rv = cov(a, a)
+    rv[rv == 0] = sys.float_info.min #TODO: is this needed?
+    return rv
 
 ## Classes
 
@@ -111,12 +120,12 @@ class Model:
         self.t_entity = 0
         self.t_events = np.zeros(self.data.day_count())
 
-        self.a_entity = np.ones((1,self.data.dimension)) * self.params.a_entity
-        self.b_entity = np.ones((1,self.data.dimension)) * self.params.b_entity
-        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * self.params.a_events
+        self.a_entity = np.ones((1,self.data.dimension)) #* self.params.a_entity
+        self.b_entity = np.ones((1,self.data.dimension)) #* self.params.b_entity
+        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) #* 2#self.params.a_events
         #self.a_events = np.random.gamma(self.params.a_events, 1.0/self.params.b_events, \
         #    (self.data.day_count(), self.data.dimension))
-        self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * self.params.b_events
+        self.b_events = np.ones((self.data.day_count(), self.data.dimension)) #* self.params.b_events
 
         self.entity = self.a_entity / self.b_entity
         print "starting entity"
@@ -186,6 +195,7 @@ class Model:
         self.init()
 
         iteration = 0
+        KKK =0#TODO:rm
 
         print "starting..."
         while not self.converged(iteration):
@@ -196,19 +206,54 @@ class Model:
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
 
+            # this was not in figure i sent t dave
+            entity_sample = []
+            events_sample = []
+            for s in range(self.params.num_samples):
+                entity = np.random.gamma(self.a_entity, 1.0/self.b_entity, \
+                    (1, self.data.dimension))
+                entity[entity == 0] = sys.float_info.min
+                events = np.random.gamma(self.a_events, 1.0/self.b_events, \
+                    (self.data.day_count(), self.data.dimension))
+                events[events == 0] = sys.float_info.min
+                entity_sample.append(entity)
+                events_sample.append(events)
+
             for d in range(self.params.batch_size):
                 doc = self.data.random_doc()
                 f_array = np.zeros((self.data.day_count(),1))
                 for day in range(self.data.day_count()):
                     f_array[day] = self.params.f(self.data.days[day], doc.day)
+
+                # control variates
+                h_a_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+                h_b_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+                f_a_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+                f_b_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+
                 for s in range(self.params.num_samples):
                     #print iteration, d, s, (1, self.data.dimension)
-                    entity = np.random.gamma(self.a_entity, 1.0/self.b_entity, \
-                        (1, self.data.dimension))
-                    entity[entity == 0] = sys.float_info.min
-                    events = np.random.gamma(self.a_events, 1.0/self.b_events, \
-                        (self.data.day_count(), self.data.dimension))
-                    events[events == 0] = sys.float_info.min
+
+                    entity = entity_sample[s]
+                    events = events_sample[s]
+                    # this was in fig i set to dave
+                    #entity = np.random.gamma(self.a_entity, 1.0/self.b_entity, \
+                    #    (1, self.data.dimension))
+                    #entity[entity == 0] = sys.float_info.min
+                    #events = np.random.gamma(self.a_events, 1.0/self.b_events, \
+                    #    (self.data.day_count(), self.data.dimension))
+                    #events[events == 0] = sys.float_info.min
+
+                    if np.sum(events) > 1e3:
+                        for e in range(len(events.sum(1))):
+                            if np.sum(events[e]) > 1e3:
+                                #print "***** EVENT", e, "for sample", s, " (iter", iteration, ")"
+                                #print events[e]
+                                #print self.a_events[e]
+                                #print self.b_events[e]
+                                KKK += 1
+                                #if KKK > 10:
+                                #    sys.exit(1)
                     doc_params = entity + sum(f_array*events)
 
                     p_doc_a = self.params.b_docs * doc_params
@@ -249,10 +294,23 @@ class Model:
                         np.log(events)
                     g_events_b = self.a_events / self.b_events - events
 
-                    lambda_a_events += (f_array != 0) * g_events_a * \
+                    h_a_events[s] = g_events_a * (f_array != 0)
+                    h_b_events[s] = g_events_b * (f_array != 0)
+                    f_a_events[s] = (f_array != 0) * g_events_a * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_b_events += (f_array != 0) * g_events_b * \
+                    f_b_events[s] += (f_array != 0) * g_events_b * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
+                    lambda_a_events += f_a_events[s]
+                    lambda_b_events += f_b_events[s]
+                #this works
+                #lambda_a_events -= cov(f_a_events, h_a_events) / var(h_a_events)
+                #lambda_b_events -= cov(f_b_events, h_b_events) / var(h_b_events)
+                # this doesn't, but it's correct (or is it?)
+                lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
+                lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
+                #if np.sum(lambda_a_events) > 1e3 or np.sum(lambda_b_events) > 1e3:
+                #    print cov(f_a_events, h_a_events) / var(h_a_events)
+                #    print cov(f_b_events, h_b_events) / var(h_b_events)
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
@@ -264,6 +322,9 @@ class Model:
             self.b_entity += rho * lambda_b_entity
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events
+            print "end of iteration"
+            print 'a', self.a_events[21]
+            print 'b', self.b_events[21]
 
             self.a_entity[self.a_entity <= 0] = 1e-3
             self.b_entity[self.b_entity <= 0] = 1e-3
