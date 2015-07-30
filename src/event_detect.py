@@ -143,6 +143,15 @@ class Model:
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + sum(f_array*self.events)
             p_doc_a = self.params.b_docs * doc_params
+            p_doc_a[p_doc_a < np.sqrt(sys.float_info.max)] = - np.sqrt(sys.float_info.max)
+            p_doc_a[p_doc_a > np.sqrt(sys.float_info.max)] = np.sqrt(sys.float_info.max)
+            #print "log like components"
+            #print "p doc a", p_doc_a
+            #print "log b  ", np.log(self.params.b_docs)
+            #print "neg gma", (-1* lngamma(p_doc_a))
+            #print "log doc", np.log(doc.rep)
+            #print "b doc  ", self.params.b_docs
+            #print "doc rep", doc.rep
             log_likelihood += np.sum(p_doc_a * np.log(self.params.b_docs) - \
                 lngamma(p_doc_a) + (p_doc_a - 1) * np.log(doc.rep) - \
                 self.params.b_docs * doc.rep)
@@ -174,7 +183,7 @@ class Model:
         else:
             self.likelihood_decreasing_count = 0
 
-        if delta < self.params.convergence_thresh:
+        if iteration > 20 and delta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
         if iteration == self.params.max_iter:
@@ -233,6 +242,11 @@ class Model:
                     lngamma(self.a_entity) + \
                     (self.a_entity - 1) * np.log(entity) - \
                     self.b_entity * entity
+                #if iteration == 2:
+                #    print "3 that go into g_entity_a"
+                #    print "log of b", np.log(self.b_entity)
+                #    print "neg digamma of a", (-1*digamma(self.a_entity))
+                #    print "log of entity", np.log(entity)
                 g_entity_a = np.log(self.b_entity) - \
                     digamma(self.a_entity) + \
                     np.log(entity)
@@ -267,12 +281,22 @@ class Model:
                     doc_params = entity + sum(f_array*events)
 
                     p_doc_a = self.params.b_docs * doc_params
+                    p_doc_a[p_doc_a < -sys.float_info.max**(1./4)] = - sys.float_info.max**(1./4)
+                    p_doc_a[p_doc_a > sys.float_info.max**(1./4)] = sys.float_info.max**(1./4) #TODO: make all thresholdin glike this more formal (single function)
                     p_doc = p_doc_a * np.log(self.params.b_docs) - \
                         lngamma(p_doc_a) + \
                         (p_doc_a - 1) * np.log(doc.rep) - \
                         self.params.b_docs * doc.rep
-                    p_doc[np.isinf(p_doc)] = - sys.float_info.max
+                    p_doc[np.isinf(p_doc)] = - np.sqrt(sys.float_info.max)
+                    p_doc[p_doc < -sys.float_info.max**(1./4)] = - sys.float_info.max**(1./4)
 
+                    #if iteration == 2:
+                    #    print "lambda components [5]"
+                    #    print "g", g_entity_a
+                    #    print "p ent", p_entity
+                    #    print "# doc", self.data.num_docs()
+                    #    print "p doc", p_doc
+                    #    print "q ent", q_entity
                     lambda_a_entity += g_entity_a * (p_entity + self.data.num_docs() * p_doc - q_entity)
                     lambda_b_entity += g_entity_b * (p_entity + self.data.num_docs() * p_doc - q_entity)
 
@@ -320,14 +344,19 @@ class Model:
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events
             print "end of iteration"
-            #print 'a events', self.a_events[21]
-            #print 'b events', self.b_events[21]
+            print "event 5 var params"
+            print 'a events', self.a_events[5]
+            print 'b events', self.b_events[5]
             print "*************************************"
 
-            self.a_entity[self.a_entity <= 0] = 1e-20
-            self.b_entity[self.b_entity <= 0] = 1e-3
-            self.a_events[self.a_events <= 0] = 1e-20
-            self.b_events[self.b_events <= 0] = 1e-5
+            min_thresh = 1e-10#sys.float_info.min**(1./4)
+            max_thresh = 100
+            self.a_entity[self.a_entity <= min_thresh] = min_thresh#sys.float_info.min
+            self.b_entity[self.b_entity <= min_thresh] = min_thresh#sys.float_info.min
+            self.a_events[self.a_events <= min_thresh] = min_thresh#sys.float_info.min
+            self.b_events[self.b_events <= 1e-5] = 1e-5#sys.float_info.min
+            #self.a_entity[self.a_entity >= max_thresh] = max_thresh
+            self.a_events[self.a_events >= max_thresh] = max_thresh
             #print "a for events  ------- "
             #for e in range(self.a_events.shape[0]):
             #    for k in range(self.a_events.shape[1]):

@@ -1,0 +1,139 @@
+\documentclass{article}
+\usepackage{fullpage}
+
+%\usepackage[subscriptcorrection,slantedGreek,nofontinfo,lite]{mtpro2}
+\usepackage[T1]{fontenc}
+
+\usepackage{times}
+\renewcommand{\rmdefault}{ptm}
+%
+%\usepackage{color}
+\usepackage{algorithmicx}
+\usepackage[ruled]{algorithm}
+\usepackage[noend]{algpseudocode}
+%\usepackage[final,expansion=alltext]{microtype}
+\usepackage[english]{babel}
+\usepackage{amssymb,amsmath}
+%
+%%\usepackage{natbib}
+%\usepackage[colorlinks,citecolor=blue, linkcolor=blue]{hyperref}
+%
+%\usepackage[all]{hypcap}
+
+\newcommand{\pluseq}{\mathrel{+}=}
+\newcommand{\minuseq}{\mathrel{-}=}
+\newcommand{\E}{\mathrm{E}}
+\newcommand{\g}{\, | \,}
+
+\begin{document}
+
+\title{Modeling Cables Events}
+
+\author{Allison J.B. Chaney}
+
+\maketitle
+
+\section{Model v1}
+\subsection{Generative model}
+We start with a fitted LDA model where documents are represented in terms of topics ($\theta$, a $D \times K$ matrix), and topics are represented as a distribution over words ($\beta$, a $K \times V$ matrix).  This model fit, along with document metadata, are our observations.  Alternatively, we can tack on the LDA generative process to the model below.
+
+\begin{itemize}
+\item for each day $i$ with date $a_i$:
+\begin{itemize}
+\item generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
+\end{itemize}
+\item draw the entity's base topics: $\phi_{0k} \sim \mbox{Gamma}(\alpha, \beta)$ (eventually for each entity, but for now, just limit data to only one entity)
+\item For each cable $j$ on date $c_j$:
+\begin{itemize}
+	\item set cable topic parameter: $\phi_{jk} = \phi_{0k} + \sum_i f(a_i, c_j) \pi_{ik}$, where $f$ is defined below.
+	\item draw cable topic: $\theta_{jk} \sim \mbox{Gamma}(\beta_c \phi_{jk}, \beta_c)$
+\end{itemize}
+\end{itemize}
+
+\noindent Note that\[f(a, c) =
+\begin{cases}
+	1 - \frac{c-a}{d}, & \mbox{if } a \le c < a+d \\
+	0, & \mbox{otherwise,}
+\end{cases} \]
+where $d$ is the time distance (in days) after event $a$ at which point the event is no longer relevant.
+
+
+\subsection{Inference}
+For now, we assume that we know the LDA topics $\beta$ and only observe the documents in terms of their topics $\theta$; breaking this assumption makes inference a little more complicated as the updates for $\theta$ would have new dependencies.  Pending the results, we should explore that vein. 
+
+Here, we follow the structure of the DEF paper to explain inference for this model.
+
+\begin{itemize}
+\item As usual, inference is the central computational problem.
+\item Variational inference minimizes the KL divergence from an approximating distribution $q$ to the true posterior $p$.
+\item This is equivalent to maximizing the ELBO: $\mathcal{L}(q)  = \E_{q(\pi, \phi)}[\log p(\theta,\pi,\phi) - \log q(\pi, \phi)]$
+\item we define the approximating distribution $q$ using the mean field assumption: $q(\pi, \phi) = \prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right]$ 
+\item $q(\pi)$ and $q(\phi)$ are both gamma-distributed, with variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively
+\item the expectations under $q$ (needed to maximize the ELBO) do not have a simple analytic form, so we use ``black box'' VI techniques
+\item for each variable, we can write the probability of all terms containing that variable, giving us 
+\[p^\pi_{ik}(\theta, \pi, \phi) = p(\pi_{ik} \g \alpha_0, \beta_0) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi)\]
+and
+\[p^\phi_{k}(\theta, \pi, \phi) = p(\phi_{0k} \g \alpha, \beta) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi).\]
+We can also write these in their log forms:
+\[\log p^\pi_{ik}(\theta, \pi, \phi) = \log p(\pi_{ik} \g \alpha_0, \beta_0) + \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi)\]
+and
+\[\log p^\phi_{k}(\theta, \pi, \phi) = \log p(\phi_{0k} \g \alpha, \beta) + \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi).\]
+\item Then we can write the gradients with respect to the variational parameters as: \[\nabla_{\lambda^\pi_{ik}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) \left( \log p^\pi_{ik}(\theta, \pi, \phi) - \log q(\pi_{ik} \g \lambda^\pi_{ik}) \right)\right]\] and \[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \pi, \phi) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right]\]
+\end{itemize}
+
+Using this framework, we construct our black box algorithm below.  The messiness comes from the full expansions of $p$, $q$, and $\nabla_\lambda q$.
+
+
+\alglanguage{pseudocode}
+\begin{algorithm}[h]
+\small
+\caption{Black Box variational inference for Cables Model v0}
+\label{alg:SPF}
+\begin{algorithmic}[1]
+\State \textbf{Input:} document topics $\theta$
+\State \textbf{Initialize} $\lambda^\pi$ and $\lambda^\phi$ randomly
+\State \textbf{Initialize} $t^\pi_i = 0$ for all days $i$ and $t^\phi = 0$
+\Repeat
+	\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
+	\State $t^\phi \pluseq 1$
+	\For {$s=1, \dots, S$}
+		\For {$k=1, \dots,K$}
+			\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\lambda^\phi_{k})$ 
+			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+				\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\lambda^\pi_{ik})$
+				\State $t^\pi_i \pluseq 1$
+			\EndFor
+			\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]} \pi_{ik}[s] f(a_i, c_j)$
+			
+			\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c) = \beta_c \phi_{jk}[s] \log \beta_c - \log\Gamma(\beta_c \phi_{jk}[s]) + (\beta_c \phi_{jk}[s] - 1) \log \theta_k - \beta_c \theta_k$
+			\State set $p^\phi_k[s] = \log p(\phi_{0k} \g \alpha, \beta) = \alpha \log \beta - \log\Gamma(\alpha) + (\alpha - 1) \log \phi_{0k}[s] - \beta \phi_{0k}[s]$
+			\State set (for each relevant $i$) $p^\pi_{ik}[s] = \log p(\pi_{ik} \g \alpha_0, \beta_0) = \alpha_0 \log \beta_0 - \log\Gamma(\alpha_0) + (\alpha_0 - 1) \log \pi_{k}[s] - \beta_0 \pi_{ik}[s]$
+			
+			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k) = \lambda^{\phi,\alpha}_k \log  \lambda^{\phi,\beta}_k - \log\Gamma( \lambda^{\phi,\alpha}_k) + ( \lambda^{\phi,\alpha}_k - 1) \log \phi_{0k}[s] -  \lambda^{\phi,\beta}_k \phi_{0k}[s]$
+			\State set (for each relevant $i$) $q^\pi_{ik}[s] = \log q(\pi_{ik} \g \lambda^\pi_{ik}) = \lambda^{\pi,\alpha}_{ik} \log \lambda^{\pi,\beta}_{ik} - \log\Gamma(\lambda^{\pi,\alpha}_{ik}) + (\lambda^{\pi,\alpha}_{ik} - 1) \log \pi_{ik}[s] - \lambda^{\pi,\beta}_{ik} \pi_{ik}[s]$
+			
+			\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) = \langle \log \lambda^{\phi,\beta}_k - \Psi( \lambda^{\phi,\alpha}_k) + \log \phi_{0k}[s], \lambda^{\phi,\alpha}_k / \lambda^{\phi,\beta}_k - \phi_{0k}[s] \rangle$ 
+			\State set (for each relevant $i$) $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) = \langle \log \lambda^{\pi,\beta}_{ik} - \Psi(\lambda^{\pi,\alpha}_{ik}) + \log \pi_{ik}[s], \lambda^{\pi,\alpha}_{ik}  / \lambda^{\pi,\beta}_{ik} - \pi_{ik}[s] \rangle$
+		\EndFor
+	\EndFor
+	\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+		\State set $\hat\lambda^{\pi}_{ik} = \frac{1}{S}\sum_s g^\pi_{ik}[s] ( p^\pi_{ik}[s] + J p^\theta_k[s] -  q^\pi_{ik}[s] ) $
+		\State set $\rho^\pi_i = (t^\pi_i + \tau)^\kappa$
+		\State update $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho^\pi_i \hat\lambda^{\pi}_{ik} $
+	\EndFor
+	\State set $\hat\lambda^{\phi}_{k} = \frac{1}{S}\sum_s g^\phi_{ik}[s] ( p^\phi_{k}[s] + J p^\theta_k[s] -  q^\phi_{k}[s] ) $
+	\State set $\rho^\phi = (t^\phi +\tau)^\kappa$
+	\State update $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho^\phi \hat\lambda^{\phi}_{k}$
+\Until {change in validation likelihood $< \delta$}
+\end{algorithmic}
+\end{algorithm}
+
+
+
+%
+%\section{Model 1}
+%\subsection{Generative model}
+%\subsection{Inference}
+
+
+\end{document}
