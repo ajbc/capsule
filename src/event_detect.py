@@ -68,7 +68,8 @@ class Corpus:
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, max_iter, tau, kappa, \
-        a_ent, b_ent, a_evn, b_evn, b_doc, event_duration):
+        a_ent, b_ent, a_evn, b_evn, b_doc, event_duration, \
+        content, time):
         self.outdir = outdir
         self.batch_size = batch_size
         self.num_samples = num_samples
@@ -87,6 +88,9 @@ class Parameters:
 
         self.d = event_duration
 
+        self.content = content
+        self.time = time
+
     def save(self, seed):
         f = open(os.path.join(self.outdir, 'settings.dat'), 'w+')
 
@@ -103,6 +107,8 @@ class Parameters:
         f.write("a_events:\t%f\n" % self.a_events)
         f.write("b_events:\t%f\n" % self.b_events)
         f.write("b_docs:\t%f\n" % self.b_docs)
+        f.write("data, content:\t%s\n" % self.content)
+        f.write("data, times:\t%s\n" % self.time)
 
         f.close()
 
@@ -448,7 +454,7 @@ if __name__ == '__main__':
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, \
-        args.event_duration)
+        args.event_duration, args.content_filename, args.time_filename)
     params.save(args.seed)
 
 
