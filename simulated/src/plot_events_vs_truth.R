@@ -2,12 +2,17 @@ library(ggplot2)
 library(reshape2)
 setwd('~/Dropbox/Projects/Academic/declass/cables/src/simulated')
 
-dat.truth <- read.csv('dat/simk6_v2/simulated_truth.tsv', sep='\t')
+args <- commandArgs(trailingOnly = TRUE)
+DATA <- args[1]
+FIT <- args[2]
+ITER <- as.integer(args[3])
+
+dat.truth <- read.csv(paste(DATA, 'simulated_truth.tsv', sep='/'), sep='\t')
 dat.truth <- melt(dat.truth, id.vars=c("source", "time"))
 
 # observed cables
-dat.obs <- read.csv('dat/simk6_v2/simulated_content.tsv', sep='\t', header=F)
-dat.obs.time <- read.csv('dat/simk6_v2/simulated_time.dat', header=F)
+dat.obs <- read.csv(paste(DATA, 'simulated_content.tsv', sep='/'), sep='\t', header=F)
+dat.obs.time <- read.csv(paste(DATA, 'simulated_time.dat', sep='/'), header=F)
 colnames(dat.obs) <- c('k.0', 'k.1', 'k.2', 'k.3', 'k.4','k.5')
 dat.obs$time <- dat.obs.time$V1
 
@@ -19,26 +24,26 @@ dat.obs <- melt(dat.obs, id.vars=c("type", "time"))
 dat <- rbind(dat.obs, dat.truth)
 
 
-args <- commandArgs(trailingOnly = TRUE)
-ITER <- as.integer(args[1])
 # fitted vs truth
 for (iter in seq(0,ITER)) {
   print(sprintf('creating plot for iteration %d', iter))
   iterstr <- sprintf('%04d', iter)
-  dat.fit0 <- read.csv(paste('fit/simk6v2_1/entities_', iterstr, '.tsv', sep=''), sep='\t', header=F)
+  dat.fit0 <- read.csv(paste(FIT, '/entities_', iterstr, '.tsv', sep=''), sep='\t', header=F)
   dat.fit0$time <- -1
-  dat.fit <- read.csv(paste('fit/simk6v2_1/events_', iterstr, '.tsv', sep=''), sep='\t', header=F)
+  dat.fit0$alpha <- 1.0
+  dat.fit <- read.csv(paste(FIT, '/events_', iterstr, '.tsv', sep=''), sep='\t', header=F)
+  dat.occur <- read.csv(paste(FIT, '/eoccur_', iterstr, '.tsv', sep=''), sep='\t', header=F)
   dat.fit$time <- seq(0,nrow(dat.fit)-1)
+  dat.fit$alpha <- dat.occur$V1
   dat.fit <- rbind(dat.fit0, dat.fit)
-  colnames(dat.fit) <- c('k.0', 'k.1', 'k.2', 'k.3', 'k.4','k.5', 'time')
-  dat.fit <- melt(dat.fit, id.vars=c("time"))
+  colnames(dat.fit) <- c('k.0', 'k.1', 'k.2', 'k.3', 'k.4','k.5', 'time', 'alpha')
+  dat.fit <- melt(dat.fit, id.vars=c("time", "alpha"))
   dat.fit$type <- "learned events"
 
   dat.fit[dat.fit$value > 10,3] <- 10
 
-  dat.truth$alpha <- 0.5
+  dat.truth$alpha <- 1.0
   dat.obs$alpha <- 0.1
-  dat.fit$alpha <- 0.5
 
   dat <- rbind(dat.obs, dat.truth, dat.fit)
 
@@ -51,7 +56,7 @@ for (iter in seq(0,ITER)) {
 }
 
 # likelihood
-LL <- read.csv('fit/simk6v2_1/log.dat', sep='\t')
+LL <- read.csv(paste(FIT, 'log.dat', sep='/'), sep='\t')
 ggplot(LL, aes(x=iteration, y=likelihood)) + geom_line() + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=min(LL$likelihood), yend=max(LL$likelihood)), color='green', size=0.1)
 ggsave(file='likelihood.pdf',width=5, height=3)
 

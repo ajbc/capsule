@@ -9,9 +9,23 @@ from collections import defaultdict #TODO rm
 
 ## helper functions
 
-def sm(val): #softmax
-    return np.log(1.0 + np.exp(val))
+# softmax
+def M(x):
+    return np.log(1.0 + np.exp(x))
 
+# derivative of softmax
+def dM(x):
+    return np.exp(x) / (1.0 + np.exp(x))
+
+# sigmoid
+def S(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+# derivative of sigmoid
+def dS(x):
+    return - np.exp(-x) / (1.0 + np.exp(-x))**2
+
+#TODO: do we need this? can we just use gammaln
 def lngamma(val):
     if isinstance(val, float):
         return gammaln(val) if val > sys.float_info.min else gammaln(sys.float_info.max)
@@ -28,6 +42,29 @@ def var(a):
     rv = cov(a, a)
     rv[rv == 0] = sys.float_info.min #TODO: is this needed?
     return rv
+
+def pGamma(x, a, b):
+    return a*np.log(b) - lngamma(a) + (a-1)*np.log(x) - b*x
+
+def qgGamma(x, a, b):
+    dMa = dM(a)
+    dMb = dM(b)
+    a = M(a)
+    b = M(b)
+
+    g_a = dMa * (np.log(b) - digamma(a) + np.log(x))
+    g_b = dMb * (a / b - x)
+
+    return (pGamma(x, a, b), g_a, g_b)
+
+def pBernoulli(x, p):
+    return x*np.log(p) + (1.0-x)*np.log(1.0-p)
+
+def qgBernoulli(x, p):
+    dSp = dS(p)
+    p = S(p)
+    return (pBernoulli(x, p), dSp * (x/p + (1.0-x)/(1.0-p)))
+
 
 ## Classes
 
@@ -71,7 +108,7 @@ class Corpus:
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, max_iter, tau, kappa, \
-        a_ent, b_ent, a_evn, b_evn, b_doc, event_duration, \
+        a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
         content, time):
         self.outdir = outdir
         self.batch_size = batch_size
@@ -88,6 +125,7 @@ class Parameters:
         self.a_events = a_evn
         self.b_events = b_evn
         self.b_docs = b_doc
+        self.l_eoccur = eoc
 
         self.d = event_duration
 
@@ -110,6 +148,7 @@ class Parameters:
         f.write("a_events:\t%f\n" % self.a_events)
         f.write("b_events:\t%f\n" % self.b_events)
         f.write("b_docs:\t%f\n" % self.b_docs)
+        f.write("prior on event occurance:\t%f\n" % self.l_eoccur)
         f.write("data, content:\t%s\n" % self.content)
         f.write("data, times:\t%s\n" % self.time)
 
@@ -127,20 +166,17 @@ class Model:
         self.params = params
 
     def init(self):
-        self.t_entity = 0
-        self.t_events = np.zeros(self.data.day_count())
+        # free variational parameters
+        self.a_entity = np.ones((1,self.data.dimension))
+        self.b_entity = np.ones((1,self.data.dimension))
+        self.a_events = np.ones((self.data.day_count(), self.data.dimension))
+        self.b_events = np.ones((self.data.day_count(), self.data.dimension))
+        self.l_eoccur = np.zeros(self.data.day_count())
 
-        self.a_entity = np.ones((1,self.data.dimension)) #* self.params.a_entity
-        self.b_entity = np.ones((1,self.data.dimension)) #* self.params.b_entity
-        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) #* self.params.a_events
-        #self.a_events = np.random.gamma(self.params.a_events, 1.0/self.params.b_events, \
-        #    (self.data.day_count(), self.data.dimension))
-        self.b_events = np.ones((self.data.day_count(), self.data.dimension)) #* self.params.b_events
-
-        self.entity = sm(self.a_entity) / sm(self.b_entity)
-        print "starting entity"
-        print self.entity
-        self.events = sm(self.a_events) / sm(self.b_events)
+        # expected values of goal model parameters
+        self.entity = M(self.a_entity) / M(self.b_entity)
+        self.events = M(self.a_events) / M(self.b_events)
+        self.eoccur = np.ones(self.data.day_count()) * self.params.l_eoccur
 
         self.likelihood_decreasing_count = 0
 
@@ -149,18 +185,9 @@ class Model:
         f_array = np.zeros((self.data.day_count(),1))
         for doc in self.data.validation:
             for day in range(self.data.day_count()):
-                f_array[day] = self.params.f(self.data.days[day], doc.day)
+                f_array[day] = self.params.f(self.data.days[day], doc.day) * self.eoccur[day]
             doc_params = self.entity + sum(f_array*self.events)
             p_doc_a = self.params.b_docs * doc_params
-            p_doc_a[p_doc_a < np.sqrt(sys.float_info.max)] = - np.sqrt(sys.float_info.max)
-            p_doc_a[p_doc_a > np.sqrt(sys.float_info.max)] = np.sqrt(sys.float_info.max)
-            #print "log like components"
-            #print "p doc a", p_doc_a
-            #print "log b  ", np.log(self.params.b_docs)
-            #print "neg gma", (-1* lngamma(p_doc_a))
-            #print "log doc", np.log(doc.rep)
-            #print "b doc  ", self.params.b_docs
-            #print "doc rep", doc.rep
             log_likelihood += np.sum(p_doc_a * np.log(self.params.b_docs) - \
                 lngamma(p_doc_a) + (p_doc_a - 1) * np.log(doc.rep) - \
                 self.params.b_docs * doc.rep)
@@ -210,6 +237,11 @@ class Model:
             fout.write(('\t'.join(["%f"]*len(self.events[i])) +'\n') % tuple(self.events[i]))
         fout.close()
 
+        fout = open(os.path.join(self.params.outdir, "eoccur_%s.tsv" % tag), 'w+')
+        for i in range(len(self.eoccur)):
+            fout.write("%f\n" % self.eoccur[i])
+        fout.close()
+
     def fit(self):
         self.init()
 
@@ -219,134 +251,61 @@ class Model:
         print "starting..."
         while not self.converged(iteration):
             iteration += 1
-            dcount = 0 #TODO rm
-            print "entity", self.entity
 
             lambda_a_events = np.zeros((self.data.day_count(), self.data.dimension))
             lambda_b_events = np.zeros((self.data.day_count(), self.data.dimension))
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
-
-            a_ent = sm(self.a_entity)
-            a_ent[a_ent == 0] = sys.float_info.min
-            a_evt = sm(self.a_events)
-            a_evt[a_evt == 0] = sys.float_info.min
+            lambda_eoccur = np.zeros(self.data.day_count())
 
             # this was not in figure i sent t dave
             for s in range(self.params.num_samples):
-                entity = np.random.gamma(a_ent, 1.0/sm(self.b_entity), \
+                # sample for each latent parameter
+                entity = np.random.gamma(M(self.a_entity), 1.0 / M(self.b_entity), \
                     (1, self.data.dimension))
-                entity[entity == 0] = sys.float_info.min
-                events = np.random.gamma(a_evt, 1.0/sm(self.b_events), \
+                events = np.random.gamma(M(self.a_events), 1.0 / M(self.b_events), \
                     (self.data.day_count(), self.data.dimension))
-                events[events == 0] = sys.float_info.min
-                if s < 10:
-                    print "event 3 sample", events[3]
-                #if s < 3:
-                #    print ("i%d\ts%d\t"%(iteration,s))
-                #    print "entity", entity
-                #    print "events", events
+                eoccur = np.random.binomial(1, S(self.l_eoccur))
 
                 # entity contributions to updates
-                #TODO: redoing sm over and over is really inefficient!
-                p_entity = self.params.a_entity * np.log(self.params.b_entity) - \
-                    lngamma(self.params.a_entity) + \
-                    (self.params.a_entity - 1) * np.log(entity) - \
-                    self.params.b_entity * entity
-                q_entity = a_ent * np.log(sm(self.b_entity)) - \
-                    lngamma(a_ent) + \
-                    (a_ent - 1) * np.log(entity) - \
-                    sm(self.b_entity) * entity
-                if iteration == 3:
-                    print "3 that go into g_entity_a"
-                    print "log of b", np.log(self.b_entity)
-                    print "neg digamma of a", (-1*digamma(self.a_entity))
-                    print "log of entity", np.log(entity)
-                    print "a_entity no sm", self.a_entity
-                    print "a_enty no sm deeriv ndenom)", -1*np.log(1 + np.exp(self.a_entity))
-                g_entity_a = np.log(sm(self.b_entity)) - \
-                    digamma(a_ent) + \
-                    np.log(entity) + \
-                    self.a_entity - np.log(1 + np.exp(self.a_entity))
-                g_entity_b = a_ent / sm(self.b_entity) - entity + \
-                    self.b_entity - np.log(1 + np.exp(self.b_entity))
+                p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
+                q_entity, g_entity_a, g_entity_b = \
+                    qgGamma(entity, self.a_entity, self.b_entity)
 
-                p_events = self.params.a_events * np.log(self.params.b_events) - \
-                    lngamma(self.params.a_events) + \
-                    (self.params.a_events - 1) * np.log(events) - \
-                    self.params.b_events * events
-                q_events = a_evt * np.log(sm(self.b_events)) - \
-                    lngamma(a_evt) + \
-                    (a_evt - 1) * np.log(events) - \
-                    sm(self.b_events) * events
-                g_events_a = np.log(sm(self.b_events)) - \
-                    digamma(a_evt) + \
-                    np.log(events) + \
-                    self.a_events - np.log(1 + np.exp(self.a_events))
-                g_events_b = a_evt / sm(self.b_events) - events + \
-                    self.b_events - np.log(1 + np.exp(self.b_events))
+                # event content contributions to updates
+                p_events = pGamma(events, self.params.a_events, self.params.b_events)
+                q_events, g_events_a, g_events_b = \
+                    qgGamma(events, self.a_events, self.b_events)
+
+                # event occurance cntributions to updates
+                p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
+                q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
+
 
                 #for doc in self.data.docs:
                 for d in range(self.params.batch_size):
                     doc = self.data.random_doc()
                     f_array = np.zeros((self.data.day_count(),1))
                     for day in range(self.data.day_count()):
-                        f_array[day] = self.params.f(self.data.days[day], doc.day)
-
-                    # related to control variates TODO: rethink with reorg; it shouldnt work as is
-                    h_a_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
-                    h_b_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
-                    f_a_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
-                    f_b_events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+                        f_array[day] = self.params.f(self.data.days[day], doc.day) * eoccur[day]
 
                     doc_params = entity + sum(f_array*events)
 
-                    p_doc_a = self.params.b_docs * doc_params
-                    p_doc_a[p_doc_a < -sys.float_info.max**(1./4)] = - sys.float_info.max**(1./4)
-                    p_doc_a[p_doc_a > sys.float_info.max**(1./4)] = sys.float_info.max**(1./4) #TODO: make all thresholdin glike this more formal (single function)
-                    p_doc = p_doc_a * np.log(self.params.b_docs) - \
-                        lngamma(p_doc_a) + \
-                        (p_doc_a - 1) * np.log(doc.rep) - \
-                        self.params.b_docs * doc.rep
-                    p_doc[np.isinf(p_doc)] = - np.sqrt(sys.float_info.max)
-                    p_doc[p_doc < -sys.float_info.max**(1./4)] = - sys.float_info.max**(1./4)
+                    p_doc = pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs)
 
-                    if iteration == 3:
-                        print "lambda components [5]"
-                        print "g", g_entity_a
-                        print "p ent", p_entity
-                        print "# doc", self.data.num_docs()
-                        print "p doc", p_doc
-                        print "q ent", q_entity
                     lambda_a_entity += g_entity_a * (p_entity + self.data.num_docs() * p_doc - q_entity)
                     lambda_b_entity += g_entity_b * (p_entity + self.data.num_docs() * p_doc - q_entity)
 
-                    h_a_events[s] = g_events_a * (f_array != 0)
-                    h_b_events[s] = g_events_b * (f_array != 0)
-                    f_a_events[s] = (f_array != 0) * g_events_a * \
+                    #TODO: think about doing something ther than multiplying by f_array; e.g., should be have event-specific num_docs? or event-specific iteration counts or something?
+                    lambda_a_events += (f_array != 0) * g_events_a * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
-                    f_b_events[s] += (f_array != 0) * g_events_b * \
+                    lambda_b_events += (f_array != 0) * g_events_b * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_a_events += f_a_events[s]
-                    lambda_b_events += f_b_events[s]
-                    '''if f_array[22] != 0 and s<10 and dcount < 10:
-                        dcount += 1
-                        print "sample", s, "document", d, ("(at day %d)\tevent 22 stuff" % doc.day)
-                        print "event", events[22]
-                        print "sample", s, "document", d, ("(at day %d)\tevent 23 stuff" % doc.day)
-                        print "event", events[23]
-                        #print "p    ", p_events[22]
-                        #print "\tterm 1", (self.params.a_events * np.log(self.params.b_events))
-                        #print "\tterm 2", (-1*lngamma(self.params.a_events))
-                        #print "\tterm 3", ((self.params.a_events - 1) * np.log(events))[22]
-                        #print "\tterm 4", (self.params.b_events * events * -1)[22]
-                        #print "q    ", q_events[22]
-                        #print "g (a)", g_events_a[22]
-                        #print "g (b)", g_events_b[22]
-                        #print "f (a)", f_a_events[s][22]
-                        #print "f (b)", f_b_events[s][22]'''
+                    f_array = f_array.flatten()
+                    lambda_eoccur += (f_array != 0) * g_eoccur * \
+                        (p_eoccur + self.data.num_docs() * p_doc.sum() - q_eoccur)
 
-                # this doesn't, but it's correct (or is it?)
+                # this doesn't work, but it's correct (or is it?)
                 #lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
                 #lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
 
@@ -354,49 +313,23 @@ class Model:
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
             lambda_a_events /= self.params.batch_size * self.params.num_samples
             lambda_b_events /= self.params.batch_size * self.params.num_samples
-            #lambda_a_entity /= self.data.num_docs() * self.params.num_samples
-            #lambda_b_entity /= self.data.num_docs() * self.params.num_samples
-            #lambda_a_events /= self.data.num_docs() * self.params.num_samples
-            #lambda_b_events /= self.data.num_docs() * self.params.num_samples
+            lambda_eoccur /= self.params.batch_size * self.params.num_samples
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
             self.b_entity += rho * lambda_b_entity
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events
+            self.l_eoccur += rho * lambda_eoccur
             print "end of iteration"
-            print "event 5 var params"
-            print 'a events', self.a_events[5]
-            print 'b events', self.b_events[5]
             print "*************************************"
 
             min_thresh = 1e-10#sys.float_info.min**(1./4)
             max_thresh = 1e5
-            #self.a_entity[self.a_entity <= min_thresh] = min_thresh#sys.float_info.min
-            #self.b_entity[self.b_entity <= min_thresh] = min_thresh#sys.float_info.min
-            #self.a_events[self.a_events <= min_thresh] = min_thresh#sys.float_info.min
-            #self.b_events[self.b_events <= 1e-5] = 1e-5#sys.float_info.min
-            self.a_entity[self.a_entity >= max_thresh] = max_thresh
-            self.a_events[self.a_events >= max_thresh] = max_thresh
-            #print "a for events  ------- "
-            #for e in range(self.a_events.shape[0]):
-            #    for k in range(self.a_events.shape[1]):
-            #        if self.a_events[e,k] > 1e2:
-            #            print "event", e, "component", k, "is large!", self.a_events[e,k]
-            #print "b for events  ------- "
-            #for e in range(self.b_events.shape[0]):
-            #    for k in range(self.b_events.shape[1]):
-            #        if self.b_events[e,k] > 1e2:
-            #            print "event", e, "component", k, "is large!", self.b_events[e,k]
 
-            # softmax
-            #self.a_entity = np.log(1 + np.exp(self.a_entity))
-            #self.b_entity = np.log(1 + np.exp(self.b_entity))
-            #self.a_events = np.log(1 + np.exp(self.a_events))
-            #self.b_events = np.log(1 + np.exp(self.b_events))
-
-            self.entity = sm(self.a_entity) / sm(self.b_entity)
-            self.events = sm(self.a_events) / sm(self.b_events)
+            self.entity = M(self.a_entity) / M(self.b_entity)
+            self.events = M(self.a_events) / M(self.b_events)
+            self.eoccur = S(self.l_eoccur)
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
@@ -449,6 +382,8 @@ if __name__ == '__main__':
         default=0.3, help = 'rate prior on events; default 0.3')
     parser.add_argument('--b_docs', dest='b_docs', type=float, \
         default=0.3, help = 'rate prior (and partial shape prior) on documents; default 0.3')
+    parser.add_argument('--event_occur', dest='event_occurance', type=float, \
+        default=0.5, help = 'prior to how often events should occur; range [0,1] and default 0.5')
 
     parser.add_argument('--event_dur', dest='event_duration', type=int, \
         default=7, help = 'the length of time an event can be relevant; default 7')
@@ -473,7 +408,7 @@ if __name__ == '__main__':
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
-        args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, \
+        args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.content_filename, args.time_filename)
     params.save(args.seed)
 

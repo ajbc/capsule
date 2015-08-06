@@ -201,7 +201,7 @@ Recall the following for reference.
 \mathcal{M}(a)\log \mathcal{M}(b) - \log\Gamma \mathcal{M}(a) +(\mathcal{M}(a)-1)\log x -\mathcal{M}(b)x
 \]
 \[\frac{d}{d a}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) = 
-\mathcal{M}'(a)\log \mathcal{M}(b) - \frac{\Psi \mathcal{M}(a)}{\Gamma \mathcal{M}(a)}\mathcal{M}'(a) + \mathcal{M}'(a)\log x
+\mathcal{M}'(a)\log \mathcal{M}(b) - \Psi \mathcal{M}(a)\mathcal{M}'(a) + \mathcal{M}'(a)\log x
 \]
 \[\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) = 
 \mathcal{M}(a)\frac{\mathcal{M}'(b)}{\mathcal{M}(b)} -\mathcal{M}'(b)x
@@ -234,10 +234,10 @@ Probabilities of the latent variables given the free variational parameters.
 Gradients of variational distributions.
 %TODO finish this eqn (not done putting M in....
 \begin{align}
-\nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \left\langle \mathcal{M}'(\lambda^{\phi,\alpha}_k)\left(\log \mathcal{M}(\lambda^{\phi,\beta}_k) - \frac{\Psi( \mathcal{M}(\lambda^{\phi,\alpha}_k))}{\Gamma(\mathcal{M}(\lambda^{\phi,\alpha}_k))} + \log \phi_{0k}[s]\right),
+\nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \left\langle \mathcal{M}'(\lambda^{\phi,\alpha}_k)\left(\log \mathcal{M}(\lambda^{\phi,\beta}_k) - \Psi(\mathcal{M}(\lambda^{\phi,\alpha}_k)) + \log \phi_{0k}[s]\right),
 \mathcal{M}'(\lambda^{\phi,\beta}_k)\left(\frac{\mathcal{M}(\lambda^{\phi,\alpha}_k)}{\mathcal{M}(\lambda^{\phi,\beta}_k)} - \phi_{0k}[s]\right) \right\rangle \label{eq:g.phi} \\
  \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik})
- &= \left\langle \mathcal{M}'(\lambda^{\pi_,\alpha}_{ik})\left(\log \mathcal{M}(\lambda^{\pi,\beta}_{ik}) - \frac{\Psi(\mathcal{M}(\lambda^{\pi,\alpha}_{ik}))}{\Gamma(\mathcal{M}(\lambda^{\pi,\alpha}_{ik}))} + \log \pi_{ik}[s]\right), \mathcal{M}'(\lambda^{\pi_,\beta}_{ik})\left(\frac{\mathcal{M}(\lambda^{\pi,\alpha}_{ik})}{\mathcal{M}(\lambda^{\pi,\beta}_{ik})} - \pi_{ik}[s] \right) \right\rangle\label{eq:g.pi}\\
+ &= \left\langle \mathcal{M}'(\lambda^{\pi_,\alpha}_{ik})\left(\log \mathcal{M}(\lambda^{\pi,\beta}_{ik}) - \Psi(\mathcal{M}(\lambda^{\pi,\alpha}_{ik})) + \log \pi_{ik}[s]\right), \mathcal{M}'(\lambda^{\pi_,\beta}_{ik})\left(\frac{\mathcal{M}(\lambda^{\pi,\alpha}_{ik})}{\mathcal{M}(\lambda^{\pi,\beta}_{ik})} - \pi_{ik}[s] \right) \right\rangle\label{eq:g.pi}\\
   \nabla_{\lambda^\epsilon_{ik}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i})
  &= \epsilon_i\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{\mathcal{S}(\lambda^\epsilon_{i})} + (1-\epsilon_i)\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{1-\mathcal{S}(\lambda^\epsilon_{i})}
  \label{eq:g.epsilon}\\
