@@ -9,6 +9,9 @@ from collections import defaultdict #TODO rm
 
 ## helper functions
 
+def sm(val): #softmax
+    return np.log(1.0 + np.exp(val))
+
 def lngamma(val):
     if isinstance(val, float):
         return gammaln(val) if val > sys.float_info.min else gammaln(sys.float_info.max)
@@ -134,10 +137,10 @@ class Model:
         #    (self.data.day_count(), self.data.dimension))
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) #* self.params.b_events
 
-        self.entity = self.a_entity / self.b_entity
+        self.entity = sm(self.a_entity) / sm(self.b_entity)
         print "starting entity"
         print self.entity
-        self.events = self.a_events / self.b_events
+        self.events = sm(self.a_events) / sm(self.b_events)
 
         self.likelihood_decreasing_count = 0
 
@@ -224,12 +227,17 @@ class Model:
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
 
+            a_ent = sm(self.a_entity)
+            a_ent[a_ent == 0] = sys.float_info.min
+            a_evt = sm(self.a_events)
+            a_evt[a_evt == 0] = sys.float_info.min
+
             # this was not in figure i sent t dave
             for s in range(self.params.num_samples):
-                entity = np.random.gamma(self.a_entity, 1.0/self.b_entity, \
+                entity = np.random.gamma(a_ent, 1.0/sm(self.b_entity), \
                     (1, self.data.dimension))
                 entity[entity == 0] = sys.float_info.min
-                events = np.random.gamma(self.a_events, 1.0/self.b_events, \
+                events = np.random.gamma(a_evt, 1.0/sm(self.b_events), \
                     (self.data.day_count(), self.data.dimension))
                 events[events == 0] = sys.float_info.min
                 if s < 10:
@@ -240,36 +248,43 @@ class Model:
                 #    print "events", events
 
                 # entity contributions to updates
+                #TODO: redoing sm over and over is really inefficient!
                 p_entity = self.params.a_entity * np.log(self.params.b_entity) - \
                     lngamma(self.params.a_entity) + \
                     (self.params.a_entity - 1) * np.log(entity) - \
                     self.params.b_entity * entity
-                q_entity = self.a_entity * np.log(self.b_entity) - \
-                    lngamma(self.a_entity) + \
-                    (self.a_entity - 1) * np.log(entity) - \
-                    self.b_entity * entity
-                #if iteration == 2:
-                #    print "3 that go into g_entity_a"
-                #    print "log of b", np.log(self.b_entity)
-                #    print "neg digamma of a", (-1*digamma(self.a_entity))
-                #    print "log of entity", np.log(entity)
-                g_entity_a = np.log(self.b_entity) - \
-                    digamma(self.a_entity) + \
-                    np.log(entity)
-                g_entity_b = self.a_entity / self.b_entity - entity
+                q_entity = a_ent * np.log(sm(self.b_entity)) - \
+                    lngamma(a_ent) + \
+                    (a_ent - 1) * np.log(entity) - \
+                    sm(self.b_entity) * entity
+                if iteration == 3:
+                    print "3 that go into g_entity_a"
+                    print "log of b", np.log(self.b_entity)
+                    print "neg digamma of a", (-1*digamma(self.a_entity))
+                    print "log of entity", np.log(entity)
+                    print "a_entity no sm", self.a_entity
+                    print "a_enty no sm deeriv ndenom)", -1*np.log(1 + np.exp(self.a_entity))
+                g_entity_a = np.log(sm(self.b_entity)) - \
+                    digamma(a_ent) + \
+                    np.log(entity) + \
+                    self.a_entity - np.log(1 + np.exp(self.a_entity))
+                g_entity_b = a_ent / sm(self.b_entity) - entity + \
+                    self.b_entity - np.log(1 + np.exp(self.b_entity))
 
                 p_events = self.params.a_events * np.log(self.params.b_events) - \
                     lngamma(self.params.a_events) + \
                     (self.params.a_events - 1) * np.log(events) - \
                     self.params.b_events * events
-                q_events = self.a_events * np.log(self.b_events) - \
-                    lngamma(self.a_events) + \
-                    (self.a_events - 1) * np.log(events) - \
-                    self.b_events * events
-                g_events_a = np.log(self.b_events) - \
-                    digamma(self.a_events) + \
-                    np.log(events)
-                g_events_b = self.a_events / self.b_events - events
+                q_events = a_evt * np.log(sm(self.b_events)) - \
+                    lngamma(a_evt) + \
+                    (a_evt - 1) * np.log(events) - \
+                    sm(self.b_events) * events
+                g_events_a = np.log(sm(self.b_events)) - \
+                    digamma(a_evt) + \
+                    np.log(events) + \
+                    self.a_events - np.log(1 + np.exp(self.a_events))
+                g_events_b = a_evt / sm(self.b_events) - events + \
+                    self.b_events - np.log(1 + np.exp(self.b_events))
 
                 #for doc in self.data.docs:
                 for d in range(self.params.batch_size):
@@ -296,13 +311,13 @@ class Model:
                     p_doc[np.isinf(p_doc)] = - np.sqrt(sys.float_info.max)
                     p_doc[p_doc < -sys.float_info.max**(1./4)] = - sys.float_info.max**(1./4)
 
-                    #if iteration == 2:
-                    #    print "lambda components [5]"
-                    #    print "g", g_entity_a
-                    #    print "p ent", p_entity
-                    #    print "# doc", self.data.num_docs()
-                    #    print "p doc", p_doc
-                    #    print "q ent", q_entity
+                    if iteration == 3:
+                        print "lambda components [5]"
+                        print "g", g_entity_a
+                        print "p ent", p_entity
+                        print "# doc", self.data.num_docs()
+                        print "p doc", p_doc
+                        print "q ent", q_entity
                     lambda_a_entity += g_entity_a * (p_entity + self.data.num_docs() * p_doc - q_entity)
                     lambda_b_entity += g_entity_b * (p_entity + self.data.num_docs() * p_doc - q_entity)
 
@@ -356,12 +371,12 @@ class Model:
             print "*************************************"
 
             min_thresh = 1e-10#sys.float_info.min**(1./4)
-            max_thresh = 100
-            self.a_entity[self.a_entity <= min_thresh] = min_thresh#sys.float_info.min
-            self.b_entity[self.b_entity <= min_thresh] = min_thresh#sys.float_info.min
-            self.a_events[self.a_events <= min_thresh] = min_thresh#sys.float_info.min
-            self.b_events[self.b_events <= 1e-5] = 1e-5#sys.float_info.min
-            #self.a_entity[self.a_entity >= max_thresh] = max_thresh
+            max_thresh = 1e5
+            #self.a_entity[self.a_entity <= min_thresh] = min_thresh#sys.float_info.min
+            #self.b_entity[self.b_entity <= min_thresh] = min_thresh#sys.float_info.min
+            #self.a_events[self.a_events <= min_thresh] = min_thresh#sys.float_info.min
+            #self.b_events[self.b_events <= 1e-5] = 1e-5#sys.float_info.min
+            self.a_entity[self.a_entity >= max_thresh] = max_thresh
             self.a_events[self.a_events >= max_thresh] = max_thresh
             #print "a for events  ------- "
             #for e in range(self.a_events.shape[0]):
@@ -374,9 +389,14 @@ class Model:
             #        if self.b_events[e,k] > 1e2:
             #            print "event", e, "component", k, "is large!", self.b_events[e,k]
 
+            # softmax
+            #self.a_entity = np.log(1 + np.exp(self.a_entity))
+            #self.b_entity = np.log(1 + np.exp(self.b_entity))
+            #self.a_events = np.log(1 + np.exp(self.a_events))
+            #self.b_events = np.log(1 + np.exp(self.b_events))
 
-            self.entity = self.a_entity / self.b_entity
-            self.events = self.a_events / self.b_events
+            self.entity = sm(self.a_entity) / sm(self.b_entity)
+            self.events = sm(self.a_events) / sm(self.b_events)
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
