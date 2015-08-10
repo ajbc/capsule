@@ -44,7 +44,14 @@ def var(a):
     return rv
 
 def pGamma(x, a, b):
-    return a*np.log(b) - lngamma(a) + (a-1)*np.log(x) - b*x
+    if (x == 0).any() or (np.array(b) == 0).any():
+        #print a*np.log(b)
+        #print - lngamma(a)
+        x[x==0] = sys.float_info.min
+        #print x
+        #print (a-1.0)*np.log(x)
+        #print - b*x
+    return a*np.log(b) - lngamma(a) + (a-1.0)*np.log(x) - b*x
 
 def qgGamma(x, a, b):
     dMa = dM(a)
@@ -58,6 +65,8 @@ def qgGamma(x, a, b):
     return (pGamma(x, a, b), g_a, g_b)
 
 def pBernoulli(x, p):
+    if (isinstance(p, float) and p==1) or (isinstance(p, np.ndarray) and p.all()==1):
+        return x*np.log(p)
     return x*np.log(p) + (1.0-x)*np.log(1.0-p)
 
 def qgBernoulli(x, p):
@@ -187,10 +196,7 @@ class Model:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day) * self.eoccur[day]
             doc_params = self.entity + sum(f_array*self.events)
-            p_doc_a = self.params.b_docs * doc_params
-            log_likelihood += np.sum(p_doc_a * np.log(self.params.b_docs) - \
-                lngamma(p_doc_a) + (p_doc_a - 1) * np.log(doc.rep) - \
-                self.params.b_docs * doc.rep)
+            log_likelihood += np.sum(pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs))
         return log_likelihood
 
     def converged(self, iteration):
@@ -212,7 +218,7 @@ class Model:
         if delta < 0:
             print "likelihood decreasing (bad)"
             self.likelihood_decreasing_count += 1
-            if self.likelihood_decreasing_count == 3:
+            if iteration > 50 and self.likelihood_decreasing_count == 3: #TODO: rm 20 thresh
                 print "STOP: 3 consecutive iterations of increasing likelihood"
                 return True
             return False
@@ -246,6 +252,7 @@ class Model:
         self.init()
 
         iteration = 0
+        days_seen = np.zeros((self.data.day_count(),1))
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
         print "starting..."
@@ -257,6 +264,8 @@ class Model:
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
             lambda_eoccur = np.zeros(self.data.day_count())
+
+            day_counts = np.zeros((self.data.day_count(),1))
 
             # this was not in figure i sent t dave
             for s in range(self.params.num_samples):
@@ -287,7 +296,12 @@ class Model:
                     doc = self.data.random_doc()
                     f_array = np.zeros((self.data.day_count(),1))
                     for day in range(self.data.day_count()):
-                        f_array[day] = self.params.f(self.data.days[day], doc.day) * eoccur[day]
+                        f_array[day] = self.params.f(self.data.days[day], doc.day)
+                        #day_counts[day] += f_array[day]
+                        if f_array[day] != 0:
+                            day_counts[day] += 1
+                        f_array[day] *= eoccur[day]
+
 
                     doc_params = entity + sum(f_array*events)
 
@@ -297,12 +311,18 @@ class Model:
                     lambda_b_entity += g_entity_b * (p_entity + self.data.num_docs() * p_doc - q_entity)
 
                     #TODO: think about doing something ther than multiplying by f_array; e.g., should be have event-specific num_docs? or event-specific iteration counts or something?
-                    lambda_a_events += (f_array != 0) * g_events_a * \
+                    #lambda_a_events += (f_array != 0) * g_events_a * \
+                    #    (p_events + self.data.num_docs() * p_doc - q_events)
+                    lambda_a_events += g_events_a * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_b_events += (f_array != 0) * g_events_b * \
+                    #lambda_b_events += (f_array != 0) * g_events_b * \
+                    #    (p_events + self.data.num_docs() * p_doc - q_events)
+                    lambda_b_events += g_events_b * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
                     f_array = f_array.flatten()
-                    lambda_eoccur += (f_array != 0) * g_eoccur * \
+                    #lambda_eoccur += (f_array != 0) * g_eoccur * \
+                    #    (p_eoccur + self.data.num_docs() * p_doc.sum() - q_eoccur)
+                    lambda_eoccur += g_eoccur * \
                         (p_eoccur + self.data.num_docs() * p_doc.sum() - q_eoccur)
 
                 # this doesn't work, but it's correct (or is it?)
@@ -311,15 +331,23 @@ class Model:
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
+            #TODO: event stuff should be done a little differently.  Divide only my number of relevant docs we've seen for each bucket; tally as we go
             lambda_a_events /= self.params.batch_size * self.params.num_samples
             lambda_b_events /= self.params.batch_size * self.params.num_samples
             lambda_eoccur /= self.params.batch_size * self.params.num_samples
+            #lambda_a_events /= day_counts
+            #lambda_b_events /= day_counts
+            #lambda_eoccur /= day_counts.flatten()
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
             self.b_entity += rho * lambda_b_entity
+
+            #days_seen += day_counts
+            #rho = (days_seen + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events
+            #self.l_eoccur += rho.flatten() * lambda_eoccur
             self.l_eoccur += rho * lambda_eoccur
             print "end of iteration"
             print "*************************************"
