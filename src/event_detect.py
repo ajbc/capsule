@@ -13,11 +13,12 @@ from collections import defaultdict #TODO rm
 def M(x):
     x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
     rv = np.log(1.0 + np.exp(x))
-    rv[rv == 0] = sys.float_info.min
+    rv[rv == 0] = (sys.float_info.min)**0.5
     return rv
 
 # derivative of softmax
 def dM(x):
+    x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
     return np.exp(x) / (1.0 + np.exp(x))
 
 # sigmoid
@@ -52,12 +53,22 @@ def pGamma(x, a, b):
     return a*b*np.log(b) - lngamma(a*b) + (a*b-1.0)*np.log(x) - b*x
 
 def qgGamma(x, a, b):
+    dMb = dM(b)
+    b = M(b)
     dMa = dM(a) * b
-    a = M(a)*b
+    a = M(a) * b
 
     g_a = dMa * (np.log(b) - digamma(a) + np.log(x))
+    g_b = dMb * a * ((np.log(b) + 1.0) - digamma(a) + np.log(x) - x)
 
-    return (pGamma(x, a, b), g_a)
+    return (pGamma(x, a, b), g_a, g_b)
+
+def EGamma(a, b):
+    num = M(a) * M(b)
+    den = M(b)
+
+    num[num > 1] = 1 #TODO: do we really need this threshold?
+    return num / den
 
 def pBernoulli(x, p):
     if (isinstance(p, float) and p==1) or (isinstance(p, np.ndarray) and p.all()==1):
@@ -176,26 +187,34 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.ones((1,self.data.dimension))
-        self.a_events = np.ones((self.data.day_count(), self.data.dimension))
+        self.a_entity = np.zeros((1,self.data.dimension))
+        self.b_entity = np.zeros((1,self.data.dimension))
+        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * sys.float_info.max * -1
+        self.b_events = np.zeros((self.data.day_count(), self.data.dimension))
         self.l_eoccur = np.zeros(self.data.day_count())
 
         # expected values of goal model parameters
-        self.entity = M(self.a_entity) / self.params.b_entity
-        self.events = M(self.a_events) / self.params.b_events
-        self.eoccur = np.ones(self.data.day_count()) * self.params.l_eoccur
-        print self.eoccur
+        self.entity = EGamma(self.a_entity, self.b_entity)
+        self.events = EGamma(self.a_events, self.b_events)
+        self.eoccur = S(self.l_eoccur)
 
         self.likelihood_decreasing_count = 0
 
     def compute_likelihood(self):
         log_likelihood = 0
+        LL = np.zeros(self.data.dimension)
         f_array = np.zeros((self.data.day_count(),1))
         for doc in self.data.validation:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day) * self.eoccur[day]
+            #print self.entity
+            #print f_array*self.events
+            #print f_array, self.events
+            #print sum(f_array*self.events)
             doc_params = self.entity + sum(f_array*self.events)
             log_likelihood += np.sum(pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs))
+            LL += np.sum(pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs), 0)
+        print "LL", LL
         return log_likelihood
 
     def converged(self, iteration):
@@ -217,13 +236,14 @@ class Model:
         if delta < 0:
             print "likelihood decreasing (bad)"
             self.likelihood_decreasing_count += 1
-            if iteration > 50 and self.likelihood_decreasing_count == 3: #TODO: rm 20 thresh
+            if iteration > 30 and self.likelihood_decreasing_count == 3:
                 print "STOP: 3 consecutive iterations of increasing likelihood"
                 return True
             return False
         else:
             self.likelihood_decreasing_count = 0
 
+        #if iteration > 20 and delta < self.params.convergence_thresh:
         if iteration > 20 and delta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
@@ -259,29 +279,35 @@ class Model:
             iteration += 1
 
             lambda_a_events = np.zeros((self.data.day_count(), self.data.dimension))
+            lambda_b_events = np.zeros((self.data.day_count(), self.data.dimension))
             lambda_a_entity = np.zeros((1, self.data.dimension))
+            lambda_b_entity = np.zeros((1, self.data.dimension))
             lambda_eoccur = np.zeros(self.data.day_count())
+            #print "lambda_eoccur", lambda_eoccur
 
             day_counts = np.zeros((self.data.day_count(),1))
 
             # this was not in figure i sent t dave
+            print 'a', self.a_entity
+            print 'b', self.b_entity
             for s in range(self.params.num_samples):
                 # sample for each latent parameter
-                entity = np.random.gamma(M(self.a_entity), 1.0 / self.params.b_entity, \
+                entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), 1.0 / M(self.b_entity), \
                     (1, self.data.dimension))
-                events = np.random.gamma(M(self.a_events), 1.0 / self.params.b_events, \
+                print entity
+                events = np.random.gamma(M(self.a_events) * M(self.b_events), 1.0 / M(self.b_events), \
                     (self.data.day_count(), self.data.dimension))
                 eoccur = np.random.binomial(1, S(self.l_eoccur))
 
                 # entity contributions to updates
                 p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
-                q_entity, g_entity_a = \
-                    qgGamma(entity, self.a_entity, self.params.b_entity)
+                q_entity, g_entity_a, g_entity_b = \
+                    qgGamma(entity, self.a_entity, self.b_entity)
 
                 # event content contributions to updates
                 p_events = pGamma(events, self.params.a_events, self.params.b_events)
-                q_events, g_events_a = \
-                    qgGamma(events, self.a_events, self.params.b_events)
+                q_events, g_events_a, g_events_b = \
+                    qgGamma(events, self.a_events, self.b_events)
 
                 # event occurance cntributions to updates
                 p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
@@ -301,15 +327,42 @@ class Model:
 
 
                     doc_params = entity + sum(f_array*events)
-
+                    #print "doc", d
+                    #print doc_params
                     p_doc = pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs)
+                    #print "p_doc", p_doc, p_doc.sum()
+                    p_doc_eoccur = ((f_array !=0) * p_doc).sum()
 
+                    before = lambda_a_entity +0.001
                     lambda_a_entity += g_entity_a * (p_entity + self.data.num_docs() * p_doc - q_entity)
+                    change = (lambda_a_entity - before ) / before
+                    if abs(change).sum() > 10:
+                        print "--"
+                        print "doc", d, "sample", s
+                        print "(sample's entity)", entity
+                        print "(doc)", doc.rep
+                        print "(params)", doc_params
+                        #print "change", change
+                        print "(added)", (g_entity_a * (p_entity + self.data.num_docs() * p_doc - q_entity))
+                        print "--"
+                    lambda_b_entity += g_entity_b * (p_entity + self.data.num_docs() * p_doc - q_entity)
 
                     #TODO: think about doing something ther than multiplying by f_array; e.g., should be have event-specific num_docs? or event-specific iteration counts or something?
                     #lambda_a_events += (f_array != 0) * g_events_a * \
                     #    (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_a_events += g_events_a * \
+                    lambda_a_events += (f_array != 0) * g_events_a * \
+                        (p_events + self.data.num_docs() * p_doc - q_events)
+                    #if (sum(((f_array != 0)*g_events_a)[10]) + sum(((f_array != 0)*g_events_b)[10]) != 0):
+                    #    print "event 10 doc", d
+                    #    print "g", ((f_array != 0)*g_events_a)[10], ((f_array != 0)*g_events_b)[10]
+                    #    print "p_e", p_events[10]
+                    #    print "p_d", p_doc
+                    #    print "q", q_events[10]
+                    #    print "total", ((f_array != 0) * g_events_a * \
+                    #    (p_events + self.data.num_docs() * p_doc - q_events))[10]
+                    #    print 'result', lambda_a_events[10]
+                    #    print '---'
+                    lambda_b_events += (f_array != 0) * g_events_b * \
                         (p_events + self.data.num_docs() * p_doc - q_events)
                     #lambda_b_events += (f_array != 0) * g_events_b * \
                     #    (p_events + self.data.num_docs() * p_doc - q_events)
@@ -317,13 +370,19 @@ class Model:
                     #lambda_eoccur += (f_array != 0) * g_eoccur * \
                     #    (p_eoccur + self.data.num_docs() * p_doc.sum() - q_eoccur)
                     #print "lambda eocur breakdown"
+                    #print "iteration", iteration, "s", s, "d", d
+                    #print (f_array != 0)
                     #print g_eoccur
                     #print p_eoccur
                     #print q_eoccur
-                    #print p_doc.sum()
-                    lambda_eoccur += g_eoccur * \
-                        (p_eoccur + p_doc.sum() - q_eoccur)
-                        #(p_eoccur + self.data.num_docs() * p_doc.sum() - q_eoccur)
+                    #print self.data.num_docs()
+                    #print p_doc_eoccur
+                    lambda_eoccur += (f_array != 0) * g_eoccur * \
+                        (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
+                    #print "adding", ((f_array != 0) * g_eoccur * \
+                    #    (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur))
+                    #print "lambda_eoccur", lambda_eoccur
+                        #(p_eoccur + p_doc.sum() - q_eoccur)
                     #print g_eoccur * (p_eoccur + p_doc.sum() - q_eoccur)
                     #print lambda_eoccur
                     #print "---"
@@ -334,8 +393,12 @@ class Model:
                 #lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
+            #print 'lambda a for event 10', lambda_a_events[10]
+            #print 'lambda b for event 10', lambda_b_events[10]
+            lambda_b_entity /= self.params.batch_size * self.params.num_samples
             #TODO: event stuff should be done a little differently.  Divide only my number of relevant docs we've seen for each bucket; tally as we go
             lambda_a_events /= self.params.batch_size * self.params.num_samples
+            lambda_b_events /= self.params.batch_size * self.params.num_samples
             lambda_eoccur /= self.params.batch_size * self.params.num_samples
             #lambda_a_events /= day_counts
             #lambda_b_events /= day_counts
@@ -343,21 +406,28 @@ class Model:
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
+            #self.b_entity += rho * lambda_b_entity #BNOB TODO: put back
 
-            #days_seen += day_counts
-            #rho = (days_seen + self.params.tau) ** (-1.0 * self.params.kappa)
-            self.a_events += rho * lambda_a_events
-            #self.l_eoccur += rho.flatten() * lambda_eoccur
-
-            self.l_eoccur += rho * lambda_eoccur
+            #TESTING w/ fixed events
+            #self.a_events += rho * lambda_a_events
+            #self.b_events += rho * lambda_b_events #BNOB TODO put back
+            #self.l_eoccur += rho * lambda_eoccur
 
             min_thresh = 1e-10#sys.float_info.min**(1./4)
             max_thresh = 1e5
 
-            self.entity = M(self.a_entity) / self.params.b_entity
-            self.events = M(self.a_events) / self.params.b_events
+            #print "bout to overflow"
+            #print M(self.a_entity) * M(self.b_entity)
+            #print M(self.b_entity)
+            self.entity = EGamma(self.a_entity, self.b_entity)
+            #print "setting self.events from"
+            #print "events a10",self.a_events[10]
+            #print "events b10",self.b_events[10]
+
+            self.events = EGamma(self.a_events, self.b_events)
+            #print "events", self.events[10]
             self.eoccur = S(self.l_eoccur)
-            print self.eoccur
+            #print self.eoccur
             print "end of iteration"
             print "*************************************"
 
@@ -405,13 +475,13 @@ if __name__ == '__main__':
     parser.add_argument('--a_entities', dest='a_entities', type=float, \
         default=1.0, help = 'shape prior on entities; default 1')
     parser.add_argument('--b_entities', dest='b_entities', type=float, \
-        default=10, help = 'rate prior on entities; default 10')
+        default=1.0, help = 'rate prior on entities; default 1')
     parser.add_argument('--a_events', dest='a_events', type=float, \
         default=1.0, help = 'shape prior on events; default 1')
     parser.add_argument('--b_events', dest='b_events', type=float, \
-        default=10, help = 'rate prior on events; default 10')
+        default=1.0, help = 'rate prior on events; default 1')
     parser.add_argument('--b_docs', dest='b_docs', type=float, \
-        default=10.0, help = 'rate prior (and partial shape prior) on documents; default 10')
+        default=1.0, help = 'rate prior (and partial shape prior) on documents; default 1')
     parser.add_argument('--event_occur', dest='event_occurance', type=float, \
         default=0.5, help = 'prior to how often events should occur; range [0,1] and default 0.5')
 
