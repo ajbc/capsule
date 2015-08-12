@@ -293,6 +293,8 @@ class Model:
 
                 h_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
                 f_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
+                h_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
+                f_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
                 #h_a_events = np.zeros((self.params.num_samples, \
                 #    self.data.day_count(), self.data.dimension))
                 #f_a_events = np.zeros((self.params.num_samples, \
@@ -330,11 +332,13 @@ class Model:
                     p_doc_eoccur = ((f_array != 0) * p_doc).sum()
 
                     h_a_entity[s] = g_entity_a
+                    h_b_entity[s] = g_entity_b
                     f_a_entity[s] = g_entity_a * (p_entity + \
                         p_doc - q_entity)
-                    lambda_a_entity += f_a_entity[s]
-                    lambda_b_entity += g_entity_b * (p_entity + \
+                    f_b_entity[s] = g_entity_b * (p_entity + \
                         p_doc - q_entity)
+                    lambda_a_entity += f_a_entity[s]
+                    lambda_b_entity += f_b_entity[s]
 
                     #h_a_events[s] = (f_array != 0) * g_events_a
                     lambda_a_events += (f_array != 0) * g_events_a * \
@@ -350,6 +354,7 @@ class Model:
                 #print "COV", cov(f_a_entity, h_a_entity)
                 #print lambda_a_entity
                 lambda_a_entity -= sum(h_a_entity) * cov(f_a_entity, h_a_entity) / var(h_a_entity)
+                lambda_b_entity -= sum(h_b_entity) * cov(f_b_entity, h_b_entity) / var(h_b_entity)
                 #print lambda_a_entity
                 #lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
                 #lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
@@ -362,7 +367,7 @@ class Model:
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
-            #self.b_entity += rho * lambda_b_entity #BNOB TODO: put back
+            self.b_entity += rho * lambda_b_entity #BNOB TODO: put back
 
             #TESTING w/ fixed events
             #self.a_events += rho * lambda_a_events
