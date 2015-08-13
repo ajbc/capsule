@@ -21,6 +21,11 @@ def dM(x):
     x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
     return np.exp(x) / (1.0 + np.exp(x))
 
+# inverse of softmax
+def iM(x):
+    return np.log(np.exp(x) - 1.0)
+
+
 # sigmoid
 def S(x):
     return 1.0 / (1.0 + np.exp(-x))
@@ -28,6 +33,11 @@ def S(x):
 # derivative of sigmoid
 def dS(x):
     return - np.exp(-x) / (1.0 + np.exp(-x))**2
+
+# inverse of sigmoid
+def iS(x):
+    return np.log(1.0 / x - 1.0)
+
 
 #TODO: do we need this? can we just use gammaln
 def lngamma(val):
@@ -187,11 +197,13 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.zeros((1,self.data.dimension))
-        self.b_entity = np.zeros((1,self.data.dimension))
-        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * sys.float_info.max * -1
-        self.b_events = np.zeros((self.data.day_count(), self.data.dimension))
-        self.l_eoccur = np.zeros(self.data.day_count())
+        self.a_entity = np.ones((1,self.data.dimension)) * iM(self.params.a_entity)
+        self.b_entity = np.ones((1,self.data.dimension)) * iM(self.params.b_entity)
+        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
+            iM(self.params.a_events)
+        self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
+            iM(self.params.b_events)
+        self.l_eoccur = np.ones(self.data.day_count()) * iS(self.params.l_eoccur)
 
         # expected values of goal model parameters
         self.entity = EGamma(self.a_entity, self.b_entity)
@@ -295,10 +307,14 @@ class Model:
                 f_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
                 h_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
                 f_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
-                #h_a_events = np.zeros((self.params.num_samples, \
-                #    self.data.day_count(), self.data.dimension))
-                #f_a_events = np.zeros((self.params.num_samples, \
-                #    self.data.day_count(), self.data.dimension))
+                h_a_events = np.zeros((self.params.num_samples, \
+                    self.data.day_count(), self.data.dimension))
+                f_a_events = np.zeros((self.params.num_samples, \
+                    self.data.day_count(), self.data.dimension))
+                h_b_events = np.zeros((self.params.num_samples, \
+                    self.data.day_count(), self.data.dimension))
+                f_b_events = np.zeros((self.params.num_samples, \
+                    self.data.day_count(), self.data.dimension))
 
                 for s in range(self.params.num_samples):
                     # sample for each latent parameter
@@ -340,11 +356,15 @@ class Model:
                     lambda_a_entity += f_a_entity[s]
                     lambda_b_entity += f_b_entity[s]
 
-                    #h_a_events[s] = (f_array != 0) * g_events_a
-                    lambda_a_events += (f_array != 0) * g_events_a * \
-                        (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_b_events += (f_array != 0) * g_events_b * \
-                        (p_events + self.data.num_docs() * p_doc - q_events)
+                    h_a_events[s] = (f_array != 0) * g_events_a
+                    h_b_events[s] = (f_array != 0) * g_events_b
+                    f_a_events[s] = (f_array != 0) * g_events_a * \
+                        (p_events + p_doc - q_events)
+                    f_b_events[s] = (f_array != 0) * g_events_b * \
+                        (p_events + p_doc - q_events)
+                    lambda_a_events += f_a_events[s]
+                    lambda_b_events += f_b_events[s]
+
                     f_array = f_array.flatten()
                     lambda_eoccur += (f_array != 0) * g_eoccur * \
                         (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
@@ -356,8 +376,8 @@ class Model:
                 lambda_a_entity -= sum(h_a_entity) * cov(f_a_entity, h_a_entity) / var(h_a_entity)
                 lambda_b_entity -= sum(h_b_entity) * cov(f_b_entity, h_b_entity) / var(h_b_entity)
                 #print lambda_a_entity
-                #lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
-                #lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
+                lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
+                lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
@@ -367,11 +387,11 @@ class Model:
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
-            self.b_entity += rho * lambda_b_entity #BNOB TODO: put back
+            self.b_entity += rho * lambda_b_entity
 
             #TESTING w/ fixed events
-            #self.a_events += rho * lambda_a_events
-            #self.b_events += rho * lambda_b_events #BNOB TODO put back
+            self.a_events += rho * lambda_a_events
+            self.b_events += rho * lambda_b_events #BNOB TODO put back
             #self.l_eoccur += rho * lambda_eoccur
 
             min_thresh = 1e-10#sys.float_info.min**(1./4)
@@ -458,6 +478,10 @@ if __name__ == '__main__':
     os.makedirs(args.outdir)
 
     # create an object of model parameters
+    #def __init__(self, outdir, batch_size, num_samples, save_freq, \
+    #    conv_thresh, max_iter, tau, kappa, \
+    #    a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
+    #    content, time):
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
