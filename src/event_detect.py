@@ -36,7 +36,7 @@ def dS(x):
 
 # inverse of sigmoid
 def iS(x):
-    return np.log(1.0 / x - 1.0)
+    return -1.0 *np.log(1.0 / x - 1.0)
 
 
 #TODO: do we need this? can we just use gammaln
@@ -367,7 +367,7 @@ class Model:
 
                     f_array = f_array.flatten()
                     lambda_eoccur += (f_array != 0) * g_eoccur * \
-                        (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
+                        (p_eoccur + p_doc_eoccur - q_eoccur)
 
                 #print "H", sum(h_a_entity)
                 #print "VAR", var(h_a_entity)
@@ -392,7 +392,7 @@ class Model:
             #TESTING w/ fixed events
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events #BNOB TODO put back
-            #self.l_eoccur += rho * lambda_eoccur
+            self.l_eoccur += rho * lambda_eoccur
 
             min_thresh = 1e-10#sys.float_info.min**(1./4)
             max_thresh = 1e5
