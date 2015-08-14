@@ -2,6 +2,7 @@ import numpy as np
 import shutil, os, sys
 from datetime import datetime as dt
 from scipy.special import gammaln, digamma
+from scipy.misc import factorial
 
 import warnings #TODO rm
 warnings.filterwarnings('error')
@@ -24,19 +25,6 @@ def dM(x):
 # inverse of softmax
 def iM(x):
     return np.log(np.exp(x) - 1.0)
-
-
-# sigmoid
-def S(x):
-    return 1.0 / (1.0 + np.exp(-x))
-
-# derivative of sigmoid
-def dS(x):
-    return - np.exp(-x) / (1.0 + np.exp(-x))**2
-
-# inverse of sigmoid
-def iS(x):
-    return -1.0 *np.log(1.0 / x - 1.0)
 
 
 #TODO: do we need this? can we just use gammaln
@@ -69,7 +57,7 @@ def qgGamma(x, a, b):
     a = M(a) * b
 
     g_a = dMa * (np.log(b) - digamma(a) + np.log(x))
-    g_b = dMb * a * ((np.log(b) + 1.0) - digamma(a) + np.log(x) - x)
+    g_b = dMb * (a*(np.log(x)+1.0) - a*digamma(a) + a*np.log(x) - x)
 
     return (pGamma(x, a, b), g_a, g_b)
 
@@ -80,20 +68,13 @@ def EGamma(a, b):
     num[num > 1] = 1 #TODO: do we really need this threshold?
     return num / den
 
-def pBernoulli(x, p):
-    if (isinstance(p, float) and p==1) or (isinstance(p, np.ndarray) and p.all()==1):
-        return x*np.log(p)
-    return x*np.log(p) + (1.0-x)*np.log(1.0-p)
+def pPoisson(x, p):
+    return x*np.log(p) - np.log(factorial(x)) - p
 
-def qgBernoulli(x, p):
-    dSp = dS(p)
-    #print p
-    p = S(p)
-    #print p
-    #print "---"
-    #TODO: do we need this?
-    p[p==1] = 0.9999
-    return (pBernoulli(x, p), dSp * (x/p + (1.0-x)/(1.0-p)))
+def qgPoisson(x, p):
+    dMp = dM(p)
+    p = M(p)
+    return (pPoisson(x, p), dMp * (x/p - 1))
 
 
 ## Classes
@@ -203,12 +184,12 @@ class Model:
             iM(self.params.a_events)
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.b_events)
-        self.l_eoccur = np.ones(self.data.day_count()) * iS(self.params.l_eoccur)
+        self.l_eoccur = np.ones(self.data.day_count()) * iM(self.params.l_eoccur)
 
         # expected values of goal model parameters
         self.entity = EGamma(self.a_entity, self.b_entity)
         self.events = EGamma(self.a_events, self.b_events)
-        self.eoccur = S(self.l_eoccur)
+        self.eoccur = M(self.l_eoccur)
 
         self.likelihood_decreasing_count = 0
 
@@ -295,6 +276,7 @@ class Model:
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
             lambda_eoccur = np.zeros(self.data.day_count())
+            docs_per_day = np.zeros((self.data.day_count(), 1))
 
             #for doc in self.data.docs:
             for d in range(self.params.batch_size):
@@ -302,6 +284,7 @@ class Model:
                 f_array_master = np.zeros((self.data.day_count(),1))
                 for day in range(self.data.day_count()):
                     f_array_master[day] = self.params.f(self.data.days[day], doc.day)
+                    docs_per_day[day] += 1
 
                 h_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
                 f_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
@@ -322,7 +305,8 @@ class Model:
                         1.0 / M(self.b_entity), (1, self.data.dimension))
                     events = np.random.gamma(M(self.a_events) * M(self.b_events), \
                         1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
-                    eoccur = np.random.binomial(1, S(self.l_eoccur))
+                    eoccur = np.random.poisson(M(self.l_eoccur))
+                    #eoccur[eoccur > 1] = 1 # truncate
 
                     f_array = np.zeros((self.data.day_count(),1))
                     for day in range(self.data.day_count()):
@@ -339,8 +323,8 @@ class Model:
                         qgGamma(events, self.a_events, self.b_events)
 
                     # event occurance contributions
-                    p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
-                    q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
+                    p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
+                    q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
 
                     # document contributions to updates
                     doc_params = entity + sum(f_array*events)
@@ -358,9 +342,11 @@ class Model:
 
                     h_a_events[s] = (f_array != 0) * g_events_a
                     h_b_events[s] = (f_array != 0) * g_events_b
-                    f_a_events[s] = (f_array != 0) * g_events_a * \
+                    #f_a_events[s] = (f_array != 0) * g_events_a * \
+                    f_a_events[s] = g_events_a * \
                         (p_events + p_doc - q_events)
-                    f_b_events[s] = (f_array != 0) * g_events_b * \
+                    #f_b_events[s] = (f_array != 0) * g_events_b * \
+                    f_b_events[s] = g_events_b * \
                         (p_events + p_doc - q_events)
                     lambda_a_events += f_a_events[s]
                     lambda_b_events += f_b_events[s]
@@ -381,6 +367,8 @@ class Model:
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
+            #lambda_a_events /= docs_per_day * self.params.num_samples
+            #lambda_b_events /= docs_per_day * self.params.num_samples
             lambda_a_events /= self.params.batch_size * self.params.num_samples
             lambda_b_events /= self.params.batch_size * self.params.num_samples
             lambda_eoccur /= self.params.batch_size * self.params.num_samples
@@ -389,17 +377,13 @@ class Model:
             self.a_entity += rho * lambda_a_entity
             self.b_entity += rho * lambda_b_entity
 
-            #TESTING w/ fixed events
             self.a_events += rho * lambda_a_events
-            self.b_events += rho * lambda_b_events #BNOB TODO put back
+            self.b_events += rho * lambda_b_events
             self.l_eoccur += rho * lambda_eoccur
-
-            min_thresh = 1e-10#sys.float_info.min**(1./4)
-            max_thresh = 1e5
 
             self.entity = EGamma(self.a_entity, self.b_entity)
             self.events = EGamma(self.a_events, self.b_events)
-            self.eoccur = S(self.l_eoccur)
+            self.eoccur = M(self.l_eoccur)
             print "end of iteration"
             print "*************************************"
 
