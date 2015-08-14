@@ -232,7 +232,6 @@ Probabilities of the latent variables given the free variational parameters.
 \end{align}
 
 Gradients of variational distributions.
-%TODO finish this eqn (not done putting M in....
 \begin{align}
 \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \left\langle \mathcal{M}'(\lambda^{\phi,\alpha}_k)\left(\log \mathcal{M}(\lambda^{\phi,\beta}_k) - \Psi(\mathcal{M}(\lambda^{\phi,\alpha}_k)) + \log \phi_{0k}[s]\right),
 \mathcal{M}'(\lambda^{\phi,\beta}_k)\left(\frac{\mathcal{M}(\lambda^{\phi,\alpha}_k)}{\mathcal{M}(\lambda^{\phi,\beta}_k)} - \phi_{0k}[s]\right) \right\rangle \label{eq:g.phi} \\
@@ -244,7 +243,6 @@ Gradients of variational distributions.
 \end{align}
 
 
-%TODO: break equations down above, and then refer to en number in the algorithm below.
 \alglanguage{pseudocode}
 \begin{algorithm}[h]
 \small
@@ -290,7 +288,106 @@ Gradients of variational distributions.
 			\For {each event $i$}
 				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + J \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
 			\EndFor
-			%TODO: epsilon and softmax beyond htis point.....
+			
+		\EndFor
+	\EndFor
+	\State set $\rho= (t +\tau)^\kappa$
+	\State update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik} $
+	\State update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$
+	\State update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = \lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$
+\Until {change in validation likelihood $< \delta$}
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+
+%%%%%%%%%%%%%
+\section{Model v3}
+Changes: different gamma parameterization and adding control variates.
+\[\mbox{Gamma}(\alpha\beta, \beta)\]
+
+\subsection{inference}
+We fix the gamma distribution's $\beta$ variational parameter for $\pi$ and $\phi$.  Then:
+\[\log\mbox{Gamma}(x \g \mathcal{M}(a), b) = 
+\mathcal{M}(a)b\log b - \log\Gamma \left(\mathcal{M}(a)b\right) +(\mathcal{M}(a)b-1)\log x - bx
+\]
+\[\frac{d}{d a}\log\mbox{Gamma}(x \g \mathcal{M}(a), b) = 
+\mathcal{M}'(a) b \log b - \Psi \left(\mathcal{M}(a)b\right)\mathcal{M}'(a)b + \mathcal{M}'(a)b\log x
+\]
+
+\paragraph{Specific equations used in algorithm, fully expanded}
+Prior probabilities.
+\begin{align}
+ \log p(\theta_j \g \phi_{jk}[s], \beta_c) &= \beta_c \phi_{jk}[s] \log \beta_c - \log\Gamma(\beta_c \phi_{jk}[s]) + (\beta_c \phi_{jk}[s] - 1) \log \theta_k - \beta_c \theta_k \label{eq:logp.theta.v3}\\
+\log p(\phi_{0k}[s] \g \alpha, \beta) &= \alpha\beta \log \beta - \log\Gamma(\alpha\beta) + (\alpha\beta - 1) \log \phi_{0k}[s] - \beta \phi_{0k}[s] \label{eq:logp.phi.v3}\\
+\log p(\pi_{ik}[s] \g \alpha_0, \beta_0) &= \alpha_0\beta_0 \log \beta_0 - \log\Gamma(\alpha_0\beta_0) + (\alpha_0\beta_0 - 1) \log \pi_{ik}[s] - \beta_0 \pi_{ik}[s] \label{eq:logp.pi.v3} \\
+\log p(\epsilon_{i}[s] \g \eta) &= \epsilon_i[s]\log\eta + (1-\epsilon_i[s])\log(1-\eta) \label{eq:logp.epsilon.v3}
+\end{align}
+
+Probabilities of the latent variables given the free variational parameters.
+\begin{align}
+\log q(\phi_{0k}[s] \g \lambda^\phi_k) &= \mathcal{M}(\lambda^{\phi}_k)\beta \log \beta - \log\Gamma( \mathcal{M}(\lambda^{\phi}_k)\beta) + ( \mathcal{M}(\lambda^{\phi}_k)\beta - 1) \log \phi_{0k}[s] -  \beta \phi_{0k}[s] \label{eq:logq.phi.v3}\\
+\log q(\pi_{ik}[s] \g \lambda^\pi_{ik}) &= \mathcal{M}(\lambda^{\pi}_{ik})\beta_0 \log\beta_0 - \log\Gamma(\mathcal{M}(\lambda^{\pi}_{ik})\beta_0) + (\mathcal{M}(\lambda^{\pi}_{ik})\beta_0 - 1) \log \pi_{ik}[s] - \beta_0\pi_{ik}[s]\label{eq:logq.pi.v3}\\
+\log q(\epsilon_i[s] \g \lambda^\epsilon_i) &=\epsilon_i[s]\log \mathcal{S}(\lambda^\epsilon_i) + (1+\epsilon_i[s])\log(1-\mathcal{S}(\lambda^\epsilon_i)) \label{eq:logq.epsilon.v3}
+\end{align}
+
+Gradients of variational distributions.\begin{align}
+\nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \mathcal{M}'(\lambda^{\phi}_k)\beta\left(\log \beta) - \Psi(\mathcal{M}(\lambda^{\phi}_k)\beta) + \log \phi_{0k}[s]\right) \label{eq:g.phi.v3} \\
+ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik})
+ &=  \mathcal{M}'(\lambda^{\pi}_{ik})\beta_0\left(\log \beta_0 - \Psi(\mathcal{M}(\lambda^{\pi,\alpha}_{ik})\beta_0) + \log \pi_{ik}[s]\right) \label{eq:g.pi.v3}\\
+  \nabla_{\lambda^\epsilon_{ik}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i})
+ &= \epsilon_i\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{\mathcal{S}(\lambda^\epsilon_{i})} + (1-\epsilon_i)\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{1-\mathcal{S}(\lambda^\epsilon_{i})}
+ \label{eq:g.epsilon.v3}\\
+\end{align}
+
+
+\alglanguage{pseudocode}
+\begin{algorithm}[h]
+\small
+\caption{Black Box variational inference for Cables Model v2}
+\label{alg:SPF}
+\begin{algorithmic}[1]
+\State \textbf{Input:} document topics $\theta$
+\State \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to respective priors
+\State \textbf{Initialize} iteration count $t = 0$
+\Repeat
+	\State $t \pluseq 1$
+	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
+	\For {$s=1, \dots, S$}
+		\For {$k=1, \dots,K$}
+			\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
+			\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:logp.phi.v3}}
+			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{see Eqn.~\ref{eq:logq.phi.v3}}
+			\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqn.~\ref{eq:g.phi.v3}}
+			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+				\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
+				\State draw sample $\epsilon_i[s] \sim \mbox{Bernoulli}(\mathcal{S}(\lambda^\epsilon_i))$
+				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:logp.pi.v3}}
+				\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:logq.pi.v3}}
+				\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:g.pi.v3}}
+			\EndFor
+		\EndFor
+		\For {each event $i$}
+			\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:logp.epsilon.v3}}
+			\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{see Eqn.~\ref{eq:logq.epsilon.v3}}
+			\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:g.epsilon.v3}}
+		\EndFor
+		
+		\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
+			\For {$k=1, \dots,K$}
+				\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
+				\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]}\epsilon_i[s] \pi_{ik}[s] f(a_i, c_j)$
+				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:logp.theta.v3}}
+				\For {each event $i$}
+					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + J p^\theta_k[s] -  q^\pi_{ik}[s] ) $
+				\EndFor
+				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + J p^\theta_k[s] -  q^\phi_{k}[s] ) $
+			\EndFor
+			\For {each event $i$}
+				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + J \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
+			\EndFor
 			
 		\EndFor
 	\EndFor
