@@ -65,7 +65,6 @@ def EGamma(a, b):
     num = M(a) * M(b)
     den = M(b)
 
-    num[num > 1] = 1 #TODO: do we really need this threshold?
     return num / den
 
 def pPoisson(x, p):
