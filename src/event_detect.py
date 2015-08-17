@@ -363,11 +363,11 @@ class Model:
                 #print "VAR", var(h_a_entity)
                 #print "COV", cov(f_a_entity, h_a_entity)
                 #print lambda_a_entity
-                lambda_a_entity -= sum(h_a_entity) * cov(f_a_entity, h_a_entity) / var(h_a_entity)
-                lambda_b_entity -= sum(h_b_entity) * cov(f_b_entity, h_b_entity) / var(h_b_entity)
+                lambda_a_entity -= sum(h_a_entity) * (cov(f_a_entity, h_a_entity) / var(h_a_entity))
+                lambda_b_entity -= sum(h_b_entity) * (cov(f_b_entity, h_b_entity) / var(h_b_entity))
                 #print lambda_a_entity
-                lambda_a_events -= sum(h_a_events) * cov(f_a_events, h_a_events) / var(h_a_events)
-                lambda_b_events -= sum(h_b_events) * cov(f_b_events, h_b_events) / var(h_b_events)
+                lambda_a_events -= sum(h_a_events) * (cov(f_a_events, h_a_events) / var(h_a_events))
+                lambda_b_events -= sum(h_b_events) * (cov(f_b_events, h_b_events) / var(h_b_events))
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
