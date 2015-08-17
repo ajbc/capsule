@@ -53,10 +53,10 @@ def pGamma(x, a, b):
 def qgGamma(x, a, b):
     dMb = dM(b)
     b = M(b)
-    dMa = dM(a) * b
-    a = M(a) * b
+    dMa = dM(a)
+    a = M(a)
 
-    g_a = dMa * (np.log(b) - digamma(a) + np.log(x))
+    g_a = dMa * b * (np.log(b) - digamma(a) + np.log(x))
     g_b = dMb * (a*(np.log(x)+1.0) - a*digamma(a) + a*np.log(x) - x)
 
     return (pGamma(x, a, b), g_a, g_b)
@@ -205,8 +205,8 @@ class Model:
             #print f_array, self.events
             #print sum(f_array*self.events)
             doc_params = self.entity + sum(f_array*self.events)
-            log_likelihood += np.sum(pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs))
-            LL += np.sum(pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs), 0)
+            log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
+            LL += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs), 0)
         print "LL", LL
         return log_likelihood
 
@@ -328,15 +328,17 @@ class Model:
 
                     # document contributions to updates
                     doc_params = entity + sum(f_array*events)
-                    p_doc = pGamma(doc.rep, self.params.b_docs * doc_params, self.params.b_docs)
+                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
                     p_doc_eoccur = ((f_array != 0) * p_doc).sum()
 
                     h_a_entity[s] = g_entity_a
                     h_b_entity[s] = g_entity_b
                     f_a_entity[s] = g_entity_a * (p_entity + \
                         p_doc - q_entity)
+                    #    self.data.num_docs() * p_doc - q_entity)
                     f_b_entity[s] = g_entity_b * (p_entity + \
                         p_doc - q_entity)
+                    #    self.data.num_docs() * p_doc - q_entity)
                     lambda_a_entity += f_a_entity[s]
                     lambda_b_entity += f_b_entity[s]
 
@@ -345,15 +347,18 @@ class Model:
                     #f_a_events[s] = (f_array != 0) * g_events_a * \
                     f_a_events[s] = g_events_a * \
                         (p_events + p_doc - q_events)
+                    #    (p_events + self.data.num_docs() * p_doc - q_events)
                     #f_b_events[s] = (f_array != 0) * g_events_b * \
                     f_b_events[s] = g_events_b * \
                         (p_events + p_doc - q_events)
+                    #    (p_events + self.data.num_docs() * p_doc - q_events)
                     lambda_a_events += f_a_events[s]
                     lambda_b_events += f_b_events[s]
 
                     f_array = f_array.flatten()
                     lambda_eoccur += (f_array != 0) * g_eoccur * \
                         (p_eoccur + p_doc_eoccur - q_eoccur)
+                    #    (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
 
                 #print "H", sum(h_a_entity)
                 #print "VAR", var(h_a_entity)
