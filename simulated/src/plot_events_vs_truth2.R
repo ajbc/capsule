@@ -41,6 +41,8 @@ for (iter in seq(0,ITER)) {
   dat.fit <- rbind(dat.fit0, dat.fit)
   colnames(dat.fit) <- c('k.0', 'k.1', 'k.2', 'k.3', 'k.4','k.5', 'time', 'alpha')
   dat.fit <- melt(dat.fit, id.vars=c("time", "alpha"))
+  dat.fit$value <- dat.fit$value * dat.fit$alpha
+  dat.fit$alpha <- 1
   dat.fit$type <- "learned events"
 
   dat.fit[dat.fit$value > 10,4] <- 10

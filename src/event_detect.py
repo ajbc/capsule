@@ -27,7 +27,6 @@ def iM(x):
     return np.log(np.exp(x) - 1.0)
 
 
-#TODO: do we need this? can we just use gammaln
 def lngamma(val):
     if isinstance(val, float):
         return gammaln(val) if val > sys.float_info.min else gammaln(sys.float_info.max)
@@ -305,7 +304,6 @@ class Model:
                     events = np.random.gamma(M(self.a_events) * M(self.b_events), \
                         1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
                     eoccur = np.random.poisson(M(self.l_eoccur))
-                    #eoccur[eoccur > 1] = 1 # truncate
 
                     f_array = np.zeros((self.data.day_count(),1))
                     for day in range(self.data.day_count()):
@@ -328,7 +326,7 @@ class Model:
                     # document contributions to updates
                     doc_params = entity + sum(f_array*events)
                     p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                    p_doc_eoccur = ((f_array != 0) * p_doc).sum()
+                    p_doc_eoccur = ((f_array_master != 0) * p_doc).sum()
 
                     h_a_entity[s] = g_entity_a
                     h_b_entity[s] = g_entity_b
@@ -341,20 +339,20 @@ class Model:
                     lambda_a_entity += f_a_entity[s]
                     lambda_b_entity += f_b_entity[s]
 
-                    h_a_events[s] = (f_array != 0) * g_events_a
-                    h_b_events[s] = (f_array != 0) * g_events_b
-                    #f_a_events[s] = (f_array != 0) * g_events_a * \
-                    f_a_events[s] = g_events_a * \
+                    h_a_events[s] = (f_array_master != 0) * g_events_a
+                    h_b_events[s] = (f_array_master != 0) * g_events_b
+                    #f_a_events[s] = g_events_a * \
+                    f_a_events[s] = (f_array_master != 0) * g_events_a * \
                         (p_events + p_doc - q_events)
                     #    (p_events + self.data.num_docs() * p_doc - q_events)
-                    #f_b_events[s] = (f_array != 0) * g_events_b * \
-                    f_b_events[s] = g_events_b * \
+                    #f_b_events[s] = g_events_b * \
+                    f_b_events[s] = (f_array_master != 0) * g_events_b * \
                         (p_events + p_doc - q_events)
                     #    (p_events + self.data.num_docs() * p_doc - q_events)
                     lambda_a_events += f_a_events[s]
                     lambda_b_events += f_b_events[s]
 
-                    f_array = f_array.flatten()
+                    f_array = f_array_master.flatten()
                     lambda_eoccur += (f_array != 0) * g_eoccur * \
                         (p_eoccur + p_doc_eoccur - q_eoccur)
                     #    (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
@@ -371,11 +369,12 @@ class Model:
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
-            #lambda_a_events /= docs_per_day * self.params.num_samples
-            #lambda_b_events /= docs_per_day * self.params.num_samples
-            lambda_a_events /= self.params.batch_size * self.params.num_samples
-            lambda_b_events /= self.params.batch_size * self.params.num_samples
-            lambda_eoccur /= self.params.batch_size * self.params.num_samples
+            lambda_a_events /= docs_per_day
+            lambda_b_events /= docs_per_day
+            #lambda_a_events /= self.params.batch_size * self.params.num_samples
+            #lambda_b_events /= self.params.batch_size * self.params.num_samples
+            lambda_eoccur /= docs_per_day.flatten()
+            #lambda_eoccur /= self.params.batch_size * self.params.num_samples
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             self.a_entity += rho * lambda_a_entity
