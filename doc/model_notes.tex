@@ -37,19 +37,19 @@
 
 \maketitle
 
-\section{Model v1}
-\subsection{Generative model}
+\section{Generative model}
 We start with a fitted LDA model where documents are represented in terms of topics ($\theta$, a $D \times K$ matrix), and topics are represented as a distribution over words ($\beta$, a $K \times V$ matrix).  This model fit, along with document metadata, are our observations.  Alternatively, we can tack on the LDA generative process to the model below.
 
 \begin{itemize}
 \item for each day $i$ with date $a_i$:
 \begin{itemize}
+\item generate event occurrence/strength $\epsilon \sim \mbox{Poisson}(\eta_\epsilon)$, where $\eta_\epsilon$ is a fixed, non-negative hyperparameter for the mean event strength
 \item generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
 \end{itemize}
 \item draw the entity's base topics: $\phi_{0k} \sim \mbox{Gamma}(\alpha, \beta)$ (eventually for each entity, but for now, just limit data to only one entity)
 \item For each cable $j$ on date $c_j$:
 \begin{itemize}
-	\item set cable topic parameter: $\phi_{jk} = \phi_{0k} + \sum_i f(a_i, c_j) \pi_{ik}$, where $f$ is defined below.
+	\item set cable topic parameter: $\phi_{jk} = \phi_{0k} + \sum_i f(a_i, c_j) \pi_{ik} \epsilon_i$, where $f$ is defined below.
 	\item draw cable topic: $\theta_{jk} \sim \mbox{Gamma}(\beta_c \phi_{jk}, \beta_c)$
 \end{itemize}
 \end{itemize}
@@ -62,7 +62,7 @@ We start with a fitted LDA model where documents are represented in terms of top
 where $d$ is the time distance (in days) after event $a$ at which point the event is no longer relevant.
 
 
-\subsection{Inference}
+\section{Inference}
 For now, we assume that we know the LDA topics $\beta$ and only observe the documents in terms of their topics $\theta$; breaking this assumption makes inference a little more complicated as the updates for $\theta$ would have new dependencies.  Pending the results, we should explore that vein. 
 
 Here, we follow the structure of the DEF paper to explain inference for this model.
@@ -70,183 +70,57 @@ Here, we follow the structure of the DEF paper to explain inference for this mod
 \begin{itemize}
 \item As usual, inference is the central computational problem.
 \item Variational inference minimizes the KL divergence from an approximating distribution $q$ to the true posterior $p$.
-\item This is equivalent to maximizing the ELBO: $\mathcal{L}(q)  = \E_{q(\pi, \phi)}[\log p(\theta,\pi,\phi) - \log q(\pi, \phi)]$
-\item we define the approximating distribution $q$ using the mean field assumption: $q(\pi, \phi) = \prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right]$ 
-\item $q(\pi)$ and $q(\phi)$ are both gamma-distributed, with variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively
+\item This is equivalent to maximizing the ELBO: $\mathcal{L}(q)  = \E_{q(\epsilon, \pi, \phi)}[\log p(\theta,\epsilon,\pi,\phi) - \log q(\epsilon, \pi, \phi)]$
+\item we define the approximating distribution $q$ using the mean field assumption: $q(\epsilon, \pi, \phi) = \prod_i q(\epsilon_{i})\prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right]$ 
+\item $q(\pi)$ and $q(\phi)$ are both gamma-distributed with variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively, where we use the softmax function $\mathcal{M}(x) = \log(1+\exp(x))$ to constrain the free variational parameters.
+$q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$; the free parameter is also constrained by the softmax function.
+
 \item the expectations under $q$ (needed to maximize the ELBO) do not have a simple analytic form, so we use ``black box'' VI techniques
-\item for each variable, we can write the probability of all terms containing that variable, giving us 
-\[p^\pi_{ik}(\theta, \pi, \phi) = p(\pi_{ik} \g \alpha_0, \beta_0) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi)\]
+\item for each variable, we can write the log probability of all terms containing that variable, giving us 
+\[\log p^\epsilon_{i}(\theta, \epsilon, \pi, \phi) = \log p(\epsilon_{i} \g \eta_\epsilon) + \sum_{j : f(a_i, c_j) \neq 0}\sum_k\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
+\[\log p^\pi_{ik}(\theta, \epsilon, \pi, \phi) = \log p(\pi_{ik} \g \alpha_0, \beta_0) + \sum_{j : f(a_i, c_j) \neq 0}\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
 and
-\[p^\phi_{k}(\theta, \pi, \phi) = p(\phi_{0k} \g \alpha, \beta) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi).\]
-We can also write these in their log forms:
-\[\log p^\pi_{ik}(\theta, \pi, \phi) = \log p(\pi_{ik} \g \alpha_0, \beta_0) + \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi)\]
+\[p^\phi_{k}(\theta, \epsilon, \pi, \phi) = \log p(\phi_{0k} \g \alpha, \beta) + \sum_i\sum_{j} \log p(\theta_{jk} \g \phi_{0k}, c_j, a_i d, \beta_c, \pi_{ik}, \epsilon_i).\]
+\item Then we can write the gradients with respect to the variational parameters as:
+\[\nabla_{\lambda^\epsilon_{i}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \left( \log p^\epsilon_{i}(\theta, \epsilon, \pi, \phi) - \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \right)\right],\]
+\[\nabla_{\lambda^\pi_{ik}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) \left( \log p^\pi_{ik}(\theta, \epsilon, \pi, \phi) - \log q(\pi_{ik} \g \lambda^\pi_{ik}) \right)\right],\]
 and
-\[\log p^\phi_{k}(\theta, \pi, \phi) = \log p(\phi_{0k} \g \alpha, \beta) + \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi).\]
-\item Then we can write the gradients with respect to the variational parameters as: \[\nabla_{\lambda^\pi_{ik}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) \left( \log p^\pi_{ik}(\theta, \pi, \phi) - \log q(\pi_{ik} \g \lambda^\pi_{ik}) \right)\right]\] and \[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \pi, \phi) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right]\]
+\[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \epsilon, \pi, \phi) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right].\]
 \end{itemize}
 
-Using this framework, we construct our black box algorithm below.  The messiness comes from the full expansions of $p$, $q$, and $\nabla_\lambda q$.
+Using this framework, we construct our black box algorithm below. 
+
+\paragraph{For Reference}
+The gamma distribution and derivatives:
+\begin{align}
+\log\mbox{Gamma}(x \g a,b) & = ab\log b - \log\Gamma \left(ab\right) +(ab-1)\log x - bx \label{eq:gamma}\\
+%\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) & = 
+%\mathcal{M}(a)\mathcal{M}(b)\log \mathcal{M}(b) - \log\Gamma \left(\mathcal{M}(a)\mathcal{M}(b)\right) +(\mathcal{M}(a)\mathcal{M}(b)-1)\log x - \mathcal{M}(b)x \\
+\nabla_a \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+\mathcal{M}'(a) \mathcal{M}(b) \left[ \log \mathcal{M}(b) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right] \label{eq:dgammaA}
+\\
+\nabla_b \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+\mathcal{M}'(b) \left[ \mathcal{M}(a) \left((\log \mathcal{M}(b) + 1) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right) - x\right]\label{eq:dgammaB}
+%\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+%\mathcal{M}'(b) \left[ \mathcal{M}(a) (\log \mathcal{M}(b) + 1) - \mathcal{M}(a)\Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \mathcal{M}(a)\log x - x\right]
+\end{align}
+
+The Poisson distribution and derivative:
+\begin{align}
+\log\mbox{Poisson}(x~\vert~\lambda) &= x\log\lambda - \log(x!) - \lambda \label{eq:poisson} \\
+%\log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= x\log\mathcal{M}(\lambda) - \log(x!) -\mathcal{M}(\lambda) \\
+\nabla_\lambda \log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= \mathcal{M}'(\lambda)\left[\frac{x}{\mathcal{M}(\lambda)} -1\right].\label{eq:dpoisson}
+\end{align}
+
+The softmax function and derivative:
+\[\mathcal{M}(x) = \log(1+e^x)\]
+\[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
 
 
 \alglanguage{pseudocode}
 \begin{algorithm}[h]
 \small
-\caption{Black Box variational inference for Cables Model v1}
-\label{alg:SPF}
-\begin{algorithmic}[1]
-\State \textbf{Input:} document topics $\theta$
-\State \textbf{Initialize} $\lambda^\pi$ and $\lambda^\phi$ randomly
-\State \textbf{Initialize} $t^\pi_i = 0$ for all days $i$ and $t^\phi = 0$
-\Repeat
-	\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
-	\State $t^\phi \pluseq 1$
-	\For {$s=1, \dots, S$}
-		\For {$k=1, \dots,K$}
-			\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\lambda^\phi_{k})$ 
-			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-				\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\lambda^\pi_{ik})$
-				\State $t^\pi_i \pluseq 1$
-			\EndFor
-			\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]} \pi_{ik}[s] f(a_i, c_j)$
-			
-			\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c) = \beta_c \phi_{jk}[s] \log \beta_c - \log\Gamma(\beta_c \phi_{jk}[s]) + (\beta_c \phi_{jk}[s] - 1) \log \theta_k - \beta_c \theta_k$
-			\State set $p^\phi_k[s] = \log p(\phi_{0k} \g \alpha, \beta) = \alpha \log \beta - \log\Gamma(\alpha) + (\alpha - 1) \log \phi_{0k}[s] - \beta \phi_{0k}[s]$
-			\State set (for each relevant $i$) $p^\pi_{ik}[s] = \log p(\pi_{ik} \g \alpha_0, \beta_0) = \alpha_0 \log \beta_0 - \log\Gamma(\alpha_0) + (\alpha_0 - 1) \log \pi_{k}[s] - \beta_0 \pi_{ik}[s]$
-			
-			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k) = \lambda^{\phi,\alpha}_k \log  \lambda^{\phi,\beta}_k - \log\Gamma( \lambda^{\phi,\alpha}_k) + ( \lambda^{\phi,\alpha}_k - 1) \log \phi_{0k}[s] -  \lambda^{\phi,\beta}_k \phi_{0k}[s]$
-			\State set (for each relevant $i$) $q^\pi_{ik}[s] = \log q(\pi_{ik} \g \lambda^\pi_{ik}) = \lambda^{\pi,\alpha}_{ik} \log \lambda^{\pi,\beta}_{ik} - \log\Gamma(\lambda^{\pi,\alpha}_{ik}) + (\lambda^{\pi,\alpha}_{ik} - 1) \log \pi_{ik}[s] - \lambda^{\pi,\beta}_{ik} \pi_{ik}[s]$
-			
-			\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) = \langle \log \lambda^{\phi,\beta}_k - \Psi( \lambda^{\phi,\alpha}_k) + \log \phi_{0k}[s], \lambda^{\phi,\alpha}_k / \lambda^{\phi,\beta}_k - \phi_{0k}[s] \rangle$ 
-			\State set (for each relevant $i$) $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) = \langle \log \lambda^{\pi,\beta}_{ik} - \Psi(\lambda^{\pi,\alpha}_{ik}) + \log \pi_{ik}[s], \lambda^{\pi,\alpha}_{ik}  / \lambda^{\pi,\beta}_{ik} - \pi_{ik}[s] \rangle$
-		\EndFor
-	\EndFor
-	\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-		\State set $\hat\lambda^{\pi}_{ik} = \frac{1}{S}\sum_s g^\pi_{ik}[s] ( p^\pi_{ik}[s] + J p^\theta_k[s] -  q^\pi_{ik}[s] ) $
-		\State set $\rho^\pi_i = (t^\pi_i + \tau)^\kappa$
-		\State update $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho^\pi_i \hat\lambda^{\pi}_{ik} $
-	\EndFor
-	\State set $\hat\lambda^{\phi}_{k} = \frac{1}{S}\sum_s g^\phi_{ik}[s] ( p^\phi_{k}[s] + J p^\theta_k[s] -  q^\phi_{k}[s] ) $
-	\State set $\rho^\phi = (t^\phi +\tau)^\kappa$
-	\State update $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho^\phi \hat\lambda^{\phi}_{k}$
-\Until {change in validation likelihood $< \delta$}
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{results}
-Able to identify some simulated data.
-\begin{figure}[ht]
-  \begin{center}
-    \includegraphics[width=0.69\linewidth]{fig/simulated_events_v1.jpg}
-  \end{center}
-  \caption{Identifying simulated events.}
-  \label{fig:sim1}
- \end{figure}
-
-
-
-\section{Model v2}
-\subsection{Generative model}
-We want to make sure that the event occurrence can be modeled by a Poisson process.  Except since only one event can occur per date, we model it with a Bernoulli Process.
-
-\begin{itemize}
-\item for each day $i$ with date $a_i$:
-\begin{itemize}
-\item generate whether or not an event occurs $\epsilon \sim \mbox{Bernoulli}(\eta_\epsilon)$, where $\eta_\epsilon$ is the probability of an event, which should be about the same as the rate for a Poisson process (but capped at 1).
-\item generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
-\end{itemize}
-\item same as before, but using softmax: $\mathcal{M}(x) = \log(1+\exp(x))$ to transform $\phi_{jk}$ when drawing cable topic.  Note the the derivative of the softmax function is $\mathcal{M}'(x) = \exp(x) / (1+\exp(x))$.  Similarly, we use the sigmoid function $\mathcal{S}(x) = 1/ (1+e^{-x})$ when drawing the Bernoulli from its variational parameters; there derivative of this function is $\mathcal{S}'(x) = -e^{-x}/ (1+e^{-x})^2$.
-\item one other change: for each cable $j$, set cable topic parameter: $\phi_{jk} = \phi_{0k} + \sum_i \epsilon_i f(a_i, c_j) \pi_{ik}$.
-\end{itemize}
-
-\subsection{Inference}
-\begin{itemize}
-\item Minimizing the KL divergence is equivalent to maximizing the ELBO: $\mathcal{L}(q)  = \E_{q(\pi, \phi, \epsilon)}[\log p(\theta,\pi,\phi,\epsilon) - \log q(\pi, \phi,\epsilon)]$
-\item we define the approximating distribution $q$ using the mean field assumption: $q(\pi, \phi, \epsilon) = \prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right]\prod_i q(\epsilon_i)$ 
-\item $q(\pi)$ and $q(\phi)$ are both gamma-distributed, with variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  $q(\epsilon)$ is Bernoulli-distributed and is parameterized by $\lambda_\epsilon$
-\item the expectations under $q$ (needed to maximize the ELBO) do not have a simple analytic form, so we use ``black box'' VI techniques
-\item for each variable, we can write the probability of all terms containing that variable, giving us 
-\[p^\pi_{ik}(\theta, \pi, \phi, \epsilon) = p(\pi_{ik} \g \alpha_0, \beta_0) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon),\]
-\[p^\phi_{k}(\theta, \pi, \phi, \epsilon) = p(\phi_{0k} \g \alpha, \beta) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon),\]
-and
-\[p^\epsilon_i(\theta, \pi, \phi, \epsilon) = p(\epsilon_{i} \g \eta_\epsilon) \prod_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon).\]
-We can also write these in their log forms:
-\[\log p^\pi_{ik}(\theta, \pi, \phi, \epsilon) = \log p(\pi_{ik} \g \alpha_0, \beta_0) + \sum_j p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon),\]
-\[\log p^\phi_{k}(\theta, \pi, \phi, \epsilon) = \log p(\phi_{0k} \g \alpha, \beta) + \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon),\]
-and
-\[\log p^\epsilon_{i}(\theta, \pi, \phi, \epsilon) = \log p(\epsilon_{i} \g \eta_\epsilon) + \sum_j\sum_k \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon).\]
-%The last term is the same for all of these so we can write them as
-%\begin{align*}\log p^\pi_{ik}(\theta, \pi, \phi, \epsilon) 
-%&= \log p(\pi_{ik} \g \alpha_0, \beta_0) + \log p^\theta_{k}(\theta, \pi, \phi, \epsilon)\\
-%&= \alpha_0 \log \beta_0 - \log\Gamma(\alpha_0) + (\alpha_0 - 1) \log \pi_{k} - \beta_0 \pi_{ik} + \log p^\theta_{k}(\theta, \pi, \phi, \epsilon),
-%\end{align*}
-%\[\log p^\phi_{k}(\theta, \pi, \phi, \epsilon) = \log p(\phi_{0k} \g \alpha, \beta) + \log p^\theta_{k}(\theta, \pi, \phi, \epsilon),\]
-%and
-%\[\log p^\epsilon_{i}(\theta, \pi, \phi, \epsilon) = \log p(\epsilon_{i} \g \eta_\epsilon) + \log p^\theta_{k}(\theta, \pi, \phi, \epsilon),\]
-%where
-%\begin{align*}
-%\log p^\theta_{k}(\theta, \pi, \phi, \epsilon)
-%&= \sum_j \log p(\theta_{jk} \g \phi_{0k}, c, a, d, \beta_c, \pi, \epsilon)\\
-%&= .\end{align*}
-\item Then we can write the gradients with respect to the variational parameters as: \[\nabla_{\lambda^\pi_{ik}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) \left( \log p^\pi_{ik}(\theta, \pi, \phi, \epsilon) - \log q(\pi_{ik} \g \lambda^\pi_{ik}) \right)\right],\]
-\[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \pi, \phi, \epsilon) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right],\]
-and
-\[\nabla_{\lambda^\epsilon_{i}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \left( \log p^\epsilon_{i}(\theta, \pi, \phi, \epsilon) - \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \right)\right].\]
-\end{itemize}
-
-Using this framework, we construct our black box algorithm below.  The messiness comes from the full expansions of $p$, $q$, and $\nabla_\lambda q$.
-
-Recall the following for reference.
-
-\[\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) = 
-\mathcal{M}(a)\log \mathcal{M}(b) - \log\Gamma \mathcal{M}(a) +(\mathcal{M}(a)-1)\log x -\mathcal{M}(b)x
-\]
-\[\frac{d}{d a}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) = 
-\mathcal{M}'(a)\log \mathcal{M}(b) - \Psi \mathcal{M}(a)\mathcal{M}'(a) + \mathcal{M}'(a)\log x
-\]
-\[\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) = 
-\mathcal{M}(a)\frac{\mathcal{M}'(b)}{\mathcal{M}(b)} -\mathcal{M}'(b)x
-\]
-
-\[\log\mbox{Bernoulli}(x \g \mathcal{S}(\lambda)) = 
-x\log \mathcal{S}(\lambda) +(1-x)\log(1-\mathcal{S}(\lambda))
-\]
-\[\frac{d}{d \lambda}\log\mbox{Bernoulli}(x \g \mathcal{S}(\lambda)) = 
-x\frac{\mathcal{S}'(\lambda)}{\mathcal{S}(\lambda)} + (1-x)\frac{\mathcal{S}'(\lambda)}{1-\mathcal{S}(\lambda)}
-\]
-
-
-\paragraph{Specific equations used in algorithm, fully expanded}
-Prior probabilities.
-\begin{align}
- \log p(\theta_j \g \phi_{jk}[s], \beta_c) &= \beta_c \phi_{jk}[s] \log \beta_c - \log\Gamma(\beta_c \phi_{jk}[s]) + (\beta_c \phi_{jk}[s] - 1) \log \theta_k - \beta_c \theta_k \label{eq:logp.theta}\\
-\log p(\phi_{0k}[s] \g \alpha, \beta) &= \alpha \log \beta - \log\Gamma(\alpha) + (\alpha - 1) \log \phi_{0k}[s] - \beta \phi_{0k}[s] \label{eq:logp.phi}\\
-\log p(\pi_{ik}[s] \g \alpha_0, \beta_0) &= \alpha_0 \log \beta_0 - \log\Gamma(\alpha_0) + (\alpha_0 - 1) \log \pi_{ik}[s] - \beta_0 \pi_{ik}[s] \label{eq:logp.pi} \\
-\log p(\epsilon_{i}[s] \g \eta) &= \epsilon_i[s]\log\eta + (1-\epsilon_i[s])\log(1-\eta) \label{eq:logp.epsilon}
-\end{align}
-
-Probabilities of the latent variables given the free variational parameters.
-\begin{align}
-\log q(\phi_{0k}[s] \g \lambda^\phi_k) &= \mathcal{M}(\lambda^{\phi,\alpha}_k) \log  \mathcal{M}(\lambda^{\phi,\beta}_k) - \log\Gamma( \mathcal{M}(\lambda^{\phi,\alpha}_k)) + ( \mathcal{M}(\lambda^{\phi,\alpha}_k) - 1) \log \phi_{0k}[s] -  \mathcal{M}(\lambda^{\phi,\beta}_k) \phi_{0k}[s] \label{eq:logq.phi}\\
-\log q(\pi_{ik}[s] \g \lambda^\pi_{ik}) &= \mathcal{M}(\lambda^{\pi,\alpha}_{ik}) \log \mathcal{M}(\lambda^{\pi,\beta}_{ik}) - \log\Gamma(\mathcal{M}(\lambda^{\pi,\alpha}_{ik})) + (\mathcal{M}(\lambda^{\pi,\alpha}_{ik}) - 1) \log \pi_{ik}[s] - \mathcal{M}(\lambda^{\pi,\beta}_{ik}) \pi_{ik}[s]\label{eq:logq.pi}\\
-\log q(\epsilon_i[s] \g \lambda^\epsilon_i) &=\epsilon_i[s]\log \mathcal{S}(\lambda^\epsilon_i) + (1+\epsilon_i[s])\log(1-\mathcal{S}(\lambda^\epsilon_i)) \label{eq:logq.epsilon}
-\end{align}
-
-Gradients of variational distributions.
-\begin{align}
-\nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \left\langle \mathcal{M}'(\lambda^{\phi,\alpha}_k)\left(\log \mathcal{M}(\lambda^{\phi,\beta}_k) - \Psi(\mathcal{M}(\lambda^{\phi,\alpha}_k)) + \log \phi_{0k}[s]\right),
-\mathcal{M}'(\lambda^{\phi,\beta}_k)\left(\frac{\mathcal{M}(\lambda^{\phi,\alpha}_k)}{\mathcal{M}(\lambda^{\phi,\beta}_k)} - \phi_{0k}[s]\right) \right\rangle \label{eq:g.phi} \\
- \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik})
- &= \left\langle \mathcal{M}'(\lambda^{\pi_,\alpha}_{ik})\left(\log \mathcal{M}(\lambda^{\pi,\beta}_{ik}) - \Psi(\mathcal{M}(\lambda^{\pi,\alpha}_{ik})) + \log \pi_{ik}[s]\right), \mathcal{M}'(\lambda^{\pi_,\beta}_{ik})\left(\frac{\mathcal{M}(\lambda^{\pi,\alpha}_{ik})}{\mathcal{M}(\lambda^{\pi,\beta}_{ik})} - \pi_{ik}[s] \right) \right\rangle\label{eq:g.pi}\\
-  \nabla_{\lambda^\epsilon_{ik}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i})
- &= \epsilon_i\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{\mathcal{S}(\lambda^\epsilon_{i})} + (1-\epsilon_i)\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{1-\mathcal{S}(\lambda^\epsilon_{i})}
- \label{eq:g.epsilon}\\
-\end{align}
-
-
-\alglanguage{pseudocode}
-\begin{algorithm}[h]
-\small
-\caption{Black Box variational inference for Cables Model v2}
+\caption{Black Box Variational Inference for Cables Model}
 \label{alg:SPF}
 \begin{algorithmic}[1]
 \State \textbf{Input:} document topics $\theta$
@@ -255,38 +129,38 @@ Gradients of variational distributions.
 \Repeat
 	\State $t \pluseq 1$
 	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
-	\For {$s=1, \dots, S$}
-		\For {$k=1, \dots,K$}
-			\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
-			\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:logp.phi}}
-			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{see Eqn.~\ref{eq:logq.phi}}
-			\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqn.~\ref{eq:g.phi}}
-			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-				\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
-				\State draw sample $\epsilon_i[s] \sim \mbox{Bernoulli}(\mathcal{S}(\lambda^\epsilon_i))$
-				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:logp.pi}}
-				\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:logq.pi}}
-				\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:g.pi}}
-			\EndFor
-		\EndFor
-		\For {each event $i$}
-			\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:logp.epsilon}}
-			\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{see Eqn.~\ref{eq:logq.epsilon}}
-			\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:g.epsilon}}
-		\EndFor
+	\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
+		\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
+     	   	\For {$s=1, \dots, S$}
+        			\For {$k=1, \dots,K$}
+        				\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
+        				\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:gamma}}
+ 	       			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\phi,a}_k),\mathcal{M}(\lambda^{\phi,b}_k)$}
+        				\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+        				\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+        					\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
+        					\State draw sample $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{M}(\lambda^\epsilon_i))$
+ 	       				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:gamma}}
+        					\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\pi,a}_{ik}),\mathcal{M}(\lambda^{\pi,b}_{ik})$}
+        					\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+        				\EndFor
+        			\EndFor
+        			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+        				\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:poisson}}
+        				\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{Eqn.~\ref{eq:poisson} with parameter $\mathcal{M}(\lambda^{\epsilon}_i)$}
+        				\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:dpoisson}}
+        			\EndFor
 		
-		\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
 			\For {$k=1, \dots,K$}
-				\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
 				\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]}\epsilon_i[s] \pi_{ik}[s] f(a_i, c_j)$
-				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:logp.theta}}
+				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:gamma}}
 				\For {each event $i$}
-					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + J p^\theta_k[s] -  q^\pi_{ik}[s] ) $
+					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + p^\theta_k[s] -  q^\pi_{ik}[s] ) $
 				\EndFor
-				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + J p^\theta_k[s] -  q^\phi_{k}[s] ) $
+				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + p^\theta_k[s] -  q^\phi_{k}[s] ) $
 			\EndFor
 			\For {each event $i$}
-				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + J \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
+				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
 			\EndFor
 			
 		\EndFor
@@ -298,107 +172,6 @@ Gradients of variational distributions.
 \Until {change in validation likelihood $< \delta$}
 \end{algorithmic}
 \end{algorithm}
-
-
-
-
-
-%%%%%%%%%%%%%
-\section{Model v3}
-Changes: different gamma parameterization and adding control variates.
-\[\mbox{Gamma}(\alpha\beta, \beta)\]
-
-\subsection{inference}
-We fix the gamma distribution's $\beta$ variational parameter for $\pi$ and $\phi$.  Then:
-\[\log\mbox{Gamma}(x \g \mathcal{M}(a), b) = 
-\mathcal{M}(a)b\log b - \log\Gamma \left(\mathcal{M}(a)b\right) +(\mathcal{M}(a)b-1)\log x - bx
-\]
-\[\frac{d}{d a}\log\mbox{Gamma}(x \g \mathcal{M}(a), b) = 
-\mathcal{M}'(a) b \log b - \Psi \left(\mathcal{M}(a)b\right)\mathcal{M}'(a)b + \mathcal{M}'(a)b\log x
-\]
-
-\paragraph{Specific equations used in algorithm, fully expanded}
-Prior probabilities.
-\begin{align}
- \log p(\theta_j \g \phi_{jk}[s], \beta_c) &= \beta_c \phi_{jk}[s] \log \beta_c - \log\Gamma(\beta_c \phi_{jk}[s]) + (\beta_c \phi_{jk}[s] - 1) \log \theta_k - \beta_c \theta_k \label{eq:logp.theta.v3}\\
-\log p(\phi_{0k}[s] \g \alpha, \beta) &= \alpha\beta \log \beta - \log\Gamma(\alpha\beta) + (\alpha\beta - 1) \log \phi_{0k}[s] - \beta \phi_{0k}[s] \label{eq:logp.phi.v3}\\
-\log p(\pi_{ik}[s] \g \alpha_0, \beta_0) &= \alpha_0\beta_0 \log \beta_0 - \log\Gamma(\alpha_0\beta_0) + (\alpha_0\beta_0 - 1) \log \pi_{ik}[s] - \beta_0 \pi_{ik}[s] \label{eq:logp.pi.v3} \\
-\log p(\epsilon_{i}[s] \g \eta) &= \epsilon_i[s]\log\eta + (1-\epsilon_i[s])\log(1-\eta) \label{eq:logp.epsilon.v3}
-\end{align}
-
-Probabilities of the latent variables given the free variational parameters.
-\begin{align}
-\log q(\phi_{0k}[s] \g \lambda^\phi_k) &= \mathcal{M}(\lambda^{\phi}_k)\beta \log \beta - \log\Gamma( \mathcal{M}(\lambda^{\phi}_k)\beta) + ( \mathcal{M}(\lambda^{\phi}_k)\beta - 1) \log \phi_{0k}[s] -  \beta \phi_{0k}[s] \label{eq:logq.phi.v3}\\
-\log q(\pi_{ik}[s] \g \lambda^\pi_{ik}) &= \mathcal{M}(\lambda^{\pi}_{ik})\beta_0 \log\beta_0 - \log\Gamma(\mathcal{M}(\lambda^{\pi}_{ik})\beta_0) + (\mathcal{M}(\lambda^{\pi}_{ik})\beta_0 - 1) \log \pi_{ik}[s] - \beta_0\pi_{ik}[s]\label{eq:logq.pi.v3}\\
-\log q(\epsilon_i[s] \g \lambda^\epsilon_i) &=\epsilon_i[s]\log \mathcal{S}(\lambda^\epsilon_i) + (1+\epsilon_i[s])\log(1-\mathcal{S}(\lambda^\epsilon_i)) \label{eq:logq.epsilon.v3}
-\end{align}
-
-Gradients of variational distributions.\begin{align}
-\nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k}) &= \mathcal{M}'(\lambda^{\phi}_k)\beta\left(\log \beta) - \Psi(\mathcal{M}(\lambda^{\phi}_k)\beta) + \log \phi_{0k}[s]\right) \label{eq:g.phi.v3} \\
- \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik})
- &=  \mathcal{M}'(\lambda^{\pi}_{ik})\beta_0\left(\log \beta_0 - \Psi(\mathcal{M}(\lambda^{\pi,\alpha}_{ik})\beta_0) + \log \pi_{ik}[s]\right) \label{eq:g.pi.v3}\\
-  \nabla_{\lambda^\epsilon_{ik}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i})
- &= \epsilon_i\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{\mathcal{S}(\lambda^\epsilon_{i})} + (1-\epsilon_i)\frac{\mathcal{S}'(\lambda^\epsilon_{i})}{1-\mathcal{S}(\lambda^\epsilon_{i})}
- \label{eq:g.epsilon.v3}\\
-\end{align}
-
-
-\alglanguage{pseudocode}
-\begin{algorithm}[h]
-\small
-\caption{Black Box variational inference for Cables Model v2}
-\label{alg:SPF}
-\begin{algorithmic}[1]
-\State \textbf{Input:} document topics $\theta$
-\State \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to respective priors
-\State \textbf{Initialize} iteration count $t = 0$
-\Repeat
-	\State $t \pluseq 1$
-	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
-	\For {$s=1, \dots, S$}
-		\For {$k=1, \dots,K$}
-			\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
-			\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:logp.phi.v3}}
-			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{see Eqn.~\ref{eq:logq.phi.v3}}
-			\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqn.~\ref{eq:g.phi.v3}}
-			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-				\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
-				\State draw sample $\epsilon_i[s] \sim \mbox{Bernoulli}(\mathcal{S}(\lambda^\epsilon_i))$
-				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:logp.pi.v3}}
-				\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:logq.pi.v3}}
-				\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqn.~\ref{eq:g.pi.v3}}
-			\EndFor
-		\EndFor
-		\For {each event $i$}
-			\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:logp.epsilon.v3}}
-			\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{see Eqn.~\ref{eq:logq.epsilon.v3}}
-			\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:g.epsilon.v3}}
-		\EndFor
-		
-		\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
-			\For {$k=1, \dots,K$}
-				\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
-				\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]}\epsilon_i[s] \pi_{ik}[s] f(a_i, c_j)$
-				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:logp.theta.v3}}
-				\For {each event $i$}
-					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + J p^\theta_k[s] -  q^\pi_{ik}[s] ) $
-				\EndFor
-				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + J p^\theta_k[s] -  q^\phi_{k}[s] ) $
-			\EndFor
-			\For {each event $i$}
-				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + J \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
-			\EndFor
-			
-		\EndFor
-	\EndFor
-	\State set $\rho= (t +\tau)^\kappa$
-	\State update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik} $
-	\State update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$
-	\State update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = \lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$
-\Until {change in validation likelihood $< \delta$}
-\end{algorithmic}
-\end{algorithm}
-
 
 
 \end{document}
