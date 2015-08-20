@@ -227,14 +227,13 @@ class Model:
         if delta < 0:
             print "likelihood decreasing (bad)"
             self.likelihood_decreasing_count += 1
-            if iteration > 30 and self.likelihood_decreasing_count == 3:
+            if iteration > 50 and self.likelihood_decreasing_count == 3:
                 print "STOP: 3 consecutive iterations of increasing likelihood"
                 return True
             return False
         else:
             self.likelihood_decreasing_count = 0
 
-        #if iteration > 20 and delta < self.params.convergence_thresh:
         if iteration > 20 and delta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
@@ -296,6 +295,8 @@ class Model:
                     self.data.day_count(), self.data.dimension))
                 f_b_events = np.zeros((self.params.num_samples, \
                     self.data.day_count(), self.data.dimension))
+                h_eoccur = np.zeros((self.params.num_samples, self.data.day_count()))
+                f_eoccur = np.zeros((self.params.num_samples, self.data.day_count()))
 
                 for s in range(self.params.num_samples):
                     # sample for each latent parameter
@@ -304,6 +305,7 @@ class Model:
                     events = np.random.gamma(M(self.a_events) * M(self.b_events), \
                         1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
                     eoccur = np.random.poisson(M(self.l_eoccur))
+                    #print iteration, s, eoccur
 
                     f_array = np.zeros((self.data.day_count(),1))
                     for day in range(self.data.day_count()):
@@ -353,9 +355,11 @@ class Model:
                     lambda_b_events += f_b_events[s]
 
                     f_array = f_array_master.flatten()
-                    lambda_eoccur += (f_array != 0) * g_eoccur * \
+                    h_eoccur[s] = (f_array != 0) * g_eoccur
+                    f_eoccur[s] = (f_array != 0) * g_eoccur * \
                         (p_eoccur + p_doc_eoccur - q_eoccur)
                     #    (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
+                    lambda_eoccur += f_eoccur[s]
 
                 #print "H", sum(h_a_entity)
                 #print "VAR", var(h_a_entity)
@@ -366,14 +370,15 @@ class Model:
                 #print lambda_a_entity
                 lambda_a_events -= sum(h_a_events) * (cov(f_a_events, h_a_events) / var(h_a_events))
                 lambda_b_events -= sum(h_b_events) * (cov(f_b_events, h_b_events) / var(h_b_events))
+                lambda_eoccur -= sum(h_eoccur) * (cov(f_eoccur, h_eoccur) / var(h_eoccur))
 
             lambda_a_entity /= self.params.batch_size * self.params.num_samples
             lambda_b_entity /= self.params.batch_size * self.params.num_samples
-            lambda_a_events /= docs_per_day
-            lambda_b_events /= docs_per_day
+            lambda_a_events /= docs_per_day * self.params.num_samples
+            lambda_b_events /= docs_per_day * self.params.num_samples
             #lambda_a_events /= self.params.batch_size * self.params.num_samples
             #lambda_b_events /= self.params.batch_size * self.params.num_samples
-            lambda_eoccur /= docs_per_day.flatten()
+            lambda_eoccur /= docs_per_day.flatten() * self.params.num_samples
             #lambda_eoccur /= self.params.batch_size * self.params.num_samples
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
