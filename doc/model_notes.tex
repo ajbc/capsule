@@ -95,21 +95,25 @@ The softmax function and derivative:
 \[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
 
 
-% \alglanguage{pseudocode}
-% \begin{algorithm}[h]
-% \small
-% \caption{Black Box Variational Inference for Cables Model}
-% \label{alg:SPF}
-% \begin{algorithmic}[1]
-% \State \textbf{Input:} document topics $\theta$
-% \State \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to respective priors
-% \State \textbf{Initialize} iteration count $t = 0$
-% \Repeat
-% 	\State $t \pluseq 1$
-% 	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
-% 	\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
-% 		\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
-%      	   	\For {$s=1, \dots, S$}
+\begin{algorithm}
+\DontPrintSemicolon
+\KwIn{document topics $\theta$}
+\KwOut{estimates of latent parameters entity topics $\pi$, event topics $\phi$,
+and event occurances $\epsilon$}
+\textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to
+respective priors \;
+\textbf{Initialize} iteration count $t = 0$ \;
+\While {change in validation likelihood $< \delta$}{
+	$t \pluseq 1$ \;
+	initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and 
+		$\hat\lambda^{\epsilon}$ to 0 matrices \;
+	\For {$j=1, \dots, B$ (batch size, or \# of document samples)} {
+		Sample a document $j$ that is sent on date $c_j$ and has topics 
+			$\theta_j$ \;
+			\For {$s=1, \dots, S$} {
+				test \;
+
+			}
 %         			\For {$k=1, \dots,K$}
 %         				\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
 %         				\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:gamma}}
@@ -142,14 +146,24 @@ The softmax function and derivative:
 % 			\EndFor
 			
 % 		\EndFor
-% 	\EndFor
-% 	\State set $\rho= (t +\tau)^\kappa$
-% 	\State update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik} $
-% 	\State update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$
-% 	\State update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = \lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$
-% \Until {change in validation likelihood $< \delta$}
-% \end{algorithmic}
-% \end{algorithm}
+	}
+	set $\rho= (t +\tau)^\kappa$ \;
+	update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} 
+		= \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik}$ \;
+	update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = 
+		\lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$ \;
+	update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = 
+		\lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$ \;
+	\BlankLine
+	set $\E[\pi] = \lambda^{\pi,a}$ \;
+	set $\E[\phi] = \lambda^{\phi,a}$ \;
+	set $\E[\epsilon] = \lambda^{\epsilon}$ \;
+}
+\Return{$\E[\pi]$, $\E[\phi]$, $\E[\epsilon]$} \;
+\caption{Inference for Cables Model}
+\label{alg:cables}
+\end{algorithm}
+
 
 
 \end{document}
