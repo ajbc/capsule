@@ -86,7 +86,7 @@ class Document:
 
 
 class Corpus:
-    def __init__(self, content_filename, time_filename):
+    def __init__(self, content_filename, time_filename, date_function):
         self.docs = []
         times = [int(t.strip()) for t in open(time_filename).readlines()]
         self.days = sorted(set(times))
@@ -104,6 +104,12 @@ class Corpus:
         while len(self.validation) < 0.05 * len(self.docs):
             self.validation.add(self.random_doc())
 
+        # cut by date relevance
+        self.dated_docs = defaultdict(list)
+        for doc in self.docs:
+            self.dated_docs[date].append(doc)
+
+
     def day_count(self):
         return len(self.days)
 
@@ -112,6 +118,10 @@ class Corpus:
 
     def random_doc(self):
         return self.docs[np.random.randint(len(self.docs))]
+
+    def random_doc(self, day):
+        #TODO: this only gives one day; we'll need all possibl relevant days to do stochastic variant
+        return self.dated_docs[day][np.random.randint(len(self.dated_docs[day]))]
 
 
 class Parameters:
@@ -166,7 +176,10 @@ class Parameters:
     def f(self, a, c):
         if a > c or c >= (a+self.d):
             return 0
-        return (1 - ((c-a)/self.d))
+        return (1 - ((0.0+c-a)/self.d))
+
+    def fdays(a):
+        return range(a, a + self.d)
 
 
 class Model:
@@ -176,7 +189,8 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.ones((1,self.data.dimension)) * iM(self.params.a_entity)
+        #self.a_entity = np.ones((1,self.data.dimension)) * iM(self.params.a_entity)
+        self.a_entity = np.ones((1,self.data.dimension)) * -sys.float_info.max
         self.b_entity = np.ones((1,self.data.dimension)) * iM(self.params.b_entity)
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.a_events)
@@ -273,10 +287,24 @@ class Model:
             lambda_a_entity = np.zeros((1, self.data.dimension))
             lambda_b_entity = np.zeros((1, self.data.dimension))
             lambda_eoccur = np.zeros(self.data.day_count())
-            docs_per_day = np.zeros((self.data.day_count(), 1))
 
-            #for doc in self.data.docs:
-            for d in range(self.params.batch_size):
+            for s in range(self.params.num_samples):
+                entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
+                    1.0 / M(self.b_entity), (1, self.data.dimension))
+                events = np.random.gamma(M(self.a_events) * M(self.b_events), \
+                    1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
+                eoccur = np.random.poisson(M(self.l_eoccur))
+
+                for day in range(self.data.day_count()):
+                    docs = []
+                    for d in self.params.fdays(day):
+
+                        docs.append....this seems wrong
+
+                    for doc in self.data.dated_docs[day]:
+
+
+
                 doc = self.data.random_doc()
                 f_array_master = np.zeros((self.data.day_count(),1))
                 for day in range(self.data.day_count()):
@@ -382,8 +410,8 @@ class Model:
             #lambda_eoccur /= self.params.batch_size * self.params.num_samples
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
-            self.a_entity += rho * lambda_a_entity
-            self.b_entity += rho * lambda_b_entity
+            #self.a_entity += rho * lambda_a_entity
+            #self.b_entity += rho * lambda_b_entity
 
             self.a_events += rho * lambda_a_events
             self.b_events += rho * lambda_b_events
@@ -460,9 +488,6 @@ if __name__ == '__main__':
     # seed random number generator
     np.random.seed(args.seed)
 
-    # read in data
-    data = Corpus(args.content_filename, args.time_filename)
-
     # create output dir (check if exists)
     if os.path.exists(args.outdir):
         print "Output directory %s already exists.  Removing it to have a clean output directory!" % args.outdir
@@ -470,16 +495,14 @@ if __name__ == '__main__':
     os.makedirs(args.outdir)
 
     # create an object of model parameters
-    #def __init__(self, outdir, batch_size, num_samples, save_freq, \
-    #    conv_thresh, max_iter, tau, kappa, \
-    #    a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
-    #    content, time):
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.content_filename, args.time_filename)
     params.save(args.seed)
 
+    # read in data
+    data = Corpus(args.content_filename, args.time_filename, params.f)
 
     ## Fit model
     model = Model(data, params)

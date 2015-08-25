@@ -1,33 +1,6 @@
-\documentclass{article}
-\usepackage{fullpage}
-
-%\usepackage[subscriptcorrection,slantedGreek,nofontinfo,lite]{mtpro2}
-\usepackage[T1]{fontenc}
-
-\usepackage{times}
-\renewcommand{\rmdefault}{ptm}
-%
-%\usepackage{color}
-\usepackage{algorithmicx}
-\usepackage[ruled]{algorithm}
-\usepackage[noend]{algpseudocode}
-%\usepackage[final,expansion=alltext]{microtype}
-\usepackage[english]{babel}
-\usepackage{amssymb,amsmath}
-\usepackage{graphicx}
-%
-%%\usepackage{natbib}
-%\usepackage[colorlinks,citecolor=blue, linkcolor=blue]{hyperref}
-%
-%\usepackage[all]{hypcap}
-
-% for numbering only a few equaliton in an align scope
-\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
-
-\newcommand{\pluseq}{\mathrel{+}=}
-\newcommand{\minuseq}{\mathrel{-}=}
-\newcommand{\E}{\mathrm{E}}
-\newcommand{\g}{\, | \,}
+\input{preamble/preamble.tex}
+\input{preamble/preamble_math.tex}
+\input{preamble/preamble_acronyms.tex}
 
 \begin{document}
 
@@ -37,13 +10,18 @@
 
 \maketitle
 
-\section{Generative model}
-We start with a fitted LDA model where documents are represented in terms of topics ($\theta$, a $D \times K$ matrix), and topics are represented as a distribution over words ($\beta$, a $K \times V$ matrix).  This model fit, along with document metadata, are our observations.  Alternatively, we can tack on the LDA generative process to the model below.
+\section{Generative model} We start with a fitted LDA model where documents
+are represented in terms of topics ($\theta$, a $D \times K$ matrix), and
+topics are represented as a distribution over words ($\beta$, a $K \times V$
+matrix).  This model fit, along with document metadata, are our observations.
+Alternatively, we can tack on the LDA generative process to the model below.
 
 \begin{itemize}
 \item for each day $i$ with date $a_i$:
 \begin{itemize}
-\item generate event occurrence/strength $\epsilon \sim \mbox{Poisson}(\eta_\epsilon)$, where $\eta_\epsilon$ is a fixed, non-negative hyperparameter for the mean event strength
+\item generate event occurrence/strength $\epsilon \sim \mbox{Poisson}
+(\eta_\epsilon)$, where $\eta_\epsilon$ is a fixed, non-negative
+hyperparameter for the mean event strength
 \item generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
 \end{itemize}
 \item draw the entity's base topics: $\phi_{0k} \sim \mbox{Gamma}(\alpha, \beta)$ (eventually for each entity, but for now, just limit data to only one entity)
@@ -117,61 +95,61 @@ The softmax function and derivative:
 \[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
 
 
-\alglanguage{pseudocode}
-\begin{algorithm}[h]
-\small
-\caption{Black Box Variational Inference for Cables Model}
-\label{alg:SPF}
-\begin{algorithmic}[1]
-\State \textbf{Input:} document topics $\theta$
-\State \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to respective priors
-\State \textbf{Initialize} iteration count $t = 0$
-\Repeat
-	\State $t \pluseq 1$
-	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
-	\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
-		\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
-     	   	\For {$s=1, \dots, S$}
-        			\For {$k=1, \dots,K$}
-        				\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
-        				\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:gamma}}
- 	       			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\phi,a}_k),\mathcal{M}(\lambda^{\phi,b}_k)$}
-        				\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
-        				\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-        					\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
-        					\State draw sample $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{M}(\lambda^\epsilon_i))$
- 	       				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:gamma}}
-        					\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\pi,a}_{ik}),\mathcal{M}(\lambda^{\pi,b}_{ik})$}
-        					\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
-        				\EndFor
-        			\EndFor
-        			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
-        				\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:poisson}}
-        				\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{Eqn.~\ref{eq:poisson} with parameter $\mathcal{M}(\lambda^{\epsilon}_i)$}
-        				\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:dpoisson}}
-        			\EndFor
+% \alglanguage{pseudocode}
+% \begin{algorithm}[h]
+% \small
+% \caption{Black Box Variational Inference for Cables Model}
+% \label{alg:SPF}
+% \begin{algorithmic}[1]
+% \State \textbf{Input:} document topics $\theta$
+% \State \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to respective priors
+% \State \textbf{Initialize} iteration count $t = 0$
+% \Repeat
+% 	\State $t \pluseq 1$
+% 	\State initialize $\hat\lambda^{\pi}$, $\hat\lambda^{\phi}$, and $\hat\lambda^{\epsilon}$ to 0 matrices
+% 	\For {$j=1, \dots, B$ (batch size, or \# of document samples)}
+% 		\State Sample a document $j$ that is sent on date $c_j$ and has topics $\theta_j$
+%      	   	\For {$s=1, \dots, S$}
+%         			\For {$k=1, \dots,K$}
+%         				\State draw sample $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$
+%         				\State set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$  \Comment{see Eqn.~\ref{eq:gamma}}
+%  	       			\State set $q^\phi_k[s] = \log q(\phi_{0k} \g \lambda^\phi_k)$ \Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\phi,a}_k),\mathcal{M}(\lambda^{\phi,b}_k)$}
+%         				\State set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$  \Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+%         				\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+%         					\State draw sample $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$
+%         					\State draw sample $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{M}(\lambda^\epsilon_i))$
+%  	       				\State set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$  \Comment{see Eqn.~\ref{eq:gamma}}
+%         					\State set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{Eqn.~\ref{eq:gamma} with parameters $\mathcal{M}(\lambda^{\pi,a}_{ik}),\mathcal{M}(\lambda^{\pi,b}_{ik})$}
+%         					\State set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$\Comment{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+%         				\EndFor
+%         			\EndFor
+%         			\For {each event $i$ on date $a_i \in \left( c_j - d, c_j \right]$}
+%         				\State set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \Comment{see Eqn.~\ref{eq:poisson}}
+%         				\State set $q^\epsilon_i[s] = \log q(\epsilon_i \g \lambda^\epsilon_i)$ \Comment{Eqn.~\ref{eq:poisson} with parameter $\mathcal{M}(\lambda^{\epsilon}_i)$}
+%         				\State set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$\Comment{see Eqn.~\ref{eq:dpoisson}}
+%         			\EndFor
 		
-			\For {$k=1, \dots,K$}
-				\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]}\epsilon_i[s] \pi_{ik}[s] f(a_i, c_j)$
-				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:gamma}}
-				\For {each event $i$}
-					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + p^\theta_k[s] -  q^\pi_{ik}[s] ) $
-				\EndFor
-				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + p^\theta_k[s] -  q^\phi_{k}[s] ) $
-			\EndFor
-			\For {each event $i$}
-				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
-			\EndFor
+% 			\For {$k=1, \dots,K$}
+% 				\State set $\phi_{jk}[s] = \phi_{0k}[s] + \sum_{i : a_i \in \left( c_j - d, c_j \right]}\epsilon_i[s] \pi_{ik}[s] f(a_i, c_j)$
+% 				\State set $p^\theta_k[s] = \log p(\theta_j \g \phi_{jk}[s], \beta_c)$\Comment{see Eqn.~\ref{eq:gamma}}
+% 				\For {each event $i$}
+% 					\State update $\hat\lambda^{\pi}_{ik} \pluseq \frac{1}{SB} g^\pi_{ik}[s] ( p^\pi_{ik}[s] + p^\theta_k[s] -  q^\pi_{ik}[s] ) $
+% 				\EndFor
+% 				\State update $\hat\lambda^{\phi}_{k} \pluseq \frac{1}{SB} g^\phi_{ik}[s] ( p^\phi_{k}[s] + p^\theta_k[s] -  q^\phi_{k}[s] ) $
+% 			\EndFor
+% 			\For {each event $i$}
+% 				\State update $\hat\lambda^{\epsilon}_{i} \pluseq \frac{1}{SB} g^\epsilon_{i}[s] ( p^\epsilon_{i}[s] + \sum_k p^\theta_k[s] -  q^\epsilon_{i}[s] ) $
+% 			\EndFor
 			
-		\EndFor
-	\EndFor
-	\State set $\rho= (t +\tau)^\kappa$
-	\State update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik} $
-	\State update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$
-	\State update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = \lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$
-\Until {change in validation likelihood $< \delta$}
-\end{algorithmic}
-\end{algorithm}
+% 		\EndFor
+% 	\EndFor
+% 	\State set $\rho= (t +\tau)^\kappa$
+% 	\State update event content for each event $i$ and topic $k$: $\lambda^{\pi}_{ik} = \lambda^{\pi}_{ik} + \rho \hat\lambda^{\pi}_{ik} $
+% 	\State update general entity topics for each topic $k$: $\lambda^{\phi}_{k} = \lambda^{\phi}_{k} + \rho \hat\lambda^{\phi}_{k}$
+% 	\State update event occurrences for each event $i$: $\lambda^{\epsilon}_{k} = \lambda^{\epsilon}_{i} + \rho \hat\lambda^{\epsilon}_{i}$
+% \Until {change in validation likelihood $< \delta$}
+% \end{algorithmic}
+% \end{algorithm}
 
 
 \end{document}
