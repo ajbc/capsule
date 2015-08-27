@@ -3,6 +3,7 @@ import shutil, os, sys
 from datetime import datetime as dt
 from scipy.special import gammaln, digamma
 from scipy.misc import factorial
+import subprocess
 
 import warnings #TODO rm
 warnings.filterwarnings('error')
@@ -171,6 +172,14 @@ class Parameters:
         f.write("data, content:\t%s\n" % self.content)
         f.write("data, times:\t%s\n" % self.time)
 
+        p = subprocess.Popen(['git','rev-parse', 'HEAD'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate()
+        f.write("\ncommit #%s" % out)
+
+        p = subprocess.Popen(['git','diff', 'event_detect.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate()
+        f.write("%s" % out)
+
         f.close()
 
     def f(self, a, c):
@@ -295,14 +304,14 @@ class Model:
                     1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
                 eoccur = np.random.poisson(M(self.l_eoccur))
 
-                for day in range(self.data.day_count()):
+                '''for day in range(self.data.day_count()):
                     docs = []
                     for d in self.params.fdays(day):
 
-                        docs.append....this seems wrong
+                        #docs.append....this seems wrong
 
                     for doc in self.data.dated_docs[day]:
-
+                '''
 
 
                 doc = self.data.random_doc()
