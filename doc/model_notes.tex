@@ -10,6 +10,25 @@
 
 \maketitle
 
+\section{Introduction}
+
+Our objective is to detect historical events.
+
+\section{Related Work}
+
+- BBVI, DEFs; this deals with finding updates for non-conjuate models
+
+- non uniform sampling (MMSB in PNAS); we want events to be represented
+appropriately.  Also: how to update global stuff form non-uniform document
+sampling--it's a bit of challenge)
+
+- spike and slab (e.g., Emperical study of SVI for Beta Bernoulli Process; also
+IBP papers) because we have variables that fit this pattern
+
+- SSVI; this helps us with the event variables--they are bound together (is
+this the real purpose here?)
+
+
 \section{Generative model} We start with a fitted LDA model where documents
 are represented in terms of topics ($\theta$, a $D \times K$ matrix), and
 topics are represented as a distribution over words ($\beta$, a $K \times V$
