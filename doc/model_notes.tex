@@ -158,7 +158,7 @@ respective priors \;
 		\BlankLine
 		$p^\phi_k[s] \pluseq p^\theta_{jk}[s]$ \;
 		\For {each timestep $i$ where $a_i \le c_j < a_i + d$}{
-			$p^\epsilon_{i}[s] \pluseq p^\theta_{jk}[s]$ \;
+			$p^\epsilon_{i}[s] \pluseq \sum_k p^\theta_{jk}[s]$ \;
 			\If {$\epsilon_i[s] \neq 0$} {
 				$p^\pi_{ik}[s] \pluseq p^\theta_{jk}[s]$ \;
 				update $\sigma^\pi_i \pluseq 1$ \;

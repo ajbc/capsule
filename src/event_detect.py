@@ -68,7 +68,9 @@ def EGamma(a, b):
     return num / den
 
 def pPoisson(x, p):
-    return x*np.log(p) - np.log(factorial(x)) - p
+    rv = x*np.log(p) - np.log(factorial(x)) - p
+    rv[np.isinf(rv)] = -sys.float_info.max
+    return rv
 
 def qgPoisson(x, p):
     dMp = dM(p)
@@ -105,12 +107,6 @@ class Corpus:
         while len(self.validation) < 0.05 * len(self.docs):
             self.validation.add(self.random_doc())
 
-        # cut by date relevance
-        self.dated_docs = defaultdict(list)
-        for doc in self.docs:
-            self.dated_docs[date].append(doc)
-
-
     def day_count(self):
         return len(self.days)
 
@@ -119,10 +115,6 @@ class Corpus:
 
     def random_doc(self):
         return self.docs[np.random.randint(len(self.docs))]
-
-    def random_doc(self, day):
-        #TODO: this only gives one day; we'll need all possibl relevant days to do stochastic variant
-        return self.dated_docs[day][np.random.randint(len(self.dated_docs[day]))]
 
 
 class Parameters:
@@ -152,8 +144,11 @@ class Parameters:
         self.content = content
         self.time = time
 
-    def save(self, seed):
+    def save(self, seed, message):
         f = open(os.path.join(self.outdir, 'settings.dat'), 'w+')
+
+        f.write("%s\n" % dt.now())
+        f.write("%s\n\n" % message)
 
         f.write("random seed:\t%d\n" % seed)
         f.write("batch size:\t%d\n" % self.batch_size)
@@ -198,19 +193,18 @@ class Model:
 
     def init(self):
         # free variational parameters
-        #self.a_entity = np.ones((1,self.data.dimension)) * iM(self.params.a_entity)
-        self.a_entity = np.ones((1,self.data.dimension)) * -sys.float_info.max
-        self.b_entity = np.ones((1,self.data.dimension)) * iM(self.params.b_entity)
+        self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity)
+        self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity)
+        self.l_eoccur = np.ones((self.data.day_count(), 1)) * iM(self.params.l_eoccur)
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.a_events)
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.b_events)
-        self.l_eoccur = np.ones(self.data.day_count()) * iM(self.params.l_eoccur)
 
         # expected values of goal model parameters
         self.entity = EGamma(self.a_entity, self.b_entity)
-        self.events = EGamma(self.a_events, self.b_events)
         self.eoccur = M(self.l_eoccur)
+        self.events = EGamma(self.a_events, self.b_events)
 
         self.likelihood_decreasing_count = 0
 
@@ -220,12 +214,8 @@ class Model:
         f_array = np.zeros((self.data.day_count(),1))
         for doc in self.data.validation:
             for day in range(self.data.day_count()):
-                f_array[day] = self.params.f(self.data.days[day], doc.day) * self.eoccur[day]
-            #print self.entity
-            #print f_array*self.events
-            #print f_array, self.events
-            #print sum(f_array*self.events)
-            doc_params = self.entity + sum(f_array*self.events)
+                f_array[day] = self.params.f(self.data.days[day], doc.day)
+            doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
             log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
             LL += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs), 0)
         print "LL", LL
@@ -250,7 +240,7 @@ class Model:
         if delta < 0:
             print "likelihood decreasing (bad)"
             self.likelihood_decreasing_count += 1
-            if iteration > 50 and self.likelihood_decreasing_count == 3:
+            if iteration > 50 and self.likelihood_decreasing_count >= 3:
                 print "STOP: 3 consecutive iterations of increasing likelihood"
                 return True
             return False
@@ -267,7 +257,7 @@ class Model:
 
     def save(self, tag):
         fout = open(os.path.join(self.params.outdir, "entities_%s.tsv" % tag), 'w+')
-        fout.write(('\t'.join(["%f"]*len(self.entity[0]))+'\n') % tuple(self.entity[0]))
+        fout.write(('\t'.join(["%f"]*len(self.entity))+'\n') % tuple(self.entity))
         fout.close()
 
         fout = open(os.path.join(self.params.outdir, "events_%s.tsv" % tag), 'w+')
@@ -291,144 +281,69 @@ class Model:
         while not self.converged(iteration):
             iteration += 1
 
-            lambda_a_events = np.zeros((self.data.day_count(), self.data.dimension))
-            lambda_b_events = np.zeros((self.data.day_count(), self.data.dimension))
-            lambda_a_entity = np.zeros((1, self.data.dimension))
-            lambda_b_entity = np.zeros((1, self.data.dimension))
-            lambda_eoccur = np.zeros(self.data.day_count())
+            event_count = np.zeros((self.data.day_count(),self.data.dimension))
 
-            for s in range(self.params.num_samples):
-                entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
-                    1.0 / M(self.b_entity), (1, self.data.dimension))
-                events = np.random.gamma(M(self.a_events) * M(self.b_events), \
-                    1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
-                eoccur = np.random.poisson(M(self.l_eoccur))
+            # sample latent parameters
+            entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
+                1.0 / M(self.b_entity), (self.params.num_samples, self.data.dimension))
+            eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+            events = np.random.gamma(M(self.a_events) * M(self.b_events), \
+                1.0 / M(self.b_events), (self.params.num_samples, self.data.day_count(), self.data.dimension))
 
-                '''for day in range(self.data.day_count()):
-                    docs = []
-                    for d in self.params.fdays(day):
+            ## p, q, and g for latent parameters
+            # entity topics
+            p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
+            q_entity, g_entity_a, g_entity_b = \
+                qgGamma(entity, self.a_entity, self.b_entity)
 
-                        #docs.append....this seems wrong
+            # event occurance
+            p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
+            q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
 
-                    for doc in self.data.dated_docs[day]:
-                '''
+            # event content
+            p_events = pGamma(events, self.params.a_events, self.params.b_events)
+            q_events, g_events_a, g_events_b = \
+                qgGamma(events, self.a_events, self.b_events)
 
+            #TODO: constrain event content based on occurance (e.g. probabilties above)
+            incl = eoccur != 0
 
-                doc = self.data.random_doc()
-                f_array_master = np.zeros((self.data.day_count(),1))
+            for doc in self.data.docs:
+                f_array = np.zeros((self.data.day_count(),1))
+                relevant_days = set()
                 for day in range(self.data.day_count()):
-                    f_array_master[day] = self.params.f(self.data.days[day], doc.day)
-                    docs_per_day[day] += 1
+                    f_array[day] = self.params.f(self.data.days[day], doc.day)
+                    relevant_days.add(day)
 
-                h_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
-                f_a_entity = np.zeros((self.params.num_samples, self.data.dimension))
-                h_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
-                f_b_entity = np.zeros((self.params.num_samples, self.data.dimension))
-                h_a_events = np.zeros((self.params.num_samples, \
-                    self.data.day_count(), self.data.dimension))
-                f_a_events = np.zeros((self.params.num_samples, \
-                    self.data.day_count(), self.data.dimension))
-                h_b_events = np.zeros((self.params.num_samples, \
-                    self.data.day_count(), self.data.dimension))
-                f_b_events = np.zeros((self.params.num_samples, \
-                    self.data.day_count(), self.data.dimension))
-                h_eoccur = np.zeros((self.params.num_samples, self.data.day_count()))
-                f_eoccur = np.zeros((self.params.num_samples, self.data.day_count()))
-
-                for s in range(self.params.num_samples):
-                    # sample for each latent parameter
-                    entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
-                        1.0 / M(self.b_entity), (1, self.data.dimension))
-                    events = np.random.gamma(M(self.a_events) * M(self.b_events), \
-                        1.0 / M(self.b_events), (self.data.day_count(), self.data.dimension))
-                    eoccur = np.random.poisson(M(self.l_eoccur))
-                    #print iteration, s, eoccur
-
-                    f_array = np.zeros((self.data.day_count(),1))
-                    for day in range(self.data.day_count()):
-                        f_array[day] = f_array_master[day] * eoccur[day]
-
-                    # entity contributions to updates
-                    p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
-                    q_entity, g_entity_a, g_entity_b = \
-                        qgGamma(entity, self.a_entity, self.b_entity)
-
-                    # event content contributions
-                    p_events = pGamma(events, self.params.a_events, self.params.b_events)
-                    q_events, g_events_a, g_events_b = \
-                        qgGamma(events, self.a_events, self.b_events)
-
-                    # event occurance contributions
-                    p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
-                    q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
-
-                    # document contributions to updates
-                    doc_params = entity + sum(f_array*events)
-                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                    p_doc_eoccur = ((f_array_master != 0) * p_doc).sum()
-
-                    h_a_entity[s] = g_entity_a
-                    h_b_entity[s] = g_entity_b
-                    f_a_entity[s] = g_entity_a * (p_entity + \
-                        p_doc - q_entity)
-                    #    self.data.num_docs() * p_doc - q_entity)
-                    f_b_entity[s] = g_entity_b * (p_entity + \
-                        p_doc - q_entity)
-                    #    self.data.num_docs() * p_doc - q_entity)
-                    lambda_a_entity += f_a_entity[s]
-                    lambda_b_entity += f_b_entity[s]
-
-                    h_a_events[s] = (f_array_master != 0) * g_events_a
-                    h_b_events[s] = (f_array_master != 0) * g_events_b
-                    #f_a_events[s] = g_events_a * \
-                    f_a_events[s] = (f_array_master != 0) * g_events_a * \
-                        (p_events + p_doc - q_events)
-                    #    (p_events + self.data.num_docs() * p_doc - q_events)
-                    #f_b_events[s] = g_events_b * \
-                    f_b_events[s] = (f_array_master != 0) * g_events_b * \
-                        (p_events + p_doc - q_events)
-                    #    (p_events + self.data.num_docs() * p_doc - q_events)
-                    lambda_a_events += f_a_events[s]
-                    lambda_b_events += f_b_events[s]
-
-                    f_array = f_array_master.flatten()
-                    h_eoccur[s] = (f_array != 0) * g_eoccur
-                    f_eoccur[s] = (f_array != 0) * g_eoccur * \
-                        (p_eoccur + p_doc_eoccur - q_eoccur)
-                    #    (p_eoccur + self.data.num_docs() * p_doc_eoccur - q_eoccur)
-                    lambda_eoccur += f_eoccur[s]
-
-                #print "H", sum(h_a_entity)
-                #print "VAR", var(h_a_entity)
-                #print "COV", cov(f_a_entity, h_a_entity)
-                #print lambda_a_entity
-                lambda_a_entity -= sum(h_a_entity) * (cov(f_a_entity, h_a_entity) / var(h_a_entity))
-                lambda_b_entity -= sum(h_b_entity) * (cov(f_b_entity, h_b_entity) / var(h_b_entity))
-                #print lambda_a_entity
-                lambda_a_events -= sum(h_a_events) * (cov(f_a_events, h_a_events) / var(h_a_events))
-                lambda_b_events -= sum(h_b_events) * (cov(f_b_events, h_b_events) / var(h_b_events))
-                lambda_eoccur -= sum(h_eoccur) * (cov(f_eoccur, h_eoccur) / var(h_eoccur))
-
-            lambda_a_entity /= self.params.batch_size * self.params.num_samples
-            lambda_b_entity /= self.params.batch_size * self.params.num_samples
-            lambda_a_events /= docs_per_day * self.params.num_samples
-            lambda_b_events /= docs_per_day * self.params.num_samples
-            #lambda_a_events /= self.params.batch_size * self.params.num_samples
-            #lambda_b_events /= self.params.batch_size * self.params.num_samples
-            lambda_eoccur /= docs_per_day.flatten() * self.params.num_samples
-            #lambda_eoccur /= self.params.batch_size * self.params.num_samples
+                # document contributions to updates
+                doc_params = entity + (f_array*events*eoccur).sum(1)
+                p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
+                p_entity += p_doc
+                for i in relevant_days:
+                    p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1)))
+                    p_events[...,i,...] += incl[...,i,...] * p_doc
+                    event_count[i] += sum(incl[...,i,...])
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
-            #self.a_entity += rho * lambda_a_entity
-            #self.b_entity += rho * lambda_b_entity
 
-            self.a_events += rho * lambda_a_events
-            self.b_events += rho * lambda_b_events
-            self.l_eoccur += rho * lambda_eoccur
+            self.a_entity += (rho/self.params.num_samples) * \
+                (g_entity_a * (p_entity - q_entity)).sum(0)
+            self.b_entity += (rho/self.params.num_samples) * \
+                (g_entity_b * (p_entity - q_entity)).sum(0)
+
+            self.l_eoccur += (rho/self.params.num_samples) * \
+                (g_eoccur * (p_eoccur - q_eoccur)).sum(0)
+
+            incl = event_count != 0
+            event_count[event_count == 0] = 1
+            self.a_events += (incl * rho / event_count) * \
+                (g_events_a * (p_events - q_events)).sum(0)
+            self.b_events += (incl * rho / event_count) * \
+                (g_events_b * (p_events - q_events)).sum(0)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
-            self.events = EGamma(self.a_events, self.b_events)
             self.eoccur = M(self.l_eoccur)
+            self.events = EGamma(self.a_events, self.b_events)
             print "end of iteration"
             print "*************************************"
 
@@ -454,6 +369,8 @@ if __name__ == '__main__':
         help='a path to document times; one line per document with integer value')
     parser.add_argument('--out', dest='outdir', type=str, \
         default='out', help='output directory')
+    parser.add_argument('--msg', dest='message', type=str, \
+        default='', help='log message')
 
     parser.add_argument('--batch', dest='B', type=int, \
         default=1024, help = 'number of docs per batch, default 1024')
@@ -508,7 +425,7 @@ if __name__ == '__main__':
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.content_filename, args.time_filename)
-    params.save(args.seed)
+    params.save(args.seed, args.message)
 
     # read in data
     data = Corpus(args.content_filename, args.time_filename, params.f)
