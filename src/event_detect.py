@@ -56,8 +56,8 @@ def qgGamma(x, a, b):
     dMa = dM(a)
     a = M(a)
 
-    g_a = dMa * b * (np.log(b) - digamma(a) + np.log(x))
-    g_b = dMb * (a*(np.log(x)+1.0) - a*digamma(a) + a*np.log(x) - x)
+    g_a = dMa * b * (np.log(b) - digamma(a*b) + np.log(x))
+    g_b = dMb * (a*(np.log(b)+1.0) - a * digamma(a*b) + a*np.log(x) - x)
 
     return (pGamma(x, a, b), g_a, g_b)
 
