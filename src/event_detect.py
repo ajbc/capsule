@@ -295,6 +295,8 @@ class Model:
             p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
             q_entity, g_entity_a, g_entity_b = \
                 qgGamma(entity, self.a_entity, self.b_entity)
+            print "src a", M(self.a_entity)
+            print "src b", M(self.b_entity)
 
             # event occurance
             p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
@@ -325,21 +327,39 @@ class Model:
                     event_count[i] += sum(incl[...,i,...])
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
+            print rho
 
-            self.a_entity += (rho/self.params.num_samples) * \
-                (g_entity_a * (p_entity - q_entity)).sum(0)
-            self.b_entity += (rho/self.params.num_samples) * \
-                (g_entity_b * (p_entity - q_entity)).sum(0)
+            f = g_entity_a * (p_entity - q_entity)
+            h = g_entity_a
+            cv = cov(f, h) / var(h)
+            #print "sample", entity
+            #print "cv", cv.shape, cv
+            #print "g aka h", h.shape, h
+            #print "f", f.shape, f
+            #print "cv*g", (cv*h).shape, (cv*h)
+            #print "sum(cv*g)", (cv*h).sum(0).shape, (cv*h).sum(0)
+            #print "sum(f)", (f).sum(0).shape, (f).sum(0)
+            #print "mult", (rho/self.params.num_samples)
+            #print "change", ((rho/self.params.num_samples) * (f - cv * h).sum(0)).shape, (rho/self.params.num_samples) * (f - cv * h).sum(0)
+            #print "old", M(self.a_entity)
+            self.a_entity += (rho/self.params.num_samples) * (f - cv * h).sum(0)
+            f = g_entity_b * (p_entity - q_entity)
+            h = g_entity_b
+            cv = cov(f, h) / var(h)
+            #self.b_entity += (rho/self.params.num_samples) * (f - cv * h).sum(0)
+            #self.b_entity += (rho/self.params.num_samples) * \
+            #    (g_entity_b * (p_entity - q_entity)).sum(0)
+            #print "new", M(self.a_entity)
 
-            self.l_eoccur += (rho/self.params.num_samples) * \
-                (g_eoccur * (p_eoccur - q_eoccur)).sum(0)
+            #self.l_eoccur += (rho/self.params.num_samples) * \
+            #    (g_eoccur * (p_eoccur - q_eoccur)).sum(0)
 
             incl = event_count != 0
             event_count[event_count == 0] = 1
-            self.a_events += (incl * rho / event_count) * \
-                (g_events_a * (p_events - q_events)).sum(0)
-            self.b_events += (incl * rho / event_count) * \
-                (g_events_b * (p_events - q_events)).sum(0)
+            #self.a_events += (incl * rho / event_count) * \
+            #    (g_events_a * (p_events - q_events)).sum(0)
+            #self.b_events += (incl * rho / event_count) * \
+            #    (g_events_b * (p_events - q_events)).sum(0)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
             self.eoccur = M(self.l_eoccur)
@@ -349,6 +369,9 @@ class Model:
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
+
+            #if iteration == 3:
+            #    break
 
         # save final state
         self.save('final')
