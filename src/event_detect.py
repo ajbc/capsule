@@ -280,6 +280,8 @@ class Model:
 
         iteration = 0
         days_seen = np.zeros((self.data.day_count(),1))
+        scale = self.data.num_docs() * 1.0 / self.params.batch_size
+
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
         print "starting..."
@@ -314,8 +316,8 @@ class Model:
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
-
-            for doc in self.data.docs:
+            for d in range(self.params.batch_size):
+                doc = self.data.random_doc()
                 f_array = np.zeros((self.data.day_count(),1))
                 relevant_days = set()
                 for day in range(self.data.day_count()):
@@ -327,9 +329,9 @@ class Model:
                 p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
                 p_entity += p_doc
                 for i in relevant_days:
-                    p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1)))
-                    p_events[...,i,...] += incl[...,i,...] * p_doc
-                    event_count[i] += sum(incl[...,i,...])
+                    p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
+                    p_events[...,i,...] += incl[...,i,...] * p_doc * scale
+                    event_count[i] += sum(incl[...,i,...]) * scale
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             print rho
