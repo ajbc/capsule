@@ -109,7 +109,7 @@ class Corpus:
                 sys.exit(-1)
             doc = Document(len(self.docs), times.pop(0), rep)
             self.docs.append(doc)
-            self.dated_docs[self.day].append(doc)
+            self.dated_docs[doc.day].append(doc)
 
         self.validation = set()
         while len(self.validation) < 0.05 * len(self.docs):
