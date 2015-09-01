@@ -77,6 +77,11 @@ def qgPoisson(x, p):
     p = M(p)
     return (pPoisson(x, p), dMp * (x/p - 1))
 
+def cv_update(p, q, g):
+    f = g * (p - q)
+    cv = cov(f, g) / var(g)
+    return (f - cv * g).sum(0)
+
 
 ## Classes
 
@@ -225,7 +230,7 @@ class Model:
         if iteration == 0:
             self.likelihood = -sys.float_info.max
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
-            flog.write("iteration\tlikelihood\tchange\n")
+            flog.write("iteration\ttime\tlikelihood\tchange\n")
             return False
 
         self.old_likelihood = self.likelihood
@@ -234,8 +239,8 @@ class Model:
             abs(self.old_likelihood)
 
         flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
-        flog.write("%d\t%f\t%f\n" % (iteration, self.likelihood, delta))
-        print "%d\t%f\t%f" % (iteration, self.likelihood, delta)
+        flog.write("%d\t%s\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, delta))
+        print "%d\t%s\t%f\t%f" % (iteration, dt.now(), self.likelihood, delta)
 
         if delta < 0:
             print "likelihood decreasing (bad)"
@@ -329,37 +334,15 @@ class Model:
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             print rho
 
-            f = g_entity_a * (p_entity - q_entity)
-            h = g_entity_a
-            cv = cov(f, h) / var(h)
-            #print "sample", entity
-            #print "cv", cv.shape, cv
-            #print "g aka h", h.shape, h
-            #print "f", f.shape, f
-            #print "cv*g", (cv*h).shape, (cv*h)
-            #print "sum(cv*g)", (cv*h).sum(0).shape, (cv*h).sum(0)
-            #print "sum(f)", (f).sum(0).shape, (f).sum(0)
-            #print "mult", (rho/self.params.num_samples)
-            #print "change", ((rho/self.params.num_samples) * (f - cv * h).sum(0)).shape, (rho/self.params.num_samples) * (f - cv * h).sum(0)
-            #print "old", M(self.a_entity)
-            self.a_entity += (rho/self.params.num_samples) * (f - cv * h).sum(0)
-            f = g_entity_b * (p_entity - q_entity)
-            h = g_entity_b
-            cv = cov(f, h) / var(h)
-            #self.b_entity += (rho/self.params.num_samples) * (f - cv * h).sum(0)
-            #self.b_entity += (rho/self.params.num_samples) * \
-            #    (g_entity_b * (p_entity - q_entity)).sum(0)
-            #print "new", M(self.a_entity)
+            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            #self.l_eoccur += (rho/self.params.num_samples) * \
-            #    (g_eoccur * (p_eoccur - q_eoccur)).sum(0)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             incl = event_count != 0
             event_count[event_count == 0] = 1
-            #self.a_events += (incl * rho / event_count) * \
-            #    (g_events_a * (p_events - q_events)).sum(0)
-            #self.b_events += (incl * rho / event_count) * \
-            #    (g_events_b * (p_events - q_events)).sum(0)
+            self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
+            self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
             self.eoccur = M(self.l_eoccur)
