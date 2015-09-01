@@ -3,11 +3,11 @@ import shutil, os, sys
 from datetime import datetime as dt
 from scipy.special import gammaln, digamma
 from scipy.misc import factorial
+from collections import defaultdict
 import subprocess
 
 import warnings #TODO rm
 warnings.filterwarnings('error')
-from collections import defaultdict #TODO rm
 
 ## helper functions
 
@@ -96,6 +96,7 @@ class Document:
 class Corpus:
     def __init__(self, content_filename, time_filename, date_function):
         self.docs = []
+        self.dated_docs = defaultdict(list)
         times = [int(t.strip()) for t in open(time_filename).readlines()]
         self.days = sorted(set(times))
         self.dimension = 0
@@ -106,7 +107,9 @@ class Corpus:
             elif self.dimension != len(rep):
                 print "Data malformed; document representations not of equal length"
                 sys.exit(-1)
-            self.docs.append(Document(len(self.docs), times.pop(0), rep))
+            doc = Document(len(self.docs), times.pop(0), rep)
+            self.docs.append(doc)
+            self.dated_docs[self.day].append(doc)
 
         self.validation = set()
         while len(self.validation) < 0.05 * len(self.docs):
@@ -118,8 +121,14 @@ class Corpus:
     def num_docs(self):
         return len(self.docs)
 
+    def num_docs_by_day(self, day):
+        return len(self.dated_docs[day])
+
     def random_doc(self):
         return self.docs[np.random.randint(len(self.docs))]
+
+    def random_doc_by_day(self, day):
+        return self.dated_docs[day][np.random.randint(len(self.dated_docs[day]))]
 
 
 class Parameters:
@@ -280,7 +289,6 @@ class Model:
 
         iteration = 0
         days_seen = np.zeros((self.data.day_count(),1))
-        scale = self.data.num_docs() * 1.0 / self.params.batch_size
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
@@ -316,22 +324,24 @@ class Model:
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
-            for d in range(self.params.batch_size):
-                doc = self.data.random_doc()
-                f_array = np.zeros((self.data.day_count(),1))
-                relevant_days = set()
-                for day in range(self.data.day_count()):
-                    f_array[day] = self.params.f(self.data.days[day], doc.day)
-                    relevant_days.add(day)
+            for date in self.data.days:
+                scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
+                for d in range(self.params.batch_size):
+                    doc = self.data.random_doc_by_day(date)
+                    f_array = np.zeros((self.data.day_count(),1))
+                    relevant_days = set()
+                    for day in range(self.data.day_count()):
+                        f_array[day] = self.params.f(self.data.days[day], doc.day)
+                        relevant_days.add(day)
 
-                # document contributions to updates
-                doc_params = entity + (f_array*events*eoccur).sum(1)
-                p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                p_entity += p_doc
-                for i in relevant_days:
-                    p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
-                    p_events[...,i,...] += incl[...,i,...] * p_doc * scale
-                    event_count[i] += sum(incl[...,i,...]) * scale
+                    # document contributions to updates
+                    doc_params = entity + (f_array*events*eoccur).sum(1)
+                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
+                    p_entity += p_doc
+                    for i in relevant_days:
+                        p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
+                        p_events[...,i,...] += incl[...,i,...] * p_doc * scale
+                        event_count[i] += sum(incl[...,i,...]) * scale
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             print rho
@@ -381,7 +391,7 @@ if __name__ == '__main__':
         default='', help='log message')
 
     parser.add_argument('--batch', dest='B', type=int, \
-        default=1024, help = 'number of docs per batch, default 1024')
+        default=128, help = 'number of docs per batch, default 128')
     parser.add_argument('--samples', dest='S', type=int, \
         default=64, help = 'number of approximating samples, default 64')
     parser.add_argument('--save_freq', dest='save_freq', type=int, \
