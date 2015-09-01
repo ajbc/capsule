@@ -325,9 +325,14 @@ class Model:
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
             for date in self.data.days:
-                scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
-                for d in range(self.params.batch_size):
-                    doc = self.data.random_doc_by_day(date)
+                scale = 1.0
+                docset = []
+                if self.data.num_docs_by_day(date) < self.params.batch_size:
+                    docset = self.data.dated_docs[date]
+                else:
+                    scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
+                    docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
+                for doc in docset:
                     f_array = np.zeros((self.data.day_count(),1))
                     relevant_days = set()
                     for day in range(self.data.day_count()):
