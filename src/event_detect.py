@@ -18,11 +18,6 @@ def M(x):
     rv[rv == 0] = (sys.float_info.min)**0.5
     return rv
 
-# derivative of softmax
-def dM(x):
-    x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
-    return np.exp(x) / (1.0 + np.exp(x))
-
 # inverse of softmax
 def iM(x):
     return np.log(np.exp(x) - 1.0)
@@ -45,21 +40,20 @@ def var(a):
     rv[rv == 0] = sys.float_info.min #TODO: is this needed?
     return rv
 
+def pGaussian(x, mu, var):
+    return -1.0 * (np.log(np.sqrt(var * 2 * np.pi)) + (x-mu)**2 / (2*var))
+
+def gGaussian(x, mu, var):
+    return (1.0 / var) * (x - mu)
+
 def pGamma(x, a, b):
     if (x == 0).any() or (np.array(b) == 0).any():
         x[x==0] = sys.float_info.min
     return a*b*np.log(b) - lngamma(a*b) + (a*b-1.0)*np.log(x) - b*x
 
-def qgGamma(x, a, b):
-    dMb = dM(b)
-    b = M(b)
-    dMa = dM(a)
-    a = M(a)
-
-    g_a = dMa * b * (np.log(b) - digamma(a*b) + np.log(x))
-    g_b = dMb * (a*(np.log(b)+1.0) - a * digamma(a*b) + a*np.log(x) - x)
-
-    return (pGamma(x, a, b), g_a, g_b)
+def qgGamma(x, a1, b1, a0, b0, v):
+    return (pGamma(x, M(a1), M(b1)) + pGaussian(a1, a0, v) + \
+        pGaussian(b1, b0, v), gGaussian(a1, a0, v), gGaussian(b1, b0, v))
 
 def EGamma(a, b):
     num = M(a) * M(b)
@@ -72,12 +66,11 @@ def pPoisson(x, p):
     rv[np.isinf(rv)] = -sys.float_info.max
     return rv
 
-def qgPoisson(x, p):
-    dMp = dM(p)
-    p = M(p)
-    return (pPoisson(x, p), dMp * (x/p - 1))
+def qgPoisson(x, p1, p0, v):
+    return (pPoisson(x, M(p1)) + pGaussian(p1, p0, v), gGaussian(p1, p0, v))
 
 def cv_update(p, q, g):
+    #f = g * (p - q - 1) #TODO: try with and without -1 (shouldnt matter...)
     f = g * (p - q)
     cv = cov(f, g) / var(g)
     return (f - cv * g).sum(0)
@@ -289,28 +282,46 @@ class Model:
             event_count = np.zeros((self.data.day_count(),self.data.dimension))
 
             # sample latent parameters
-            entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
-                1.0 / M(self.b_entity), (self.params.num_samples, self.data.dimension))
-            eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
-            events = np.random.gamma(M(self.a_events) * M(self.b_events), \
-                1.0 / M(self.b_events), (self.params.num_samples, self.data.day_count(), self.data.dimension))
+            entity_a = np.random.normal(loc=self.a_entity, scale=variance, \
+                size=(self.params.num_samples, self.data.dimension))
+            entity_b = np.random.normal(loc=self.b_entity, scale=variance, \
+                size=(self.params.num_samples, self.data.dimension))
+            entity = np.random.gamma(M(entity_a) * M(entity_b), \
+                1.0 / M(entity_b))
+
+            l_eoccur = np.random.normal(loc=self.l_eoccur * \
+                np.ones((self.params.num_samples, self.data.day_count(), 1)),
+                scale=variance)
+            eoccur = np.random.poisson(M(l_eoccur))
+
+            events_a = np.random.normal(loc=self.a_events, scale=variance, \
+                size=(self.params.num_samples, self.data.day_count(), \
+                self.data.dimension))
+            events_b = np.random.normal(loc=self.b_events, scale=variance, \
+                size=(self.params.num_samples, self.data.day_count(), \
+                self.data.dimension))
+            events = np.random.gamma(M(events_a) * M(events_b), \
+                1.0 / M(events_b))
 
             ## p, q, and g for latent parameters
             # entity topics
             p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
             q_entity, g_entity_a, g_entity_b = \
-                qgGamma(entity, self.a_entity, self.b_entity)
+                qgGamma(entity, entity_a, entity_b, \
+                self.a_entity, self.b_entity, variance)
             print "src a", M(self.a_entity)
             print "src b", M(self.b_entity)
 
             # event occurance
             p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
-            q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
+            q_eoccur, g_eoccur = qgPoisson(eoccur, l_eoccur, \
+                self.l_eoccur, variance)
 
             # event content
             p_events = pGamma(events, self.params.a_events, self.params.b_events)
             q_events, g_events_a, g_events_b = \
-                qgGamma(events, self.a_events, self.b_events)
+                qgGamma(events, a_events, b_events, \
+                self.a_events, self.b_events, variance)
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
