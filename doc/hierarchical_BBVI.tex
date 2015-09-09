@@ -1,0 +1,68 @@
+\input{preamble/preamble.tex}
+\input{preamble/preamble_math.tex}
+\input{preamble/preamble_acronyms.tex}
+
+\begin{document}
+
+\title{Hierarchical sampling for BBVI}
+
+\author{Allison J.B. Chaney}
+
+\maketitle
+
+\section{BBVI}
+
+\begin{itemize}
+\item Variational inference minimizes the KL divergence from an approximating distribution $q$ to the true posterior $p$.
+\item This is equivalent to maximizing the ELBO: $\mathcal{L}(\lambda) \triangleq \E_{q_\lambda(z)}[\log p(x,z) - \log q_\lambda(z)]$
+\item We use stochastic optimization to update $\lambda$.  This means we need a noisy, unbiased gradient that we can compute using samples from the posterior.
+\item To do so, we write the gradient of the ELBO as an expectation with respect to the variational distribution:
+\begin{align*}
+\nabla_\lambda\mathcal{L} &= \nabla_\lambda \E_{q_\lambda(z)}[\log p(x,z) - \log q_\lambda(z)] \\
+&= \nabla_\lambda \int_z \left[\log p(x,z) - \log q_\lambda(z)\right] q_\lambda(z) dz \\
+&= \int_z \nabla_\lambda \left(\left[\log p(x,z) - \log q_\lambda(z)\right] q_\lambda(z) \right) dz \\
+&= \int_z q_\lambda(z) \nabla_\lambda \left[\log p(x,z) - \log q_\lambda(z)\right] + \left[\log p(x,z) - \log q_\lambda(z)\right] \nabla_\lambda q_\lambda(z) dz \\
+&= \int_z - q_\lambda(z) \nabla_\lambda \log q_\lambda(z) + \left[\log p(x,z) - \log q_\lambda(z)\right] \nabla_\lambda q_\lambda(z) dz \\
+&= \int_z \left( - q_\lambda(z) \nabla_\lambda \log q_\lambda(z) + \left[\log p(x,z) - \log q_\lambda(z)\right] \nabla_\lambda q_\lambda(z) \right) \frac{q_\lambda(z)}{q_\lambda(z)} dz \\
+&= \E_{q_\lambda(z)}\left[ \left( - q_\lambda(z) \nabla_\lambda \log q_\lambda(z) + \left(\log p(x,z) - \log q_\lambda(z)\right) \nabla_\lambda q_\lambda(z) \right) \frac{1}{q_\lambda(z)} \right] \\
+&= \E_{q_\lambda(z)}\left[ - \nabla_\lambda \log q_\lambda(z) + \left(\log p(x,z) - \log q_\lambda(z)\right) \frac{\nabla_\lambda q_\lambda(z)}{q_\lambda(z)} \right] \\
+&= \E_{q_\lambda(z)}\left[ - \nabla_\lambda \log q_\lambda(z) + \left(\log p(x,z) - \log q_\lambda(z)\right) \nabla_\lambda \log q_\lambda(z) \right] \\
+&= \E_{q_\lambda(z)}\left[ \nabla_\lambda \log q_\lambda(z) \left(\log p(x,z) - \log q_\lambda(z) - 1\right)  \right] \\
+\end{align*}
+
+\item Now we take $S$ samples $z_s \sim q(z \g \lambda)$ and compute a noisy unbiased gradient
+\[\hat\nabla_\lambda\mathcal{L} = \frac{1}{S} \sum_{s=1}^S \nabla_\lambda \log q(z_s \g \lambda) \left(\log p(x,z_s) - \log q(z_s \g \lambda) - 1\right) \]
+\end{itemize}
+
+
+\section{BBVI with hierarchical sampling}
+
+\begin{itemize}
+\item We want to maximize a new variant of the ELBO: 
+\begin{align*}
+\mathcal{L}(\alpha) &\triangleq \E_{q_\alpha(z)}[\log p(x,z) - \log q_\alpha(z)] \\
+&= \E_{q_\alpha(z)}[\log p(x,z) - \log \left(q(z \g \lambda) q(\lambda \g \alpha)\right)] \\
+&= \E_{q_\alpha(z)}[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)]
+\end{align*}
+\item Like before, we use stochastic optimization to update $\alpha$.  Again, we need a noisy, unbiased gradient that we can compute using samples from the posterior.
+\item To do so, we write the gradient of the new ELBO as an expectation with respect to the variational distribution:
+\begin{align*}
+\nabla_\lambda\mathcal{L} &= \nabla_\alpha \E_{q_\alpha(z)}[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)] \\
+&= \nabla_\alpha \int_z \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] q_\alpha(z) dz \\
+&= \int_z \nabla_\alpha \left(\left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] q_\alpha(z) \right) dz \\
+ &= \int_z q_\alpha(z) \nabla_\alpha \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] + \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] \nabla_\alpha q_\alpha(z) dz \\
+ &= \int_z - q_\alpha(z) \nabla_\alpha \log q(\lambda \g \alpha) + \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] \nabla_\alpha q_\alpha(z) dz \\
+ &= \int_z - q_\alpha(z) \nabla_\alpha \log q(\lambda \g \alpha) + \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] \nabla_\alpha q_\alpha(z) dz \\
+ &= \int_z \left(- q_\alpha(z) \nabla_\alpha \log q(\lambda \g \alpha) + \left[\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right] \nabla_\alpha q_\alpha(z)\right) \frac{q_\alpha(z)}{q_\alpha(z)} dz \\
+ &= \E_{q_\alpha(z)}\left[ \left(- q_\alpha(z) \nabla_\alpha \log q(\lambda \g \alpha) + \left(\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right) \nabla_\alpha q_\alpha(z)\right) \frac{1}{q_\alpha(z)}\right] \\
+ &= \E_{q_\alpha(z)}\left[ - \nabla_\alpha \log q(\lambda \g \alpha) + \left(\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right)  \frac{\nabla_\alpha q_\alpha(z)}{q_\alpha(z)}\right] \\
+ &= \E_{q_\alpha(z)}\left[ - \nabla_\alpha \log q(\lambda \g \alpha) + \left(\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha)\right)  \nabla_\alpha \log q_\alpha(z) \right] \\
+ &= \E_{q_\alpha(z)}\left[  \nabla_\alpha \log q(\lambda \g \alpha) \left(\log p(x,z) - \log q(z \g \lambda) - \log q(\lambda \g \alpha) - 1 \right) \right]
+\end{align*}
+
+\item Now we take $S$ samples $\lambda_s \sim q(\lambda \g \alpha)$ then $z_s \sim q(z \g \lambda_s)$ and compute a noisy unbiased gradient
+\[\hat\nabla_\alpha\mathcal{L} = \frac{1}{S} \sum_{s=1}^S \nabla_\alpha \log q(\lambda_s \g \alpha) \left(\log p(x,z_s) - \log q(z_s \g \lambda_s) - \log q(\lambda_z \g \alpha) - 1\right) \]
+\end{itemize}
+
+
+\end{document}
