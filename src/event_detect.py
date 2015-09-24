@@ -121,7 +121,7 @@ class Corpus:
 
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
-        conv_thresh, max_iter, tau, kappa, base_var, decay_rate, \
+        conv_thresh, min_iter, max_iter, tau, kappa, base_var, decay_rate, \
         a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
         content, time):
         self.outdir = outdir
@@ -129,6 +129,7 @@ class Parameters:
         self.num_samples = num_samples
         self.save_freq = save_freq
         self.convergence_thresh = conv_thresh
+        self.min_iter = min_iter
         self.max_iter = max_iter
 
         self.tau = tau
@@ -160,6 +161,7 @@ class Parameters:
         f.write("number of samples:\t%d\n" % self.num_samples)
         f.write("save frequency:\t%d\n" % self.save_freq)
         f.write("convergence threshold:\t%f\n" % self.convergence_thresh)
+        f.write("min # of iterations:\t%d\n" % self.min_iter)
         f.write("max # of iterations:\t%d\n" % self.max_iter)
         f.write("tau:\t%d\n" % self.tau)
         f.write("kappa:\t%f\n" % self.kappa)
@@ -252,7 +254,7 @@ class Model:
         else:
             self.likelihood_decreasing_count = 0
 
-        if iteration > 20 and delta < self.params.convergence_thresh:
+        if iteration > self.params.min_iter and delta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
         if iteration == self.params.max_iter:
@@ -378,12 +380,12 @@ class Model:
             self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            #self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
-            #incl = event_count != 0
-            #event_count[event_count == 0] = 1
-            #self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
-            #self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
+            incl = event_count != 0
+            event_count[event_count == 0] = 1
+            self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
+            self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
             self.eoccur = M(self.l_eoccur)
@@ -427,6 +429,8 @@ if __name__ == '__main__':
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
         default=1e-3, help = 'likelihood threshold for convergence, default 1e-3')
+    parser.add_argument('--min_iter', dest='min_iter', type=int, \
+        default=10, help = 'minimum number of iterations, default 10')
     parser.add_argument('--max_iter', dest='max_iter', type=int, \
         default=1000, help = 'maximum number of iterations, default 1000')
     parser.add_argument('--seed', dest='seed', type=int, \
@@ -474,7 +478,7 @@ if __name__ == '__main__':
 
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
-        args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
+        args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
         args.base_var, args.decay_rate, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.content_filename, args.time_filename)
