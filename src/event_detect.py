@@ -40,6 +40,10 @@ def var(a):
     rv[rv == 0] = sys.float_info.min #TODO: is this needed?
     return rv
 
+def compute_variance(p, itr):
+    var = p.base_variance * np.exp(-itr * p.decay_rate)
+    return max(var, sys.float_info.min)
+
 def pGaussian(x, mu, var):
     return -1.0 * (np.log(np.sqrt(var * 2 * np.pi)) + (x-mu)**2 / (2*var))
 
@@ -117,7 +121,7 @@ class Corpus:
 
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
-        conv_thresh, max_iter, tau, kappa, \
+        conv_thresh, max_iter, tau, kappa, base_var, decay_rate, \
         a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
         content, time):
         self.outdir = outdir
@@ -129,6 +133,9 @@ class Parameters:
 
         self.tau = tau
         self.kappa = kappa
+
+        self.base_variance = base_var
+        self.decay_rate = decay_rate
 
         self.a_entity = a_ent
         self.b_entity = b_ent
@@ -216,7 +223,7 @@ class Model:
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
             log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
             LL += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs), 0)
-        print "LL", LL
+        #print "LL", LL
         return log_likelihood
 
     def converged(self, iteration):
@@ -278,8 +285,16 @@ class Model:
         print "starting..."
         while not self.converged(iteration):
             iteration += 1
+            variance = compute_variance(self.params, iteration)
 
             event_count = np.zeros((self.data.day_count(),self.data.dimension))
+
+            #print "****----****"
+            #print "a", self.a_entity
+            #print "b", self.b_entity
+            #print "M(a)", M(self.a_entity)
+            #print "M(b)", M(self.b_entity)
+            #print "****----****"
 
             # sample latent parameters
             entity_a = np.random.normal(loc=self.a_entity, scale=variance, \
@@ -288,6 +303,23 @@ class Model:
                 size=(self.params.num_samples, self.data.dimension))
             entity = np.random.gamma(M(entity_a) * M(entity_b), \
                 1.0 / M(entity_b))
+            #print "---"
+            #print "sampled a[0]", entity_a[0]
+            #print "sampled a[1]", entity_a[1]
+            #print "sampled a[2]", entity_a[2]
+            #print "M(a[0])", M(entity_a[0])
+            #print "M(a[1])", M(entity_a[1])
+            #print "M(a[2])", M(entity_a[2])
+            #print "sampled b[0]", entity_b[0]
+            #print "sampled b[1]", entity_b[1]
+            #print "sampled b[2]", entity_b[2]
+            #print "M(b[0])", M(entity_b[0])
+            #print "M(b[1])", M(entity_b[1])
+            #print "M(b[2])", M(entity_b[2])
+            #print "sampled e[0]", entity[0]
+            #print "sampled e[1]", entity[1]
+            #print "sampled e[2]", entity[2]
+            #print "---"
 
             l_eoccur = np.random.normal(loc=self.l_eoccur * \
                 np.ones((self.params.num_samples, self.data.day_count(), 1)),
@@ -309,8 +341,6 @@ class Model:
             q_entity, g_entity_a, g_entity_b = \
                 qgGamma(entity, entity_a, entity_b, \
                 self.a_entity, self.b_entity, variance)
-            print "src a", M(self.a_entity)
-            print "src b", M(self.b_entity)
 
             # event occurance
             p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
@@ -320,7 +350,7 @@ class Model:
             # event content
             p_events = pGamma(events, self.params.a_events, self.params.b_events)
             q_events, g_events_a, g_events_b = \
-                qgGamma(events, a_events, b_events, \
+                qgGamma(events, events_a, events_b, \
                 self.a_events, self.b_events, variance)
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
@@ -338,28 +368,28 @@ class Model:
                 p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
                 p_entity += p_doc
                 for i in relevant_days:
-                    p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1)))
-                    p_events[...,i,...] += incl[...,i,...] * p_doc
-                    event_count[i] += sum(incl[...,i,...])
+                    p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1)))
+                    p_events[:,i,:] += incl[:,i,:] * p_doc
+                    event_count[i] += sum(incl[:,i,:])
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
-            print rho
+            #print rho
 
             self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            #self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
-            incl = event_count != 0
-            event_count[event_count == 0] = 1
-            self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
-            self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
+            #incl = event_count != 0
+            #event_count[event_count == 0] = 1
+            #self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
+            #self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
             self.eoccur = M(self.l_eoccur)
             self.events = EGamma(self.a_events, self.b_events)
-            print "end of iteration"
-            print "*************************************"
+            #print "end of iteration"
+            #print "*************************************"
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
@@ -407,6 +437,11 @@ if __name__ == '__main__':
     parser.add_argument('--kappa', dest='kappa', type=float, \
         default=0.7, help = 'learning rate: should be between (0.5, 1.0] to guarantee asymptotic convergence')
 
+    parser.add_argument('--base_var', dest='base_var', type=float, \
+        default=10, help = 'base variance for first level sampling (Gaussian); default 10')
+    parser.add_argument('--decay_rate', dest='decay_rate', type=float, \
+        default=0.01, help = 'decay rate of variance for first level of sampling; default 0.01')
+
     parser.add_argument('--a_entities', dest='a_entities', type=float, \
         default=1.0, help = 'shape prior on entities; default 1')
     parser.add_argument('--b_entities', dest='b_entities', type=float, \
@@ -440,6 +475,7 @@ if __name__ == '__main__':
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
+        args.base_var, args.decay_rate, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.content_filename, args.time_filename)
     params.save(args.seed, args.message)
