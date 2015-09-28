@@ -27,6 +27,20 @@ def dM(x):
 def iM(x):
     return np.log(np.exp(x) - 1.0)
 
+# sigmoid
+def S(x):
+    x[x < -np.log(sys.float_info.max)] = -np.log(sys.float_info.max)
+    return 1.0 / (1.0 + np.exp(-x))
+    #return 1.0 / (1.0 + 1.01**(-x))
+
+#derivative of sigmoid
+def dS(x):
+    return S(x) * (1-S(x))
+
+# inverse of sigmoid
+def iS(x):
+    return -np.log(1.0/x - 1)/np.log(1.01)
+
 
 def lngamma(val):
     if isinstance(val, float):
@@ -66,6 +80,12 @@ def EGamma(a, b):
     den = M(b)
 
     return num / den
+
+def pBernoulli(x, p):
+    return p**x * (1-p)**(1-x)
+
+def qgBernoulli(x, p):
+    return (pBernoulli(x, S(p)), dS(p)**x * (-dS(p))**(1-x))
 
 def pPoisson(x, p):
     rv = x*np.log(p) - np.log(factorial(x)) - p
@@ -134,7 +154,8 @@ class Corpus:
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, max_iter, tau, kappa, \
-        a_ent, b_ent, a_evn, b_evn, b_doc, eoc, event_duration, \
+        a_ent, b_ent, a_evn, b_evn, b_doc, eoc, \
+        event_duration, event_dist, \
         content, time):
         self.outdir = outdir
         self.batch_size = batch_size
@@ -154,6 +175,7 @@ class Parameters:
         self.l_eoccur = eoc
 
         self.d = event_duration
+        self.event_dist = event_dist
 
         self.content = content
         self.time = time
@@ -178,6 +200,8 @@ class Parameters:
         f.write("b_events:\t%f\n" % self.b_events)
         f.write("b_docs:\t%f\n" % self.b_docs)
         f.write("prior on event occurance:\t%f\n" % self.l_eoccur)
+        f.write("event duration:\t%d\n" % self.d)
+        f.write("event dist:\t%s\n" % self.event_dist)
         f.write("data, content:\t%s\n" % self.content)
         f.write("data, times:\t%s\n" % self.time)
 
@@ -209,7 +233,8 @@ class Model:
         # free variational parameters
         self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity)
         self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity)
-        self.l_eoccur = np.ones((self.data.day_count(), 1)) * iM(self.params.l_eoccur)
+        self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
+            (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.a_events)
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
@@ -222,13 +247,17 @@ class Model:
 
         self.likelihood_decreasing_count = 0
 
-    def compute ELBO(self):
+    def compute_ELBO(self):
         log_priors = pGamma(self.entity, self.params.a_entity, self.params.b_entity) + \
-            pPoisson(self.eoccur, self.params.l_eoccur) + \
             pGamma(self.events, self.params.e_events, self.params.b_events)
         log_q = pGamma(self.entity, self.a_entity, self.b_entity) + \
-            pPoisson(self.eoccur, self.l_eoccur) + \
             pGamma(self.events, self.e_events, self.b_events)
+        if self.params.event_dist == "Poisson":
+            log_priors += pPoisson(self.eoccur, self.params.l_eoccur)
+            log_q += pPoisson(self.eoccur, self.l_eoccur)
+        else:
+            log_priors += pBernoulli(self.eoccur, self.params.l_eoccur)
+            log_q += pBernoulli(self.eoccur, self.l_eoccur)
         return log_likelihood + log_priors - log_q
 
     def compute_likelihood(self):
@@ -310,7 +339,10 @@ class Model:
             # sample latent parameters
             entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
                 1.0 / M(self.b_entity), (self.params.num_samples, self.data.dimension))
-            eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+            if self.params.event_dist == "Poisson":
+                eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+            else:
+                eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             events = np.random.gamma(M(self.a_events) * M(self.b_events), \
                 1.0 / M(self.b_events), (self.params.num_samples, self.data.day_count(), self.data.dimension))
 
@@ -323,8 +355,12 @@ class Model:
             #print "src b", M(self.b_entity)
 
             # event occurance
-            p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
-            q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
+            if self.params.event_dist == "Poisson":
+                p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
+                q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
+            else:
+                p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
+                q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
 
             # event content
             p_events = pGamma(events, self.params.a_events, self.params.b_events)
@@ -437,6 +473,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--event_dur', dest='event_duration', type=int, \
         default=7, help = 'the length of time an event can be relevant; default 7')
+    parser.add_argument('--event_dist', dest='event_dist', type=str, \
+        default="Bernoulli", help = 'what distribution used to model event occurance (\"Poisson\" or \"Bernoulli\"); Bernoulli default')
 
     # parse the arguments
     args = parser.parse_args()
@@ -456,7 +494,8 @@ if __name__ == '__main__':
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
-        args.event_duration, args.content_filename, args.time_filename)
+        args.event_duration, args.event_dist, \
+        args.content_filename, args.time_filename)
     params.save(args.seed, args.message)
 
     # read in data
