@@ -39,7 +39,7 @@ def dS(x):
 
 # inverse of sigmoid
 def iS(x):
-    return -np.log(1.0/x - 1)/np.log(1.01)
+    return -np.log(1.0/x - 1)
 
 
 def lngamma(val):
@@ -233,6 +233,7 @@ class Model:
         # free variational parameters
         self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity)
         self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity)
+        print iS(self.params.l_eoccur)
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
@@ -305,7 +306,7 @@ class Model:
         else:
             self.elbo_decreasing_count = 0
 
-        if iteration > 20 and delta < self.params.convergence_thresh:
+        if iteration > 20 and elbodelta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
         if iteration == self.params.max_iter:
@@ -335,6 +336,7 @@ class Model:
         days_seen = np.zeros((self.data.day_count(),1))
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
+        print self.eoccur.T
 
         print "starting..."
         while not self.converged(iteration):
@@ -402,22 +404,23 @@ class Model:
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             #print rho
 
-            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
-            self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
+            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
             self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             incl = event_count != 0
             event_count[event_count == 0] = 1
-            self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
-            self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
+            #self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
+            #self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
-            self.entity = EGamma(self.a_entity, self.b_entity)
+            #self.entity = EGamma(self.a_entity, self.b_entity)
             if self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
                 self.eoccur = S(self.l_eoccur)
-            self.events = EGamma(self.a_events, self.b_events)
+            print self.eoccur.T
+            #self.events = EGamma(self.a_events, self.b_events)
             #print "end of iteration"
             #print "*************************************"
 
@@ -452,7 +455,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch', dest='B', type=int, \
         default=128, help = 'number of docs per batch, default 128')
     parser.add_argument('--samples', dest='S', type=int, \
-        default=64, help = 'number of approximating samples, default 64')
+        default=1024, help = 'number of approximating samples, default 1024')
     parser.add_argument('--save_freq', dest='save_freq', type=int, \
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \

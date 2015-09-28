@@ -62,9 +62,24 @@ for (iter in seq(0,ITER,1)) {
 
 # likelihood
 LL <- read.csv(paste(FIT, 'log.dat', sep='/'), sep='\t')
-ggplot(LL, aes(x=iteration, y=likelihood)) + geom_line() + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=min(LL$likelihood), yend=max(LL$likelihood)), color='green', size=0.1)
-ggsave(file='likelihood.pdf',width=5, height=3)
 
-LL <- LL[LL$iteration!=1,]
-ggplot(LL, aes(x=iteration, y=change)) + geom_point() + geom_line() + geom_smooth()
-ggsave(file='likelihood_change.pdf',width=5, height=3)
+ymin <- min(LL$ELBO)
+ymax <- max(LL$ELBO)
+
+LL$ll.change <- NULL
+LL$ELBO.change <- NULL
+LL$time <- NULL
+LL <- melt(LL, id.vars=c("iteration"))
+
+
+ggplot(LL, aes(x=iteration, y=value, color=variable)) + geom_line() + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=ymin, yend=ymax), color='black', size=0.1) +theme_bw()
+ggsave(file='log.pdf',width=5, height=3)
+
+
+# from pre-melt era
+# ggplot(LL, aes(x=iteration, y=likelihood)) + geom_line() + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=min(LL$likelihood), yend=max(LL$likelihood)), color='green', size=0.1)
+# ggsave(file='likelihood.pdf',width=5, height=3)
+
+# LL <- LL[LL$iteration!=1,]
+# ggplot(LL, aes(x=iteration, y=change)) + geom_point() + geom_line() + geom_smooth()
+# ggsave(file='likelihood_change.pdf',width=5, height=3)
