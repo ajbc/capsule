@@ -248,17 +248,17 @@ class Model:
         self.likelihood_decreasing_count = 0
 
     def compute_ELBO(self):
-        log_priors = pGamma(self.entity, self.params.a_entity, self.params.b_entity) + \
-            pGamma(self.events, self.params.e_events, self.params.b_events)
-        log_q = pGamma(self.entity, self.a_entity, self.b_entity) + \
-            pGamma(self.events, self.e_events, self.b_events)
+        log_priors = pGamma(self.entity, self.params.a_entity, self.params.b_entity).sum() + \
+            pGamma(self.events, self.params.a_events, self.params.b_events).sum()
+        log_q = pGamma(self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
+            pGamma(self.events, M(self.a_events), M(self.b_events)).sum()
         if self.params.event_dist == "Poisson":
-            log_priors += pPoisson(self.eoccur, self.params.l_eoccur)
-            log_q += pPoisson(self.eoccur, self.l_eoccur)
+            log_priors += pPoisson(self.eoccur, self.params.l_eoccur).sum()
+            log_q += pPoisson(self.eoccur, M(self.l_eoccur)).sum()
         else:
-            log_priors += pBernoulli(self.eoccur, self.params.l_eoccur)
-            log_q += pBernoulli(self.eoccur, self.l_eoccur)
-        return log_likelihood + log_priors - log_q
+            log_priors += pBernoulli(self.eoccur, self.params.l_eoccur).sum()
+            log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
+        return self.compute_likelihood() + log_priors - log_q
 
     def compute_likelihood(self):
         log_likelihood = 0
@@ -276,28 +276,34 @@ class Model:
     def converged(self, iteration):
         if iteration == 0:
             self.likelihood = -sys.float_info.max
+            self.elbo = -sys.float_info.max
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
-            flog.write("iteration\ttime\tlikelihood\tchange\n")
+            flog.write("iteration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
             return False
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
-        delta = (self.likelihood - self.old_likelihood) / \
+        lldelta = (self.likelihood - self.old_likelihood) / \
             abs(self.old_likelihood)
 
-        flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
-        flog.write("%d\t%s\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, delta))
-        print "%d\t%s\t%f\t%f" % (iteration, dt.now(), self.likelihood, delta)
+        self.old_elbo = self.elbo
+        self.elbo = self.compute_ELBO()
+        elbodelta = (self.elbo - self.old_elbo) / \
+            abs(self.old_elbo)
 
-        if delta < 0:
-            print "likelihood decreasing (bad)"
-            self.likelihood_decreasing_count += 1
-            if iteration > 50 and self.likelihood_decreasing_count >= 3:
-                print "STOP: 3 consecutive iterations of increasing likelihood"
+        flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
+        flog.write("%d\t%s\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
+        print "%d\t%s\t%f\t%f\t%f\t%f" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta)
+
+        if elbodelta < 0:
+            print "ELBO decreasing (bad)"
+            self.elbo_decreasing_count += 1
+            if iteration > 50 and self.elbo_decreasing_count >= 3:
+                print "STOP: 3 consecutive iterations of increasing ELBO"
                 return True
             return False
         else:
-            self.likelihood_decreasing_count = 0
+            self.elbo_decreasing_count = 0
 
         if iteration > 20 and delta < self.params.convergence_thresh:
             print "STOP: model converged!"
@@ -407,8 +413,11 @@ class Model:
             self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
-            #self.eoccur = M(self.l_eoccur)
-            #self.events = EGamma(self.a_events, self.b_events)
+            if self.params.event_dist == "Poisson":
+                self.eoccur = M(self.l_eoccur)
+            else:
+                self.eoccur = S(self.l_eoccur)
+            self.events = EGamma(self.a_events, self.b_events)
             #print "end of iteration"
             #print "*************************************"
 
