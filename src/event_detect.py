@@ -222,6 +222,15 @@ class Model:
 
         self.likelihood_decreasing_count = 0
 
+    def compute ELBO(self):
+        log_priors = pGamma(self.entity, self.params.a_entity, self.params.b_entity) + \
+            pPoisson(self.eoccur, self.params.l_eoccur) + \
+            pGamma(self.events, self.params.e_events, self.params.b_events)
+        log_q = pGamma(self.entity, self.a_entity, self.b_entity) + \
+            pPoisson(self.eoccur, self.l_eoccur) + \
+            pGamma(self.events, self.e_events, self.b_events)
+        return log_likelihood + log_priors - log_q
+
     def compute_likelihood(self):
         log_likelihood = 0
         LL = np.zeros(self.data.dimension)
@@ -232,7 +241,7 @@ class Model:
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
             log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
             LL += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs), 0)
-        print "LL", LL
+        #print "LL", LL
         return log_likelihood
 
     def converged(self, iteration):
@@ -310,8 +319,8 @@ class Model:
             p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
             q_entity, g_entity_a, g_entity_b = \
                 qgGamma(entity, self.a_entity, self.b_entity)
-            print "src a", M(self.a_entity)
-            print "src b", M(self.b_entity)
+            #print "src a", M(self.a_entity)
+            #print "src b", M(self.b_entity)
 
             # event occurance
             p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
@@ -349,7 +358,7 @@ class Model:
                         event_count[i] += sum(incl[...,i,...]) * scale
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
-            print rho
+            #print rho
 
             self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
@@ -362,10 +371,10 @@ class Model:
             self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = EGamma(self.a_entity, self.b_entity)
-            self.eoccur = M(self.l_eoccur)
-            self.events = EGamma(self.a_events, self.b_events)
-            print "end of iteration"
-            print "*************************************"
+            #self.eoccur = M(self.l_eoccur)
+            #self.events = EGamma(self.a_events, self.b_events)
+            #print "end of iteration"
+            #print "*************************************"
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
