@@ -28,7 +28,7 @@ dat <- rbind(dat.obs, dat.truth)
 
 
 # fitted vs truth
-for (iter in seq(0,ITER)) {
+for (iter in seq(0,ITER,1)) {
   print(sprintf('creating plot for iteration %d', iter))
   iterstr <- sprintf('%04d', iter)
   dat.fit0 <- read.csv(paste(FIT, '/entities_', iterstr, '.tsv', sep=''), sep='\t', header=F)
