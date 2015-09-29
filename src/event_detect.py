@@ -427,7 +427,7 @@ class Model:
             print "q", q_entity.shape
             print "g", g_entity_a.shape
             print "aup", aup.shape'''
-            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             #for s in range(10):#self.params.num_samples):
             #    print "sample", s, entity[s]
             #    print ("p[%d] =" % s), p_entity[s]
@@ -437,7 +437,7 @@ class Model:
             #    print '---'
             #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            #self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0)
             cvup = cv_update(p_events, q_events, g_events_a)
@@ -519,7 +519,7 @@ if __name__ == '__main__':
     parser.add_argument('--b_events', dest='b_events', type=float, \
         default=1.0, help = 'rate prior on events; default 1')
     parser.add_argument('--b_docs', dest='b_docs', type=float, \
-        default=1.0, help = 'rate prior (and partial shape prior) on documents; default 1')
+        default=0.1, help = 'rate prior (and partial shape prior) on documents; default 0.1 (*sensitive*)')
     parser.add_argument('--event_occur', dest='event_occurance', type=float, \
         default=0.5, help = 'prior to how often events should occur; range [0,1] and default 0.5')
 
