@@ -264,18 +264,19 @@ class Model:
         else:
             log_priors += pBernoulli(self.eoccur, self.params.l_eoccur).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
-        return self.compute_likelihood() + log_priors - log_q
+        return self.compute_likelihood(False) + log_priors - log_q
 
-    def compute_likelihood(self):
+    def compute_likelihood(self, valid=True):
         log_likelihood = 0
         LL = np.zeros(self.data.dimension)
         f_array = np.zeros((self.data.day_count(),1))
-        for doc in self.data.validation:
+        ds = self.data.validation if valid else self.data.docs
+        for doc in ds:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
             log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
-            LL += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs), 0)
+            LL += pGamma(doc.rep, doc_params, self.params.b_docs)
         #print "LL", LL
         return log_likelihood
 
@@ -285,7 +286,6 @@ class Model:
             self.elbo = -sys.float_info.max
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
             flog.write("iteration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
-            return False
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
@@ -304,14 +304,14 @@ class Model:
         if elbodelta < 0:
             print "ELBO decreasing (bad)"
             self.elbo_decreasing_count += 1
-            if iteration > 50 and self.elbo_decreasing_count >= 3:
+            if iteration > 5 and self.elbo_decreasing_count >= 3:
                 print "STOP: 3 consecutive iterations of increasing ELBO"
                 return True
             return False
         else:
             self.elbo_decreasing_count = 0
 
-        if iteration > 20 and elbodelta < self.params.convergence_thresh:
+        if iteration > 5 and elbodelta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
         if iteration == self.params.max_iter:
@@ -342,14 +342,14 @@ class Model:
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
-        print "a-ent", self.a_entity
-        print "M(a-ent)", M(self.a_entity)
-        print "entity", self.entity
-        print "*************************************"
+        #print "a-ent", self.a_entity
+        #print "M(a-ent)", M(self.a_entity)
+        #print "entity", self.entity
+        #print "*************************************"
 
         print "starting..."
         while not self.converged(iteration):
-            print "*************************************"
+            #print "*************************************"
             iteration += 1
 
             event_count = np.zeros((self.data.day_count(),self.data.dimension))
@@ -367,6 +367,7 @@ class Model:
             ## p, q, and g for latent parameters
             # entity topics
             p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
+            #print "p_entity, prior", p_entity
             q_entity, g_entity_a, g_entity_b = \
                 qgGamma(entity, self.a_entity, self.b_entity)
             #print "src a", M(self.a_entity)
@@ -395,6 +396,7 @@ class Model:
                 else:
                     scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
                     docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
+                i = 0
                 for doc in docset:
                     f_array = np.zeros((self.data.day_count(),1))
                     relevant_days = set()
@@ -405,7 +407,12 @@ class Model:
                     # document contributions to updates
                     doc_params = entity + (f_array*events*eoccur).sum(1)
                     p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                    p_entity += p_doc
+                    p_entity += p_doc * scale
+                    '''if date == 1 and i < 3:
+                        print "doc", doc.rep
+                        print "params", doc_params, self.params.b_docs
+                        print "\tdoc date %d, %d" % (date, i), p_doc, scale
+                    i += 0'''
                     for i in relevant_days:
                         p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
                         p_events[:,i,:] += incl[:,i,:] * p_doc * scale
@@ -414,43 +421,46 @@ class Model:
             #print rho
 
 
-            #aup = cv_update(p_entity, q_entity, g_entity_a, True)
+            aup = cv_update(p_entity, q_entity, g_entity_a, True)
             '''print "S", self.params.num_samples
             print "p", p_entity.shape
             print "q", q_entity.shape
             print "g", g_entity_a.shape
-            print "aup", aup.shape
-            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
-            for s in range(10):#self.params.num_samples):
-                print "sample", s, entity[s]
-                print ("a[%d] +=" % s), aup[s]
-                print '---'''
+            print "aup", aup.shape'''
+            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            #for s in range(10):#self.params.num_samples):
+            #    print "sample", s, entity[s]
+            #    print ("p[%d] =" % s), p_entity[s]
+            #    print ("q[%d] =" % s), q_entity[s]
+            #    print ("g[%d] =" % s), g_entity_a[s]
+            #    print ("a[%d] +=" % s), aup[s]
+            #    print '---'
             #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            #AOK self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0)
             cvup = cv_update(p_events, q_events, g_events_a)
-            self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
+            #self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
             #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
-            '''self.entity = EGamma(self.a_entity, self.b_entity)
-            print "*************************************"
-            print "a-ent", self.a_entity
-            print "M(a-ent)", M(self.a_entity)
-            print "entity", self.entity'''
-            '''AOKif self.params.event_dist == "Poisson":
+            self.entity = EGamma(self.a_entity, self.b_entity)
+            #print "*************************************"
+            #print "a-ent", self.a_entity
+            #print "M(a-ent)", M(self.a_entity)
+            #print "entity", self.entity
+            if self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
-                self.eoccur = S(self.l_eoccur)'''
+                self.eoccur = S(self.l_eoccur)
             #print self.eoccur.T
             self.events = EGamma(self.a_events, self.b_events)
-            for date in self.data.days:
+            '''for date in self.data.days:
                 print 'S[%d]'%date, es[date]
                 print 'a[%d] +='%date, cvup[date]
                 print 'a[%d] ='%date, self.a_events[date]
                 print 'evt[%d]'%date, self.events[date]
-                print '---'
+                print '---'''
             #print "end of iteration"
             print "*************************************"
 
