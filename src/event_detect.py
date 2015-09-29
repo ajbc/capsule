@@ -6,24 +6,29 @@ from scipy.misc import factorial
 from collections import defaultdict
 import subprocess
 
+# suppress scientific notation when printing
+np.set_printoptions(suppress=True)
+
 import warnings #TODO rm
 warnings.filterwarnings('error')
 
 ## helper functions
 
-# softmax
+# softplus
 def M(x):
     x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
     rv = np.log(1.0 + np.exp(x))
     rv[rv == 0] = (sys.float_info.min)**0.5
     return rv
 
-# derivative of softmax
+# derivative of softplus
 def dM(x):
-    x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
-    return np.exp(x) / (1.0 + np.exp(x))
+    #x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
+    #return np.exp(x) / (1.0 + np.exp(x))
+    x[-x > np.log(sys.float_info.max)] = -np.log(sys.float_info.max)
+    return 1.0 / (1.0 + np.exp(-x))
 
-# inverse of softmax
+# inverse of softplus
 def iM(x):
     return np.log(np.exp(x) - 1.0)
 
@@ -31,7 +36,6 @@ def iM(x):
 def S(x):
     x[x < -np.log(sys.float_info.max)] = -np.log(sys.float_info.max)
     return 1.0 / (1.0 + np.exp(-x))
-    #return 1.0 / (1.0 + 1.01**(-x))
 
 #derivative of sigmoid
 def dS(x):
@@ -97,9 +101,11 @@ def qgPoisson(x, p):
     p = M(p)
     return (pPoisson(x, p), dMp * (x/p - 1))
 
-def cv_update(p, q, g):
+def cv_update(p, q, g, pr=False):
     f = g * (p - q)
     cv = cov(f, g) / var(g)
+    if pr:
+        return (f - cv *g)
     return (f - cv * g).sum(0)
 
 
@@ -233,7 +239,6 @@ class Model:
         # free variational parameters
         self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity)
         self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity)
-        print iS(self.params.l_eoccur)
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
@@ -243,7 +248,7 @@ class Model:
 
         # expected values of goal model parameters
         self.entity = EGamma(self.a_entity, self.b_entity)
-        self.eoccur = M(self.l_eoccur)
+        self.eoccur = (M(self.l_eoccur) if self.params.event_dist == "Poisson" else S(self.l_eoccur))
         self.events = EGamma(self.a_events, self.b_events)
 
         self.likelihood_decreasing_count = 0
@@ -336,10 +341,15 @@ class Model:
         days_seen = np.zeros((self.data.day_count(),1))
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
-        print self.eoccur.T
+
+        print "a-ent", self.a_entity
+        print "M(a-ent)", M(self.a_entity)
+        print "entity", self.entity
+        print "*************************************"
 
         print "starting..."
         while not self.converged(iteration):
+            print "*************************************"
             iteration += 1
 
             event_count = np.zeros((self.data.day_count(),self.data.dimension))
@@ -397,32 +407,52 @@ class Model:
                     p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
                     p_entity += p_doc
                     for i in relevant_days:
-                        p_eoccur[...,i,...] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
-                        p_events[...,i,...] += incl[...,i,...] * p_doc * scale
-                        event_count[i] += sum(incl[...,i,...]) * scale
+                        p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
+                        p_events[:,i,:] += incl[:,i,:] * p_doc * scale
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             #print rho
 
-            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+
+            #aup = cv_update(p_entity, q_entity, g_entity_a, True)
+            '''print "S", self.params.num_samples
+            print "p", p_entity.shape
+            print "q", q_entity.shape
+            print "g", g_entity_a.shape
+            print "aup", aup.shape
+            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            for s in range(10):#self.params.num_samples):
+                print "sample", s, entity[s]
+                print ("a[%d] +=" % s), aup[s]
+                print '---'''
             #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            #AOK self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
-            incl = event_count != 0
-            event_count[event_count == 0] = 1
-            #self.a_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_a)
-            #self.b_events += (incl * rho / event_count) * cv_update(p_events, q_events, g_events_b)
+            es = eoccur.sum(0)
+            cvup = cv_update(p_events, q_events, g_events_a)
+            self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
+            #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
-            #self.entity = EGamma(self.a_entity, self.b_entity)
-            if self.params.event_dist == "Poisson":
+            '''self.entity = EGamma(self.a_entity, self.b_entity)
+            print "*************************************"
+            print "a-ent", self.a_entity
+            print "M(a-ent)", M(self.a_entity)
+            print "entity", self.entity'''
+            '''AOKif self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
-                self.eoccur = S(self.l_eoccur)
-            print self.eoccur.T
-            #self.events = EGamma(self.a_events, self.b_events)
+                self.eoccur = S(self.l_eoccur)'''
+            #print self.eoccur.T
+            self.events = EGamma(self.a_events, self.b_events)
+            for date in self.data.days:
+                print 'S[%d]'%date, es[date]
+                print 'a[%d] +='%date, cvup[date]
+                print 'a[%d] ='%date, self.a_events[date]
+                print 'evt[%d]'%date, self.events[date]
+                print '---'
             #print "end of iteration"
-            #print "*************************************"
+            print "*************************************"
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
