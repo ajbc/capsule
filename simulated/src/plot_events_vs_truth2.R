@@ -6,9 +6,9 @@ args <- commandArgs(trailingOnly = TRUE)
 DATA <- args[1]
 FIT <- args[2]
 ITER <- as.integer(args[3])
-#DATA <- "~/Projects/Academic/declass/cables/src/simulated/dat/simk6_v3"
-#FIT <- "~/Projects/Academic/declass/cables/src/simulated/fit/simk6v2_3"
-#ITER <- 37
+#DATA <- "~/Projects/Academic/declass/cables/src/simulated/dat/simk6_v5"
+#FIT <- "~/Projects/Academic/declass/cables/src/fit/27"
+#ITER <- 6
 
 dat.truth <- read.csv(paste(DATA, 'simulated_truth.tsv', sep='/'), sep='\t')
 dat.truth <- melt(dat.truth, id.vars=c("source", "time"))

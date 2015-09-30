@@ -60,7 +60,10 @@ def cov(a, b):
 
 def var(a):
     rv = cov(a, a)
-    rv[rv == 0] = sys.float_info.min #TODO: is this needed?
+    if isinstance(rv, float):
+        rv = sys.float_info.min if rv == 0 else rv
+    else:
+        rv[rv == 0] = sys.float_info.min
     return rv
 
 def pGamma(x, a, b):
@@ -84,6 +87,73 @@ def EGamma(a, b):
     den = M(b)
 
     return num / den
+
+def pExponential(x, rate):
+    return rate * np.exp(-rate*x)
+
+def qgExponential(x, rate, b):
+    return (pExponential(x, M(rate)), dM(rate) * (1.0 / M(rate) - x), np.zeros(b.shape))
+
+def EExponential(rate):
+    return 1.0 / rate
+
+def pLogNormal(x, loc, scale):
+    if isinstance(loc, float):
+        loc = loc if loc < np.log(sys.float_info.max)/2 else np.log(sys.float_info.max)/2
+    else:
+        loc[loc > np.log(sys.float_info.max)/2] = np.log(sys.float_info.max)/2
+    x[x < np.sqrt(sys.float_info.min)] = np.sqrt(sys.float_info.min)
+    x[x > np.sqrt(sys.float_info.max)] = np.sqrt(sys.float_info.max)
+    return -np.log(x * scale * np.sqrt(2 * np.pi)) - \
+        (np.log(x)-loc)**2 / (2 * scale**2)
+
+def qgLogNormal(x, loc, scale):
+    dMl = dM(loc)
+    dMs = dM(scale)
+    loc = M(loc)
+    scale = M(scale)
+    return (pLogNormal(x, loc, scale), \
+        dMl * (scale**-2 * (np.log(x) - loc)), \
+        dMs * (scale**-3 * (np.log(x) - loc)**2 - scale**-2))
+
+def ELogNormal(loc, scale):
+    scale[scale > np.sqrt(np.log(sys.float_info.max/2))] = np.sqrt(np.log(sys.float_info.max/2))
+    scale[scale < -np.sqrt(np.log(sys.float_info.max/2))] = -np.sqrt(np.log(sys.float_info.max/2))
+    loc[loc > np.log(sys.float_info.max)/2] = np.log(sys.float_info.max)/2
+    return np.exp(loc + scale**2/2)
+
+def pTopics(dist, x, a, b):
+    if dist == "Gamma":
+        return pGamma(x, a, b)
+    elif dist == "LogNormal":
+        return pLogNormal(x, a, b)
+    elif dist == "Exponential":
+        return pExponential(x, a)
+    else:
+        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
+        sys.exit(-1)
+
+def qgTopics(dist, x, a, b):
+    if dist == "Gamma":
+        return qgGamma(x, a, b)
+    elif dist == "LogNormal":
+        return qgLogNormal(x, a, b)
+    elif dist == "Exponential":
+        return qgExponential(x, a, b)
+    else:
+        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
+        sys.exit(-1)
+
+def ETopics(dist, a, b):
+    if dist == "Gamma":
+        return EGamma(a, b)
+    elif dist == "LogNormal":
+        return ELogNormal(a, b)
+    elif dist == "Exponential":
+        return EExponential(a)
+    else:
+        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
+        sys.exit(-1)
 
 def pBernoulli(x, p):
     return p**x * (1-p)**(1-x)
@@ -161,7 +231,7 @@ class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, max_iter, tau, kappa, \
         a_ent, b_ent, a_evn, b_evn, b_doc, eoc, \
-        event_duration, event_dist, \
+        event_duration, event_dist, topic_dist,\
         content, time):
         self.outdir = outdir
         self.batch_size = batch_size
@@ -182,6 +252,7 @@ class Parameters:
 
         self.d = event_duration
         self.event_dist = event_dist
+        self.topic_dist = topic_dist
 
         self.content = content
         self.time = time
@@ -208,6 +279,7 @@ class Parameters:
         f.write("prior on event occurance:\t%f\n" % self.l_eoccur)
         f.write("event duration:\t%d\n" % self.d)
         f.write("event dist:\t%s\n" % self.event_dist)
+        f.write("topic dist:\t%s\n" % self.topic_dist)
         f.write("data, content:\t%s\n" % self.content)
         f.write("data, times:\t%s\n" % self.time)
 
@@ -247,17 +319,17 @@ class Model:
             iM(self.params.b_events)
 
         # expected values of goal model parameters
-        self.entity = EGamma(self.a_entity, self.b_entity)
+        self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
         self.eoccur = (M(self.l_eoccur) if self.params.event_dist == "Poisson" else S(self.l_eoccur))
-        self.events = EGamma(self.a_events, self.b_events)
+        self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
 
         self.likelihood_decreasing_count = 0
 
     def compute_ELBO(self):
-        log_priors = pGamma(self.entity, self.params.a_entity, self.params.b_entity).sum() + \
-            pGamma(self.events, self.params.a_events, self.params.b_events).sum()
-        log_q = pGamma(self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
-            pGamma(self.events, M(self.a_events), M(self.b_events)).sum()
+        log_priors = pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum() + \
+            pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
+        log_q = pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
+            pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
         if self.params.event_dist == "Poisson":
             log_priors += pPoisson(self.eoccur, self.params.l_eoccur).sum()
             log_q += pPoisson(self.eoccur, M(self.l_eoccur)).sum()
@@ -275,8 +347,8 @@ class Model:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
-            log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
-            LL += pGamma(doc.rep, doc_params, self.params.b_docs)
+            log_likelihood += np.sum(pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs))
+            LL += pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs)
         #print "LL", LL
         return log_likelihood
 
@@ -366,10 +438,10 @@ class Model:
 
             ## p, q, and g for latent parameters
             # entity topics
-            p_entity = pGamma(entity, self.params.a_entity, self.params.b_entity)
+            p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
             #print "p_entity, prior", p_entity
             q_entity, g_entity_a, g_entity_b = \
-                qgGamma(entity, self.a_entity, self.b_entity)
+                qgTopics(self.params.topic_dist, entity, self.a_entity, self.b_entity)
             #print "src a", M(self.a_entity)
             #print "src b", M(self.b_entity)
 
@@ -382,19 +454,19 @@ class Model:
                 q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
 
             # event content
-            p_events = pGamma(events, self.params.a_events, self.params.b_events)
+            p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
             q_events, g_events_a, g_events_b = \
-                qgGamma(events, self.a_events, self.b_events)
+                qgTopics(self.params.topic_dist, events, self.a_events, self.b_events)
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
             for date in self.data.days:
-                scale = 1.0
+                doc_scale = 1.0
                 docset = []
                 if self.data.num_docs_by_day(date) < self.params.batch_size:
                     docset = self.data.dated_docs[date]
                 else:
-                    scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
+                    doc_scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
                     docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
                 i = 0
                 for doc in docset:
@@ -406,16 +478,16 @@ class Model:
 
                     # document contributions to updates
                     doc_params = entity + (f_array*events*eoccur).sum(1)
-                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                    p_entity += p_doc * scale
+                    p_doc = pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs)
+                    p_entity += p_doc * doc_scale
                     '''if date == 1 and i < 3:
                         print "doc", doc.rep
                         print "params", doc_params, self.params.b_docs
-                        print "\tdoc date %d, %d" % (date, i), p_doc, scale
+                        print "\tdoc date %d, %d" % (date, i), p_doc, doc_scale
                     i += 0'''
                     for i in relevant_days:
-                        p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * scale
-                        p_events[:,i,:] += incl[:,i,:] * p_doc * scale
+                        p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                        p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
             #print rho
@@ -435,7 +507,7 @@ class Model:
             #    print ("g[%d] =" % s), g_entity_a[s]
             #    print ("a[%d] +=" % s), aup[s]
             #    print '---'
-            #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
+            self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
             #self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
@@ -444,7 +516,7 @@ class Model:
             #self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
             #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
-            self.entity = EGamma(self.a_entity, self.b_entity)
+            self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
             #print "*************************************"
             #print "a-ent", self.a_entity
             #print "M(a-ent)", M(self.a_entity)
@@ -454,7 +526,7 @@ class Model:
             else:
                 self.eoccur = S(self.l_eoccur)
             #print self.eoccur.T
-            self.events = EGamma(self.a_events, self.b_events)
+            self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
             '''for date in self.data.days:
                 print 'S[%d]'%date, es[date]
                 print 'a[%d] +='%date, cvup[date]
@@ -526,7 +598,9 @@ if __name__ == '__main__':
     parser.add_argument('--event_dur', dest='event_duration', type=int, \
         default=7, help = 'the length of time an event can be relevant; default 7')
     parser.add_argument('--event_dist', dest='event_dist', type=str, \
-        default="Bernoulli", help = 'what distribution used to model event occurance (\"Poisson\" or \"Bernoulli\"); Bernoulli default')
+        default="Bernoulli", help = 'what distribution used to model event occurance: \"Poisson\" or \"Bernoulli\" (default)')
+    parser.add_argument('--topic_dist', dest='topic_dist', type=str, \
+        default="Gamma", help = 'what distribution used to model topics: \"Gamma\" (default) or \"LogNormal\" or \"Exponential\"')
 
     # parse the arguments
     args = parser.parse_args()
@@ -546,7 +620,7 @@ if __name__ == '__main__':
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
-        args.event_duration, args.event_dist, \
+        args.event_duration, args.event_dist, args.topic_dist, \
         args.content_filename, args.time_filename)
     params.save(args.seed, args.message)
 
