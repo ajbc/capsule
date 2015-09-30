@@ -95,7 +95,7 @@ def qgExponential(x, rate, b):
     return (pExponential(x, M(rate)), dM(rate) * (1.0 / M(rate) - x), np.zeros(b.shape))
 
 def EExponential(rate):
-    return 1.0 / rate
+    return 1.0 / M(rate)
 
 def pLogNormal(x, loc, scale):
     if isinstance(loc, float):
@@ -108,19 +108,16 @@ def pLogNormal(x, loc, scale):
         (np.log(x)-loc)**2 / (2 * scale**2)
 
 def qgLogNormal(x, loc, scale):
-    dMl = dM(loc)
     dMs = dM(scale)
-    loc = M(loc)
     scale = M(scale)
     return (pLogNormal(x, loc, scale), \
-        dMl * (scale**-2 * (np.log(x) - loc)), \
+        (scale**-2 * (np.log(x) - loc)), \
         dMs * (scale**-3 * (np.log(x) - loc)**2 - scale**-2))
 
 def ELogNormal(loc, scale):
-    scale[scale > np.sqrt(np.log(sys.float_info.max/2))] = np.sqrt(np.log(sys.float_info.max/2))
-    scale[scale < -np.sqrt(np.log(sys.float_info.max/2))] = -np.sqrt(np.log(sys.float_info.max/2))
+    #scale[scale > iM(np.sqrt(np.log(sys.float_info.max)))] = iM(np.sqrt(np.log(sys.float_info.max)))
     loc[loc > np.log(sys.float_info.max)/2] = np.log(sys.float_info.max)/2
-    return np.exp(loc + scale**2/2)
+    return np.exp(loc + M(scale)**2/2)
 
 def pTopics(dist, x, a, b):
     if dist == "Gamma":
@@ -229,7 +226,7 @@ class Corpus:
 
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
-        conv_thresh, max_iter, tau, kappa, \
+        conv_thresh, min_iter, max_iter, tau, kappa, \
         a_ent, b_ent, a_evn, b_evn, b_doc, eoc, \
         event_duration, event_dist, topic_dist,\
         content, time):
@@ -238,6 +235,7 @@ class Parameters:
         self.num_samples = num_samples
         self.save_freq = save_freq
         self.convergence_thresh = conv_thresh
+        self.min_iter = min_iter
         self.max_iter = max_iter
 
         self.tau = tau
@@ -268,6 +266,7 @@ class Parameters:
         f.write("number of samples:\t%d\n" % self.num_samples)
         f.write("save frequency:\t%d\n" % self.save_freq)
         f.write("convergence threshold:\t%f\n" % self.convergence_thresh)
+        f.write("min # of iterations:\t%d\n" % self.min_iter)
         f.write("max # of iterations:\t%d\n" % self.max_iter)
         f.write("tau:\t%d\n" % self.tau)
         f.write("kappa:\t%f\n" % self.kappa)
@@ -317,6 +316,9 @@ class Model:
             iM(self.params.a_events)
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
             iM(self.params.b_events)
+        if self.params.topic_dist == "LogNormal":
+            self.a_entity *= 0
+            self.a_events *= 0
 
         # expected values of goal model parameters
         self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
@@ -347,8 +349,8 @@ class Model:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
-            log_likelihood += np.sum(pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs))
-            LL += pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs)
+            log_likelihood += np.sum(pGamma(doc.rep, doc_params, self.params.b_docs))
+            LL += pGamma(doc.rep, doc_params, self.params.b_docs)
         #print "LL", LL
         return log_likelihood
 
@@ -376,14 +378,14 @@ class Model:
         if elbodelta < 0:
             print "ELBO decreasing (bad)"
             self.elbo_decreasing_count += 1
-            if iteration > 5 and self.elbo_decreasing_count >= 3:
+            if iteration > self.params.min_iter and self.elbo_decreasing_count >= 3:
                 print "STOP: 3 consecutive iterations of increasing ELBO"
                 return True
             return False
         else:
             self.elbo_decreasing_count = 0
 
-        if iteration > 5 and elbodelta < self.params.convergence_thresh:
+        if iteration > self.params.min_iter and elbodelta < self.params.convergence_thresh:
             print "STOP: model converged!"
             return True
         if iteration == self.params.max_iter:
@@ -414,10 +416,11 @@ class Model:
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
-        #print "a-ent", self.a_entity
-        #print "M(a-ent)", M(self.a_entity)
-        #print "entity", self.entity
-        #print "*************************************"
+        print "a-ent", self.a_entity
+        print "b-ent", self.b_entity
+        print "M(b-ent)", M(self.b_entity)
+        print "entity", self.entity
+        print "*************************************"
 
         print "starting..."
         while not self.converged(iteration):
@@ -478,7 +481,7 @@ class Model:
 
                     # document contributions to updates
                     doc_params = entity + (f_array*events*eoccur).sum(1)
-                    p_doc = pTopics(self.params.topic_dist, doc.rep, doc_params, self.params.b_docs)
+                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
                     p_entity += p_doc * doc_scale
                     '''if date == 1 and i < 3:
                         print "doc", doc.rep
@@ -507,20 +510,21 @@ class Model:
             #    print ("g[%d] =" % s), g_entity_a[s]
             #    print ("a[%d] +=" % s), aup[s]
             #    print '---'
-            self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
+            #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            #self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0)
             cvup = cv_update(p_events, q_events, g_events_a)
-            #self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
+            self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
             #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
-            #print "*************************************"
-            #print "a-ent", self.a_entity
-            #print "M(a-ent)", M(self.a_entity)
-            #print "entity", self.entity
+            print "*************************************"
+            print "a-ent", self.a_entity
+            print "b-ent", self.b_entity
+            print "M(b-ent)", M(self.b_entity)
+            print "entity", self.entity
             if self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
@@ -572,6 +576,8 @@ if __name__ == '__main__':
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
         default=1e-3, help = 'likelihood threshold for convergence, default 1e-3')
+    parser.add_argument('--min_iter', dest='min_iter', type=int, \
+        default=30, help = 'minimum number of iterations, default 30')
     parser.add_argument('--max_iter', dest='max_iter', type=int, \
         default=1000, help = 'maximum number of iterations, default 1000')
     parser.add_argument('--seed', dest='seed', type=int, \
@@ -618,7 +624,7 @@ if __name__ == '__main__':
 
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
-        args.convergence_thresh, args.max_iter, args.tau, args.kappa, \
+        args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.b_entities, args.a_events, args.b_events, args.b_docs, args.event_occurance, \
         args.event_duration, args.event_dist, args.topic_dist, \
         args.content_filename, args.time_filename)

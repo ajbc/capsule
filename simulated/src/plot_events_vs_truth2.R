@@ -7,7 +7,7 @@ DATA <- args[1]
 FIT <- args[2]
 ITER <- as.integer(args[3])
 #DATA <- "~/Projects/Academic/declass/cables/src/simulated/dat/simk6_v5"
-#FIT <- "~/Projects/Academic/declass/cables/src/fit/27"
+#FIT <- "~/Projects/Academic/declass/cables/src/fit/32"
 #ITER <- 6
 
 dat.truth <- read.csv(paste(DATA, 'simulated_truth.tsv', sep='/'), sep='\t')
@@ -31,11 +31,11 @@ dat <- rbind(dat.obs, dat.truth)
 for (iter in seq(0,ITER,1)) {
   print(sprintf('creating plot for iteration %d', iter))
   iterstr <- sprintf('%04d', iter)
-  dat.fit0 <- read.csv(paste(FIT, '/entities_', iterstr, '.tsv', sep=''), sep='\t', header=F)
+  dat.fit0 <- read.csv(paste(FIT, '/entities_', iterstr, '.tsv', sep=''), sep='\t', header=F, colClasses=rep("numeric", 6))
   dat.fit0$time <- -1
   dat.fit0$alpha <- 1.0
-  dat.fit <- read.csv(paste(FIT, '/events_', iterstr, '.tsv', sep=''), sep='\t', header=F)
-  dat.occur <- read.csv(paste(FIT, '/eoccur_', iterstr, '.tsv', sep=''), sep='\t', header=F)
+  dat.fit <- read.csv(paste(FIT, '/events_', iterstr, '.tsv', sep=''), sep='\t', header=F, colClasses=rep("numeric", 6))
+  dat.occur <- read.csv(paste(FIT, '/eoccur_', iterstr, '.tsv', sep=''), sep='\t', header=F, colClasses=c("numeric"))
   dat.fit$time <- seq(0,nrow(dat.fit)-1)
   dat.fit$alpha <- dat.occur$V1
   dat.fit <- rbind(dat.fit0, dat.fit)
@@ -61,7 +61,7 @@ for (iter in seq(0,ITER,1)) {
 }
 
 # likelihood
-LL <- read.csv(paste(FIT, 'log.dat', sep='/'), sep='\t')
+LL <- read.csv(paste(FIT, 'log.dat', sep='/'), sep='\t', colClasses=c("integer", "character", "numeric", "numeric", "numeric", "numeric"))
 
 ymin <- min(LL$ELBO)
 ymax <- max(LL$ELBO)
@@ -69,6 +69,7 @@ ymax <- max(LL$ELBO)
 LL$ll.change <- NULL
 LL$ELBO.change <- NULL
 LL$time <- NULL
+LL$log.likelihood <- NULL
 LL <- melt(LL, id.vars=c("iteration"))
 
 
