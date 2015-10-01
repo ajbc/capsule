@@ -410,7 +410,7 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
-    def doc_contributions(self, locks, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
+    def doc_contributions(self, locks, date, entity, eoccur, events, incl):
         p_entity_lock, p_eoccur_lock, p_events_lock = locks
         doc_scale = 1.0
         docset = []
@@ -432,16 +432,16 @@ class Model:
             p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
 
             p_entity_lock.acquire()
-            p_entity += p_doc * doc_scale
+            self.p_entity += p_doc * doc_scale
             p_entity_lock.release()
 
             for i in relevant_days:
                 p_eoccur_lock.acquire()
-                p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                self.p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
                 p_eoccur_lock.release()
 
                 p_events_lock.acquire()
-                p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                self.p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
                 p_events_lock.release()
 
     def fit(self):
@@ -480,8 +480,7 @@ class Model:
             print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
             # entity topics
-            p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
-            #print "p_entity, prior", p_entity
+            self.p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
             q_entity, g_entity_a, g_entity_b = \
                 qgTopics(self.params.topic_dist, entity, self.a_entity, self.b_entity)
             #print "src a", M(self.a_entity)
@@ -489,14 +488,14 @@ class Model:
 
             # event occurance
             if self.params.event_dist == "Poisson":
-                p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
+                self.p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
                 q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
             else:
-                p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
+                self.p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
                 q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
 
             # event content
-            p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
+            self.p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
             q_events, g_events_a, g_events_b = \
                 qgTopics(self.params.topic_dist, events, self.a_events, self.b_events)
 
@@ -511,7 +510,7 @@ class Model:
                 while len(mp.active_children()) >= max_children:
                     time.sleep(2)
 
-                p = Process(target=self.doc_contributions, args=(locks, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl))
+                p = Process(target=self.doc_contributions, args=(locks, date, entity, eoccur, events, incl))
                 p.start()
 
             for p in mp.active_children():
@@ -519,14 +518,14 @@ class Model:
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
-            aup = cv_update(p_entity, q_entity, g_entity_a, True)
-            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+            aup = cv_update(self.p_entity, q_entity, g_entity_a, True)
+            self.a_entity += (rho/self.params.num_samples) * cv_update(self.p_entity, q_entity, g_entity_a)
             #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(self.p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0) + sys.float_info.min
-            self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
+            self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(self.p_events, q_events, g_events_a)
             #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
