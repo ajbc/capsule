@@ -4,8 +4,9 @@ from datetime import datetime as dt
 from scipy.special import gammaln, digamma
 from scipy.misc import factorial
 from collections import defaultdict
-import subprocess
+import subprocess, time
 from multiprocessing import Process, Array
+import multiprocessing as mp
 
 # suppress scientific notation when printing
 np.set_printoptions(suppress=True)
@@ -412,10 +413,10 @@ class Model:
     def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
         doc_scale = 1.0
         docset = []
-        if self.data.num_docs_by_day(date) < 5:
-            if np.random.randint(5) < self.data.num_docs_by_day(date):
-                print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
-                return
+        #if self.data.num_docs_by_day(date) < 5:
+        #    if np.random.randint(5) < self.data.num_docs_by_day(date):
+        #        print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
+        #        return
         print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
         if self.data.num_docs_by_day(date) < self.params.batch_size:
             docset = self.data.dated_docs[date]
@@ -432,7 +433,9 @@ class Model:
             # document contributions to updates
             doc_params = entity + (f_array*events*eoccur).sum(1)
             p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-            p_entity += (p_doc * doc_scale).flatten()
+            p_entity_add = (p_doc * doc_scale).flatten()
+            for k in range(self.data.dimension):
+                p_entity[k] += p_entity_add[k]
             #p_entity += p_doc * doc_scale
             for i in relevant_days:
                 #p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
@@ -509,10 +512,17 @@ class Model:
             p_eoccur_flattened = Array('d', list(p_eoccur.flatten()))
             p_events_flattened = Array('d', list(p_events.flatten()))
 
+            max_children = 20
             for date in self.data.days:
+                print "current:", len(mp.active_children())
+                while len(mp.active_children()) >= max_children:
+                    time.sleep(2)
+
                 #self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
                 p = Process(target=self.doc_contributions, args=(date, p_entity_flattened, p_eoccur_flattened, p_events_flattened, entity, eoccur, events, incl))
                 p.start()
+
+            for p in mp.active_children():
                 p.join()
 
             # reconsitute to original np array
