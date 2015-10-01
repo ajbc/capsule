@@ -424,11 +424,13 @@ class Model:
 
         print "starting..."
         while not self.converged(iteration):
-            #print "*************************************"
+            print "*************************************"
             iteration += 1
+            print "iteration", iteration
 
             event_count = np.zeros((self.data.day_count(),self.data.dimension))
 
+            print "sampling latent parameters"
             # sample latent parameters
             entity = np.random.gamma(M(self.a_entity) * M(self.b_entity), \
                 1.0 / M(self.b_entity), (self.params.num_samples, self.data.dimension))
@@ -439,6 +441,7 @@ class Model:
             events = np.random.gamma(M(self.a_events) * M(self.b_events), \
                 1.0 / M(self.b_events), (self.params.num_samples, self.data.day_count(), self.data.dimension))
 
+            print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
             # entity topics
             p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
@@ -463,13 +466,15 @@ class Model:
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
+            print "\tgoing through each day"
             for date in self.data.days:
                 doc_scale = 1.0
                 docset = []
                 if self.data.num_docs_by_day(date) < 5:
-                    if np.random.choice(range(5)) < self.data.num_docs_by_day(date):
+                    if np.random.randint(5) < self.data.num_docs_by_day(date):
+                        print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
                         continue
-                print "\t day", date
+                print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
                 if self.data.num_docs_by_day(date) < self.params.batch_size:
                     docset = self.data.dated_docs[date]
                 else:
