@@ -5,6 +5,7 @@ from scipy.special import gammaln, digamma
 from scipy.misc import factorial
 from collections import defaultdict
 import subprocess
+from multiprocessing import Process, Array
 
 # suppress scientific notation when printing
 np.set_printoptions(suppress=True)
@@ -408,6 +409,41 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
+    def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
+        doc_scale = 1.0
+        docset = []
+        if self.data.num_docs_by_day(date) < 5:
+            if np.random.randint(5) < self.data.num_docs_by_day(date):
+                print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
+                return
+        print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
+        if self.data.num_docs_by_day(date) < self.params.batch_size:
+            docset = self.data.dated_docs[date]
+        else:
+            doc_scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
+            docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
+        for doc in docset:
+            f_array = np.zeros((self.data.day_count(),1))
+            relevant_days = set()
+            for day in range(self.data.day_count()):
+                f_array[day] = self.params.f(self.data.days[day], doc.day)
+                relevant_days.add(day)
+
+            # document contributions to updates
+            doc_params = entity + (f_array*events*eoccur).sum(1)
+            p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
+            p_entity += (p_doc * doc_scale).flatten()
+            #p_entity += p_doc * doc_scale
+            for i in relevant_days:
+                #p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                #p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                p_eoccur_add = (p_doc.sum(1) * np.ones((1,1))).flatten() * doc_scale
+                for s in range(self.params.num_samples):
+                    p_eoccur[s*self.data.day_count() + i] += p_eoccur_add[s]
+                    for k in range(self.data.dimension):
+                        p_events[s*self.data.dimension*self.data.day_count() + i * self.data.dimension + k] += \
+                            incl[s,i,0] * p_doc[s,k] * doc_scale
+
     def fit(self):
         self.init()
 
@@ -467,58 +503,27 @@ class Model:
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
             print "\tgoing through each day"
-            for date in self.data.days:
-                doc_scale = 1.0
-                docset = []
-                if self.data.num_docs_by_day(date) < 5:
-                    if np.random.randint(5) < self.data.num_docs_by_day(date):
-                        print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
-                        continue
-                print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
-                if self.data.num_docs_by_day(date) < self.params.batch_size:
-                    docset = self.data.dated_docs[date]
-                else:
-                    doc_scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
-                    docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
-                i = 0
-                for doc in docset:
-                    f_array = np.zeros((self.data.day_count(),1))
-                    relevant_days = set()
-                    for day in range(self.data.day_count()):
-                        f_array[day] = self.params.f(self.data.days[day], doc.day)
-                        relevant_days.add(day)
 
-                    # document contributions to updates
-                    doc_params = entity + (f_array*events*eoccur).sum(1)
-                    p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                    p_entity += p_doc * doc_scale
-                    '''if date == 1 and i < 3:
-                        print "doc", doc.rep
-                        print "params", doc_params, self.params.b_docs
-                        print "\tdoc date %d, %d" % (date, i), p_doc, doc_scale
-                    i += 0'''
-                    for i in relevant_days:
-                        p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
-                        p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+            # flatten for threading efficiency
+            p_entity_flattened = Array('d', list(p_entity.flatten()))
+            p_eoccur_flattened = Array('d', list(p_eoccur.flatten()))
+            p_events_flattened = Array('d', list(p_events.flatten()))
+
+            for date in self.data.days:
+                #self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
+                p = Process(target=self.doc_contributions, args=(date, p_entity_flattened, p_eoccur_flattened, p_events_flattened, entity, eoccur, events, incl))
+                p.start()
+                p.join()
+
+            # reconsitute to original np array
+            p_entity = np.array(p_entity_flattened).reshape(p_entity.shape)
+            p_eoccur = np.array(p_eoccur_flattened).reshape(p_eoccur.shape)
+            p_events = np.array(p_events_flattened).reshape(p_events.shape)
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
-            #print rho
-
 
             aup = cv_update(p_entity, q_entity, g_entity_a, True)
-            '''print "S", self.params.num_samples
-            print "p", p_entity.shape
-            print "q", q_entity.shape
-            print "g", g_entity_a.shape
-            print "aup", aup.shape'''
             self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
-            #for s in range(10):#self.params.num_samples):
-            #    print "sample", s, entity[s]
-            #    print ("p[%d] =" % s), p_entity[s]
-            #    print ("q[%d] =" % s), q_entity[s]
-            #    print ("g[%d] =" % s), g_entity_a[s]
-            #    print ("a[%d] +=" % s), aup[s]
-            #    print '---'
             #self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
             self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
@@ -539,12 +544,6 @@ class Model:
                 self.eoccur = S(self.l_eoccur)
             print "events", self.eoccur.T
             self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
-            '''for date in self.data.days:
-                print 'S[%d]'%date, es[date]
-                print 'a[%d] +='%date, cvup[date]
-                print 'a[%d] ='%date, self.a_events[date]
-                print 'evt[%d]'%date, self.events[date]
-                print '---'''
             #print "end of iteration"
             print "*************************************"
 
