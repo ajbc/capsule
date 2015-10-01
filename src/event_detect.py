@@ -416,11 +416,11 @@ class Model:
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
-        print "a-ent", self.a_entity
-        print "b-ent", self.b_entity
-        print "M(b-ent)", M(self.b_entity)
-        print "entity", self.entity
-        print "*************************************"
+        #print "a-ent", self.a_entity
+        #print "b-ent", self.b_entity
+        #print "M(b-ent)", M(self.b_entity)
+        #print "entity", self.entity
+        #print "*************************************"
 
         print "starting..."
         while not self.converged(iteration):
@@ -466,6 +466,10 @@ class Model:
             for date in self.data.days:
                 doc_scale = 1.0
                 docset = []
+                if self.data.num_docs_by_day(date) < 5:
+                    if np.random.choice(range(5)) < self.data.num_docs_by_day(date):
+                        continue
+                print "\t day", date
                 if self.data.num_docs_by_day(date) < self.params.batch_size:
                     docset = self.data.dated_docs[date]
                 else:
@@ -514,22 +518,21 @@ class Model:
 
             self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
-            es = eoccur.sum(0)
-            cvup = cv_update(p_events, q_events, g_events_a)
-            self.a_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_a)
+            es = eoccur.sum(0) + sys.float_info.min
+            self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
             #self.b_events += (rho / eoccur.sum(0)) * cv_update(p_events, q_events, g_events_b)
 
             self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
             print "*************************************"
-            print "a-ent", self.a_entity
-            print "b-ent", self.b_entity
-            print "M(b-ent)", M(self.b_entity)
+            #print "a-ent", self.a_entity
+            #print "b-ent", self.b_entity
+            #print "M(b-ent)", M(self.b_entity)
             print "entity", self.entity
             if self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
                 self.eoccur = S(self.l_eoccur)
-            #print self.eoccur.T
+            print "events", self.eoccur.T
             self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
             '''for date in self.data.days:
                 print 'S[%d]'%date, es[date]
