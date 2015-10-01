@@ -5,7 +5,7 @@ from scipy.special import gammaln, digamma
 from scipy.misc import factorial
 from collections import defaultdict
 import subprocess, time
-from multiprocessing import Process, Array
+from multiprocessing import Process, Lock
 import multiprocessing as mp
 
 # suppress scientific notation when printing
@@ -410,13 +410,10 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
-    def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
+    def doc_contributions(self, locks, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
+        p_entity_lock, p_eoccur_lock, p_events_lock = locks
         doc_scale = 1.0
         docset = []
-        #if self.data.num_docs_by_day(date) < 5:
-        #    if np.random.randint(5) < self.data.num_docs_by_day(date):
-        #        print "\t\t day", date, "skipped", "(%d docs)" % self.data.num_docs_by_day(date)
-        #        return
         print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
         if self.data.num_docs_by_day(date) < self.params.batch_size:
             docset = self.data.dated_docs[date]
@@ -433,19 +430,19 @@ class Model:
             # document contributions to updates
             doc_params = entity + (f_array*events*eoccur).sum(1)
             p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-            p_entity_add = (p_doc * doc_scale).flatten()
-            for k in range(self.data.dimension):
-                p_entity[k] += p_entity_add[k]
-            #p_entity += p_doc * doc_scale
+
+            p_entity_lock.acquire()
+            p_entity += p_doc * doc_scale
+            p_entity_lock.release()
+
             for i in relevant_days:
-                #p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
-                #p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
-                p_eoccur_add = (p_doc.sum(1) * np.ones((1,1))).flatten() * doc_scale
-                for s in range(self.params.num_samples):
-                    p_eoccur[s*self.data.day_count() + i] += p_eoccur_add[s]
-                    for k in range(self.data.dimension):
-                        p_events[s*self.data.dimension*self.data.day_count() + i * self.data.dimension + k] += \
-                            incl[s,i,0] * p_doc[s,k] * doc_scale
+                p_eoccur_lock.acquire()
+                p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                p_eoccur_lock.release()
+
+                p_events_lock.acquire()
+                p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                p_events_lock.release()
 
     def fit(self):
         self.init()
@@ -507,28 +504,18 @@ class Model:
             incl = eoccur != 0
             print "\tgoing through each day"
 
-            # flatten for threading efficiency
-            p_entity_flattened = Array('d', list(p_entity.flatten()))
-            p_eoccur_flattened = Array('d', list(p_eoccur.flatten()))
-            p_events_flattened = Array('d', list(p_events.flatten()))
-
             max_children = 20
+            locks = (Lock(), Lock(), Lock())
             for date in self.data.days:
                 print "current:", len(mp.active_children())
                 while len(mp.active_children()) >= max_children:
                     time.sleep(2)
 
-                #self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
-                p = Process(target=self.doc_contributions, args=(date, p_entity_flattened, p_eoccur_flattened, p_events_flattened, entity, eoccur, events, incl))
+                p = Process(target=self.doc_contributions, args=(locks, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl))
                 p.start()
 
             for p in mp.active_children():
                 p.join()
-
-            # reconsitute to original np array
-            p_entity = np.array(p_entity_flattened).reshape(p_entity.shape)
-            p_eoccur = np.array(p_eoccur_flattened).reshape(p_eoccur.shape)
-            p_events = np.array(p_events_flattened).reshape(p_events.shape)
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
