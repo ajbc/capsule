@@ -5,7 +5,7 @@ from scipy.special import gammaln, digamma
 from scipy.misc import factorial
 from collections import defaultdict
 import subprocess, time
-from multiprocessing import Process, Array
+from multiprocessing import Process, Lock
 import multiprocessing as mp
 
 # suppress scientific notation when printing
@@ -410,6 +410,41 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
+    '''def doc_contributions(self, locks, date, entity, eoccur, events, incl):
+        p_entity_lock, p_eoccur_lock, p_events_lock = locks
+        doc_scale = 1.0
+        docset = []
+        print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
+        if self.data.num_docs_by_day(date) < self.params.batch_size:
+            docset = self.data.dated_docs[date]
+        else:
+            doc_scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
+            docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
+        for doc in docset:
+            f_array = np.zeros((self.data.day_count(),1))
+            relevant_days = set()
+            for day in range(self.data.day_count()):
+                f_array[day] = self.params.f(self.data.days[day], doc.day)
+                relevant_days.add(day)
+
+            # document contributions to updates
+            doc_params = entity + (f_array*events*eoccur).sum(1)
+            p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
+
+            p_entity_lock.acquire()
+            self.p_entity += p_doc * doc_scale
+            p_entity_lock.release()
+
+            for i in relevant_days:
+                p_eoccur_lock.acquire()
+                self.p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                p_eoccur_lock.release()
+
+                p_events_lock.acquire()
+                self.p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                p_events_lock.release()
+    '''
+
     def fit(self):
         self.init()
 
@@ -446,8 +481,7 @@ class Model:
             print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
             # entity topics
-            p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
-            #print "p_entity, prior", p_entity
+            self.p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
             q_entity, g_entity_a, g_entity_b = \
                 qgTopics(self.params.topic_dist, entity, self.a_entity, self.b_entity)
             #print "src a", M(self.a_entity)
@@ -455,14 +489,14 @@ class Model:
 
             # event occurance
             if self.params.event_dist == "Poisson":
-                p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
+                self.p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
                 q_eoccur, g_eoccur = qgPoisson(eoccur, self.l_eoccur)
             else:
-                p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
+                self.p_eoccur = pBernoulli(eoccur, self.params.l_eoccur)
                 q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
 
             # event content
-            p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
+            self.p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
             q_events, g_events_a, g_events_b = \
                 qgTopics(self.params.topic_dist, events, self.a_events, self.b_events)
 
@@ -485,6 +519,20 @@ class Model:
                 for i in relevant_days:
                     p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
                     p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+            '''print "\tgoing through each day"
+
+            max_children = 20
+            locks = (Lock(), Lock(), Lock())
+            for date in self.data.days:
+                print "current:", len(mp.active_children())
+                while len(mp.active_children()) >= max_children:
+                    time.sleep(2)
+
+                p = Process(target=self.doc_contributions, args=(locks, date, entity, eoccur, events, incl))
+                p.start()
+
+            for p in mp.active_children():
+                p.join()'''
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
@@ -492,7 +540,7 @@ class Model:
             self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * cv_update(self.p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0) + sys.float_info.min
             self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
