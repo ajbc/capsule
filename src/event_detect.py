@@ -469,7 +469,7 @@ class Model:
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
 
-            doc_scale = 1.0 / self.params.batch_size
+            doc_scale = self.data.num_docs() / self.params.batch_size
             for d in range(self.params.batch_size):
                 doc = self.data.random_doc()
                 f_array = np.zeros((self.data.day_count(),1))
