@@ -40,6 +40,7 @@ Figure~\ref{fig:cables_example} shows three cables which were sent in April 1975
 
 
 \begin{figure}[ht]
+\centering
 \includegraphics[width=\textwidth]{fig/cables_orphan_example.png}
 \caption{Example excerpts of cables.}
 \label{fig:cables_example}
@@ -100,7 +101,12 @@ Recall that the key hidden values are event descriptions $\pi$ (``what''), event
 Posterior inference is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.  Full details on the derivation of this inference algorithm can be found in Appendix~\ref{sec:appendix_inference}.
 
 \section{Validation}
-TODO
+We have collected examples of known historical events and have manually identified multiple cables that are associated with each event.  We plan to compare the events discovered by our model to these known events.  We will assess how many of the known events are recovered with our model, as well as how the average topic distribution of the known cables compares to the discovered event distribution.
+
+Another approach to validating our model is to present the discovered events---including date, topic distribution, and entities involved---to an expert historian or political scientist who can assess the value of the discovered events.
+
+
+
 
 \section{Discussion}
 Once we have determined the values of the hidden parameters in our model, we will have a discrete list of events in terms of when they occur and their topical content.  We plan to compare these discovered events to a list of predetermined historical events to evaluate the effectiveness of our model.
@@ -140,7 +146,7 @@ Then we can write the gradients with respect to the variational parameters as:
 and
 \[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \epsilon, \pi, \phi) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right].\]
 
-Using this framework, we construct our black box algorithm below. 
+Using this framework, we construct our black box algorithm below in Algorithm 1.
 
 \paragraph{For Reference}
 The gamma distribution and derivatives:
@@ -169,12 +175,13 @@ The softmax function and derivative:
 \[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
 %\SetCommentSty{mycommfont}
 
+
 \begin{algorithm}
 \small
 \DontPrintSemicolon
 \KwIn{document topics $\theta$}
 \KwOut{estimates of latent parameters entity topics $\phi$, event topics $\pi$,
-and event occurances $\epsilon$}
+and event occurrences $\epsilon$}
 \textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to
 respective priors \;
 \textbf{Initialize} iteration count $t = 0$ \;
@@ -242,6 +249,15 @@ set $\E[\epsilon] = \lambda^{\epsilon}$ \;
 \caption{Inference for Cables Model}
 \label{alg:cables}
 \end{algorithm}
+
+\paragraph{Validation of Implementation}
+To show that our algorithm fits our model appropriately, Figure~\ref{fig:ELBO} shows that the ELBO is maximized.  While the ELBO does decrease slowly after reaching a local maximum, this sort of over-fitting can be avoided with an appropriate convergence metric, like considering the change in data likelihood. Using this as a metric, the shown ELBO would have converged around iteration 10.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.7\textwidth]{fig/ELBO.pdf}
+\caption{The ELBO on a small collection of documents.}
+\label{fig:ELBO}
+\end{figure}
 
 
 \end{document}
