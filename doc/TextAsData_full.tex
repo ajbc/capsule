@@ -97,7 +97,7 @@ Recall that the key hidden values are event descriptions $\pi$ (``what''), event
 
 
 \subsection{Inference}
-Posterior inference is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.
+Posterior inference is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.  Full details on the derivation of this inference algorithm can be found in Appendix~\ref{sec:appendix_inference}.
 
 \section{Validation}
 TODO
@@ -113,5 +113,135 @@ Traditional topic models can describe documents, but they cannot identify when e
 
 \bibliographystyle{apa}
 \bibliography{/Users/ajbc/Dropbox/papers/library.bib}
+
+
+\newpage
+\appendix
+\section{Inference Details}
+\label{sec:appendix_inference}
+For now, we assume that we know the LDA topics $\beta$ and only observe the documents in terms of their topics $\theta$; breaking this assumption makes inference a little more complicated as the updates for $\theta$ would have new dependencies.
+
+As usual, inference is the central computational problem.  Variational inference approaches this problem by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
+This is equivalent to maximizing the ELBO: \[\mathcal{L}(q)  = \E_{q(\epsilon, \pi, \phi)}[\log p(\theta,\epsilon,\pi,\phi) - \log q(\epsilon, \pi, \phi)].\]
+
+We define the approximating distribution $q$ using the mean field assumption: \[q(\epsilon, \pi, \phi) = \prod_i q(\epsilon_{i})\prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right].\]
+The variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Because these parameters are free, we use the softmax function $\mathcal{M}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.
+The variational distribution $q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$; this free parameter is also constrained by the softmax function.
+
+The expectations under $q$, which are needed to maximize the ELBO, do not have a simple analytic form, so we use ``black box'' VI techniques.
+F or each variable, we can write the log probability of all terms containing that variable, giving us 
+\[\log p^\epsilon_{i}(\theta, \epsilon, \pi, \phi) \triangleq \log p(\epsilon_{i} \g \eta_\epsilon) + \sum_{j : f(a_i, c_j) \neq 0}\sum_k\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
+\[\log p^\pi_{ik}(\theta, \epsilon, \pi, \phi) \triangleq \log p(\pi_{ik} \g \alpha_0, \beta_0) + \mathbf{1}[\epsilon_i \neq 0] \sum_{j : f(a_i, c_j) \neq 0}\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
+and
+\[p^\phi_{k}(\theta, \epsilon, \pi, \phi) \triangleq \log p(\phi_{0k} \g \alpha, \beta) + \sum_{j} \log p(\theta_{jk} \g \phi_{0k}, c_j, a_i d, \beta_c, \pi_{ik}, \epsilon_i).\]
+Then we can write the gradients with respect to the variational parameters as:
+\[\nabla_{\lambda^\epsilon_{i}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \left( \log p^\epsilon_{i}(\theta, \epsilon, \pi, \phi) - \log q(\epsilon_{i} \g \lambda^\epsilon_{i}) \right)\right],\]
+\[\nabla_{\lambda^\pi_{ik}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik} \g \lambda^\pi_{ik}) \left( \log p^\pi_{ik}(\theta, \epsilon, \pi, \phi) - \log q(\pi_{ik} \g \lambda^\pi_{ik}) \right)\right],\]
+and
+\[\nabla_{\lambda^\phi_{k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k} \g \lambda^\phi_{k}) \left( \log p^\phi_{k}(\theta, \epsilon, \pi, \phi) - \log q(\phi_{0k} \g \lambda^\phi_{k}) \right)\right].\]
+
+Using this framework, we construct our black box algorithm below. 
+
+\paragraph{For Reference}
+The gamma distribution and derivatives:
+\begin{align}
+\log\mbox{Gamma}(x \g a,b) & = ab\log b - \log\Gamma \left(ab\right) +(ab-1)\log x - bx \label{eq:gamma}\\
+%\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) & = 
+%\mathcal{M}(a)\mathcal{M}(b)\log \mathcal{M}(b) - \log\Gamma \left(\mathcal{M}(a)\mathcal{M}(b)\right) +(\mathcal{M}(a)\mathcal{M}(b)-1)\log x - \mathcal{M}(b)x \\
+\nabla_a \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+\mathcal{M}'(a) \mathcal{M}(b) \left[ \log \mathcal{M}(b) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right] \label{eq:dgammaA}
+\\
+\nabla_b \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+\mathcal{M}'(b) \left[ \mathcal{M}(a) \left((\log \mathcal{M}(b) + 1) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right) - x\right]\label{eq:dgammaB}
+%\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
+%\mathcal{M}'(b) \left[ \mathcal{M}(a) (\log \mathcal{M}(b) + 1) - \mathcal{M}(a)\Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \mathcal{M}(a)\log x - x\right]
+\end{align}
+
+The Poisson distribution and derivative:
+\begin{align}
+\log\mbox{Poisson}(x~\vert~\lambda) &= x\log\lambda - \log(x!) - \lambda \label{eq:poisson} \\
+%\log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= x\log\mathcal{M}(\lambda) - \log(x!) -\mathcal{M}(\lambda) \\
+\nabla_\lambda \log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= \mathcal{M}'(\lambda)\left[\frac{x}{\mathcal{M}(\lambda)} -1\right].\label{eq:dpoisson}
+\end{align}
+
+The softmax function and derivative:
+\[\mathcal{M}(x) = \log(1+e^x)\]
+\[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
+%\SetCommentSty{mycommfont}
+
+\begin{algorithm}
+\small
+\DontPrintSemicolon
+\KwIn{document topics $\theta$}
+\KwOut{estimates of latent parameters entity topics $\phi$, event topics $\pi$,
+and event occurances $\epsilon$}
+\textbf{Initialize} $\lambda^\pi$, $\lambda^\phi$, and $\lambda^\epsilon$ to
+respective priors \;
+\textbf{Initialize} iteration count $t = 0$ \;
+\While {change in validation likelihood $< \delta$}{
+	initialize $\sigma^\pi = 0$ \;
+	\For {each sample $s = 1, \dots, S$}{
+		\For {each component $k$} {
+			draw sample entity topics $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$ \;
+			\BlankLine
+			set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$ \tcp*{see Eqn.~\ref{eq:gamma}}
+			set $q^\phi_k[s] = \log q(\phi_{0k}[s] \g \lambda^\phi_k)$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{M}(\lambda^{\phi}_k)$}
+			set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$ \tcp*{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+		}
+		\For {each timestep $i$} {
+			draw sample event occurance $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{M}(\lambda^\epsilon_i))$ \;
+			\BlankLine
+			set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \tcp*{see Eqn.~\ref{eq:poisson}}
+			set $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \lambda^\epsilon_i)$ \tcp*{Eqn.~\ref{eq:poisson} with param $\mathcal{M}(\lambda^{\epsilon}_i)$}
+			set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$ \tcp*{see Eqn.~\ref{eq:dpoisson}}
+			\BlankLine
+			\If {$\epsilon_i[s] \neq 0$} {
+				\For {each component $k$} {
+					draw sample event topics $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$ \;
+					\BlankLine
+					set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \tcp*{see Eqn.~\ref{eq:gamma}}
+					set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{M}(\lambda^{\pi}_{ik})$}
+					set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \tcp*{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
+				}
+			}
+		}
+	}
+	
+	\For {each document $j$ (sent on date $c_j$ and has topics $\theta_j$), sample $s$ and component $k$}{
+		set $\phi_{jk}[s] = \phi_j[s] + \sum_i f(a_i, c_j) \epsilon_i[s] \pi_{ik}[s]$ \;
+		set $p^\theta_{jk}[s] = \log p(\theta_{jk} \g \phi_{jk}[s], \beta_c)$ \tcp*{see Eqn.~\ref{eq:gamma}}
+		\BlankLine
+		$p^\phi_k[s] \pluseq p^\theta_{jk}[s]$ \;
+		\For {each timestep $i$ where $a_i \le c_j < a_i + d$}{
+			$p^\epsilon_{i}[s] \pluseq \sum_k p^\theta_{jk}[s]$ \;
+			\If {$\epsilon_i[s] \neq 0$} {
+				$p^\pi_{ik}[s] \pluseq p^\theta_{jk}[s]$ \;
+				update $\sigma^\pi_i \pluseq 1$ \;
+			}
+		}
+	}
+
+	
+	set $\hat\nabla_{\lambda^{\phi} }\mathcal{L} \triangleq \frac{1}{S} \sum_s g^\phi[s] ( p^\phi[s] -  q^\phi[s] )$ \;
+	set $\hat\nabla_{\lambda^{\epsilon}} \mathcal{L} \triangleq \frac{1}{S} \sum_s g^\epsilon[s] ( p^\epsilon[s] -  q^\epsilon[s] )$ \;
+	set $\hat\nabla_{\lambda^{\pi}} \mathcal{L} \triangleq \frac{1}{\sigma_\pi} \sum_s g^\pi[s] ( p^\pi[s] -  q^\pi[s] )$ \;
+
+	\BlankLine
+	set $\rho= (t +\tau)^\kappa$ \;
+	% update event content for each event $i$ and topic $k$: 
+	set $\lambda^{\pi} \pluseq \rho \hat\nabla_{\lambda^{\pi}} \mathcal{L}$ \;
+	set $\lambda^{\epsilon} \pluseq \rho \hat\nabla_{\lambda^{\epsilon}} \mathcal{L}$ \;
+	set $\lambda^{\phi} \pluseq \rho \hat\nabla_{\lambda^{\phi}} \mathcal{L}$ \;
+}
+
+set $\E[\pi] = \lambda^{\pi,a}$ \;
+set $\E[\phi] = \lambda^{\phi,a}$ \;
+set $\E[\epsilon] = \lambda^{\epsilon}$ \;
+\BlankLine
+\Return{$\E[\pi]$, $\E[\phi]$, $\E[\epsilon]$} \;
+\caption{Inference for Cables Model}
+\label{alg:cables}
+\end{algorithm}
+
 
 \end{document}
