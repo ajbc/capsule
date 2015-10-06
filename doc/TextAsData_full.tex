@@ -97,8 +97,8 @@ Recall that the key hidden values are event descriptions $\pi$ (``what''), event
 
 
 
-\subsection{Inference}
-Posterior inference is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.  Full details on the derivation of this inference algorithm can be found in Appendix~\ref{sec:appendix_inference}.
+\paragraph{Inference}
+Posterior inference for this model is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.  Full details on the derivation of this inference algorithm can be found in Appendix~\ref{sec:appendix_inference}.
 
 \section{Discussion}
 In this section, we discuss how to validate our model and explore some preliminary results.
@@ -108,9 +108,15 @@ We have collected examples of known historical events and have manually identifi
 
 Another approach to validating our model is to present the discovered events---including date, topic distribution, and entities involved---to an expert historian or political scientist who can assess the value of the discovered events.
 
-A technical approach to validation is to verify that the ELBO is increasing appropriately during inference.  The ELBO is discussed in greater detail in Appendix~\ref{sec:appendix_inference}, and Figure~\ref{fig:ELBO} (also in the appendix) show a plot of the ELBO on a small sample of data.
+A technical approach to validation is to verify that the ELBO is increasing appropriately during inference.  The ELBO is discussed in greater detail in Appendix~\ref{sec:appendix_inference}, and Figure~\ref{fig:ELBO} (also in the appendix) shows a plot of the ELBO on a small sample of data.
 
 \paragraph{Exploration}
+
+\PP describe, at a high level, what we want to be able to find (kind of a repeat of things discussed before)
+
+\PP highlight some ``business-as-usual'' topics.  Just say what they are for what entities...maybe in a table or figure?
+
+\PP highlight some events (specifically the fall of Saigon, if the model finds it).  Point out when they occur (and how it matches truth), but also what they are about (topic dist)
 
 \paragraph{Conclusions} Traditional topic models can describe documents, but they cannot identify when events occur---only a model like ours that explicitly models event occurrences and event content can attribute document observations to discrete events.  Further, by modeling entities, we can distinguish between ``business-as-usual'' document content and content that is attached to particular events---we are also unable to capture this phenomenon with traditional topic models.
 
@@ -125,7 +131,7 @@ A technical approach to validation is to verify that the ELBO is increasing appr
 \label{sec:appendix_inference}
 For now, we assume that we know the LDA topics $\beta$ and only observe the documents in terms of their topics $\theta$; breaking this assumption makes inference a little more complicated as the updates for $\theta$ would have new dependencies.
 
-As usual, inference is the central computational problem.  Variational inference approaches this problem by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
+Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
 This is equivalent to maximizing the ELBO: \[\mathcal{L}(q)  = \E_{q(\epsilon, \pi, \phi)}[\log p(\theta,\epsilon,\pi,\phi) - \log q(\epsilon, \pi, \phi)].\]
 
 We define the approximating distribution $q$ using the mean field assumption: \[q(\epsilon, \pi, \phi) = \prod_i q(\epsilon_{i})\prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right].\]
