@@ -67,7 +67,9 @@ def var(a):
     return rv
 
 def draw_gamma(a, b, shape):
-    return np.random.gamma(M(a), M(b)/M(a), shape)
+    rv = np.random.gamma(M(a), M(b)/M(a), shape)
+    rv[rv < 1e-300] = 1e-300
+    return rv
 
 def pGamma(x, a, b):
     if (x == 0).any() or (np.array(b) == 0).any():
@@ -308,14 +310,14 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity*10)
-        self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity*0.1)
+        self.a_entity = np.ones(self.data.dimension) * iM(self.params.a_entity)
+        self.b_entity = np.ones(self.data.dimension) * iM(self.params.b_entity)
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * \
-            iM(self.params.a_events*10)
+            iM(self.params.a_events)
         self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * \
-            iM(self.params.b_events*0.1)
+            iM(self.params.b_events)
         if self.params.topic_dist == "LogNormal":
             self.a_entity *= 0
             self.a_events *= 0
@@ -523,16 +525,20 @@ class Model:
             #print "p_entity", p_entity
             #print "q_entity", q_entity
             #print "g_entity", g_entity_a
-            self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
+
+            #TODO: update a after b converges a little
+            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
             self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
-            self.b_entity[self.b_entity > iM(1.0)] = iM(1.0)
+            self.a_entity[self.a_entity < 0.005] = 0.005
+            self.b_entity[self.b_entity < 1e-5] = 1e-5
 
             self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
 
             es = eoccur.sum(0) + sys.float_info.min
-            self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
+            #self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
             self.b_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_b)
-            self.b_events[self.b_events > iM(1.0)] = iM(1.0)
+            self.a_events[self.a_events < 0.005] = 0.005
+            self.b_events[self.b_events < 1e-5] = 1e-5
 
             self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
             print "*************************************"
@@ -598,13 +604,13 @@ if __name__ == '__main__':
         default=0.7, help = 'learning rate: should be between (0.5, 1.0] to guarantee asymptotic convergence')
 
     parser.add_argument('--a_entities', dest='a_entities', type=float, \
-        default=1.0, help = 'shape prior on entities; default 1')
+        default=0.1, help = 'sparsity prior on entities; default 0.1')
     parser.add_argument('--b_entities', dest='b_entities', type=float, \
-        default=1.0, help = 'rate prior on entities; default 1')
+        default=1.0, help = 'mean prior on entities; default 1')
     parser.add_argument('--a_events', dest='a_events', type=float, \
-        default=1.0, help = 'shape prior on events; default 1')
+        default=0.1, help = 'sparsity prior on events; default 0.1')
     parser.add_argument('--b_events', dest='b_events', type=float, \
-        default=1.0, help = 'rate prior on events; default 1')
+        default=1.0, help = 'mean prior on events; default 1')
     parser.add_argument('--a_docs', dest='a_docs', type=float, \
         default=0.1, help = 'sparisty of documents; default 0.1')
     parser.add_argument('--event_occur', dest='event_occurance', type=float, \
