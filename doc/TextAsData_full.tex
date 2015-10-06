@@ -69,7 +69,7 @@ Now imagine that at a particular time, an event occurs, such as the capture of S
 \item For each day $i$ with date $a_i$:
 \begin{itemize}
 \item Generate event occurrence/strength $\epsilon \sim \mbox{Poisson}
-(\eta_\epsilon)$, where $\eta_\epsilon$ is a fixed, non-negative
+(\eta_\epsilon)$,\footnote{Event occurrence can alternatively be modeled with a Bernoulli distribution.  The advantage to the Bernoulli is that it is more interpretable.  Poisson-distributed event occurrences lay the groundwork for more complicated models based in Poisson processes, and allow for a nuanced interpretation of multiple real-world events occurring in a single day, but convolving into a single event in model space.} where $\eta_\epsilon$ is a fixed, non-negative
 hyperparameter for the mean event strength.
 \item Generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
 \end{itemize}
@@ -100,21 +100,19 @@ Recall that the key hidden values are event descriptions $\pi$ (``what''), event
 \subsection{Inference}
 Posterior inference is the central computational problem.  We want to learn the hidden values describe above (event descriptions $\pi$, event occurrences $\epsilon$, and entity descriptions $\phi$) from our observed data.  We construct a black box variational inference algorithm following~\citet{Ranganath:2014} to determine the values of these latent parameters.  Full details on the derivation of this inference algorithm can be found in Appendix~\ref{sec:appendix_inference}.
 
-\section{Validation}
+\section{Discussion}
+In this section, we discuss how to validate our model and explore some preliminary results.
+
+\paragraph{Validation}
 We have collected examples of known historical events and have manually identified multiple cables that are associated with each event.  We plan to compare the events discovered by our model to these known events.  We will assess how many of the known events are recovered with our model, as well as how the average topic distribution of the known cables compares to the discovered event distribution.
 
 Another approach to validating our model is to present the discovered events---including date, topic distribution, and entities involved---to an expert historian or political scientist who can assess the value of the discovered events.
 
+A technical approach to validation is to verify that the ELBO is increasing appropriately during inference.  The ELBO is discussed in greater detail in Appendix~\ref{sec:appendix_inference}, and Figure~\ref{fig:ELBO} (also in the appendix) show a plot of the ELBO on a small sample of data.
 
+\paragraph{Exploration}
 
-
-\section{Discussion}
-Once we have determined the values of the hidden parameters in our model, we will have a discrete list of events in terms of when they occur and their topical content.  We plan to compare these discovered events to a list of predetermined historical events to evaluate the effectiveness of our model.
-
-Traditional topic models can describe documents, but they cannot identify when events occur---only a model like ours that explicitly models event occurrences and event content can attribute document observations to discrete events.  Further, by modeling entities, we can distinguish between ``business-as-usual'' document content and content that is attached to particular events---we are also unable to capture this phenomenon with traditional topic models.
-
-%needs vlaidation: how to check our model is doing what we want; compare to real, known, events
-
+\paragraph{Conclusions} Traditional topic models can describe documents, but they cannot identify when events occur---only a model like ours that explicitly models event occurrences and event content can attribute document observations to discrete events.  Further, by modeling entities, we can distinguish between ``business-as-usual'' document content and content that is attached to particular events---we are also unable to capture this phenomenon with traditional topic models.
 
 
 \bibliographystyle{apa}
