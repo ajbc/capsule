@@ -38,7 +38,6 @@ Communications between the U.S. State Department and its embassies have historic
 We obtained around two million of these cables sent between 1973 and 1977 via the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the message (often multiple entities), and the date the message was sent.
 Figure~\ref{fig:cables_example} shows three cables which were sent in April 1975 concerning orphans from the Vietnam War.
 
-
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth]{fig/cables_orphan_example.png}
@@ -110,15 +109,38 @@ Another approach to validating our model is to present the discovered events---i
 
 A technical approach to validation is to verify that the ELBO is increasing appropriately during inference.  The ELBO is discussed in greater detail in Appendix~\ref{sec:appendix_inference}, and Figure~\ref{fig:ELBO} (also in the appendix) shows a plot of the ELBO on a small sample of data.
 
-\paragraph{Exploration}
+\paragraph{Exploration} To explore our model, we investigate cables sent by the Saigon Embassy.  First, we consider ``business-as-usual'' for Saigon, as shown in Figure~\ref{fig:saigon_entity}.  Here we see that the Embassy is primarily concerned with citizenship documentation.
 
-\PP describe, at a high level, what we want to be able to find (kind of a repeat of things discussed before)
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig/saigon_topics.png}
+\caption{The topics about which the Saigon Embassy usually sends cables.}
+\label{fig:saigon_entity}
+\end{figure}
 
-\PP highlight some ``business-as-usual'' topics.  Just say what they are for what entities...maybe in a table or figure?
+Figures~\ref{fig:saigon_march} and~\ref{fig:saigon_april} show two events detected for Saigon in the spring of 1975, just prior to the Fall of Saigon.  Both of these events intuitively match our understanding of true events that occurred during these time periods.
 
-\PP highlight some events (specifically the fall of Saigon, if the model finds it).  Point out when they occur (and how it matches truth), but also what they are about (topic dist)
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig/saigon_march23.png}
+\caption{Topical description of the event the week of March 23, 1975.  Advances in March indicated that the city of Saigon would be attacked---the evacuation of American families began at the end of the month.}
+\label{fig:saigon_march}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig/saigon_apr6.png}
+\caption{Topical description of the event the week of April 6, 1975.  During April of this year, lost individuals were being tracked down and children were evacuated in mass from South Vietnam. (See also Figure~\ref{fig:cables_example})}
+\label{fig:saigon_april}
+\end{figure}
+
+\paragraph{Future Work}
+The model we have presented fits each entity independently. In this scenario, modeling ``business-as-usual'' topics is more challenging for entities with sparser sending patterns.
+Moving forward, modeling multiple entities interacting with each other about the same topics should make inference easier in this regard, though more complicated overall.  We also plan to include geographic proximity, which should have a similar effect.
 
 \paragraph{Conclusions} Traditional topic models can describe documents, but they cannot identify when events occur---only a model like ours that explicitly models event occurrences and event content can attribute document observations to discrete events.  Further, by modeling entities, we can distinguish between ``business-as-usual'' document content and content that is attached to particular events---we are also unable to capture this phenomenon with traditional topic models.
+
+
 
 
 \bibliographystyle{apa}
