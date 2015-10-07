@@ -36,16 +36,16 @@
 
 Communications between the U.S. State Department and its embassies have historically been called \emph{diplomatic cables}, derived from the time when physical cables were used for such communications.
 We obtained around two million of these cables sent between 1973 and 1977 via the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the message (often multiple entities), and the date the message was sent.
-Figure~\ref{fig:cables_example} shows three cables which were sent in April 1975 concerning orphans from the Vietnam War.
+Excerpts from three example cables are shown in Figure~\ref{fig:cables_example}.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth]{fig/cables_orphan_example.png}
-\caption{Example excerpts of cables.}
+\caption{Example excerpts of cables sent in April 1975 concerning orphans from the Vietnam War.}
 \label{fig:cables_example}
 \end{figure}
 
-Historians and political scientists are interested in the process of sending cables---of particular interest is identifying historical events in a collection of these cables.  These experts want to know \emph{when} events happen, as well as \emph{what} happens during the event, which includes the parties sending and receiving messages (\emph{who}). 
+Historians and political scientists are interested in the process of sending cables---of particular interest is identifying historical events from a collection of these cables.  These experts want to know \emph{when} events happen, as well as \emph{what} happens during the event, which includes the parties sending and receiving messages (\emph{who}) and \emph{where} the event is located. 
 
 For this work, we characterize an event in two ways: \emph{when} it occurs and \emph{what} occurs.  We assume that only one event can begin on any given day, which allows us to describe each day in terms of the probability of an event starting that day.  We can also assume that an event will influence cables for a set time period after it starts---this way, we only need to discover the starting day for each event.  
 To understand \emph{what} occurs, we can summarize the cable message content with a topic model such as LDA~\citep{Blei:2003} and model event content in that same space.
@@ -134,9 +134,9 @@ Figures~\ref{fig:saigon_march} and~\ref{fig:saigon_april} show two events detect
 \label{fig:saigon_april}
 \end{figure}
 
-\paragraph{Future Work}
-The model we have presented fits each entity independently. In this scenario, modeling ``business-as-usual'' topics is more challenging for entities with sparser sending patterns.
-Moving forward, modeling multiple entities interacting with each other about the same topics should make inference easier in this regard, though more complicated overall.  We also plan to include geographic proximity, which should have a similar effect.
+\paragraph{Future Work}  The model we have presented fits each entity independently. In this scenario, modeling ``business-as-usual'' and event topics is more challenging for entities with sparser sending patterns.
+We plan to expand our model to include interactions between entities---the State Department will probably interact differently with Moscow than it does with Paris.
+Modeling multiple entities interacting with each other about the same topics should make inference easier with regard to describing shared events and ``business-as-usual'' topics.  We also plan to include geographic proximity, which should have a similar effect.
 
 \paragraph{Conclusions} Traditional topic models can describe documents, but they cannot identify when events occur---only a model like ours that explicitly models event occurrences and event content can attribute document observations to discrete events.  Further, by modeling entities, we can distinguish between ``business-as-usual'' document content and content that is attached to particular events---we are also unable to capture this phenomenon with traditional topic models.
 
