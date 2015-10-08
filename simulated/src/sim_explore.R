@@ -2,7 +2,7 @@ library(ggplot2)
 library(reshape2)
 setwd('~/Dropbox/Projects/Academic/declass/cables/src/simulated')
 
-dat.truth <- read.csv('dat/simk6/simulated_truth.tsv', sep='\t')
+dat.truth <- read.csv('dat/simk6_v5/simulated_truth.tsv', sep='\t')
 dat.truth <- melt(dat.truth, id.vars=c("source", "time"))
 
 # events and base distribution: ground truth
@@ -12,8 +12,8 @@ p
 
 
 # observed cables
-dat.obs <- read.csv('dat/simk6/simulated_content.tsv', sep='\t', header=F)
-dat.obs.time <- read.csv('dat/simk6/simulated_time.dat', header=F)
+dat.obs <- read.csv('dat/simk6_v5/simulated_content.tsv', sep='\t', header=F)
+dat.obs.time <- read.csv('dat/simk6_v5/simulated_time.dat', header=F)
 colnames(dat.obs) <- c('k.0', 'k.1', 'k.2', 'k.3', 'k.4','k.5')
 dat.obs$time <- dat.obs.time$V1
 
