@@ -13,6 +13,15 @@ import warnings #TODO rm
 warnings.filterwarnings('error')
 
 ## helper functions
+def rmsprop(history, latest):
+    if history == []:
+        for g in latest:
+            history.append(g)
+        return 1
+    ms = sum([h ** 2 for h in history]) / len(history)
+    for g in latest:
+        history.append(g)
+    return np.sqrt(ms)
 
 # softplus
 def M(x):
@@ -331,7 +340,7 @@ class Model:
         log_priors = pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum() + \
             pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
         log_q = pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
-            (pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events))).sum() #TODO: is this right??? (depends on event occur)
+            pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
         if self.params.event_dist == "Poisson":
             log_priors += pPoisson(self.eoccur, self.params.l_eoccur).sum()
             log_q += pPoisson(self.eoccur, M(self.l_eoccur)).sum()
@@ -452,6 +461,9 @@ class Model:
         #print "M(b-ent)", M(self.b_entity)
         #print "entity", self.entity
         #print "*************************************"
+        b_entity_history = []
+        eoccur_history = []
+        b_events_history = []
 
         print "starting..."
         while not self.converged(iteration):
@@ -519,22 +531,24 @@ class Model:
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
-            aup = cv_update(p_entity, q_entity, g_entity_a, True)
-            #print "p_entity", p_entity
-            #print "q_entity", q_entity
-            #print "g_entity", g_entity_a
-
-            #TODO: update a after b converges a little
+            #TODO: update a after b converges a little (also aldd rmsprop)
             #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
-            self.b_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_b)
+            self.b_entity += (rho/self.params.num_samples) * \
+                cv_update(p_entity, q_entity, g_entity_b) / \
+                rmsprop(b_entity_history, g_entity_b)
             self.a_entity[self.a_entity < iM(0.005)] = iM(0.005)
             self.b_entity[self.b_entity < iM(1e-5)] = iM(1e-5)
 
-            self.l_eoccur += (rho/self.params.num_samples) * cv_update(p_eoccur, q_eoccur, g_eoccur)
+            self.l_eoccur += (rho/self.params.num_samples) * \
+                 cv_update(p_eoccur, q_eoccur, g_eoccur) / \
+                 rmsprop(eoccur_history, g_eoccur)
+
 
             es = eoccur.sum(0) + sys.float_info.min
             #self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
-            self.b_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_b)
+            self.b_events += (eoccur.sum(0) != 0) * (rho / es) * \
+                cv_update(p_events, q_events, g_events_b) / \
+                rmsprop(b_events_history, g_events_b)
             self.a_events[self.a_events < iM(0.005)] = iM(0.005)
             self.b_events[self.b_events < iM(1e-5)] = iM(1e-5)
 
@@ -548,7 +562,7 @@ class Model:
                 self.eoccur = M(self.l_eoccur)
             else:
                 self.eoccur = S(self.l_eoccur)
-            #print "events", self.eoccur.T
+            print "events", self.eoccur.T
             self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
             #print "end of iteration"
             print "*************************************"
