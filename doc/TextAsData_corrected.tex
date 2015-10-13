@@ -58,7 +58,8 @@ Consider an entity like the Bangkok American embassy.  We can imagine that there
 
 An entity will usually talk about certain topics and with certain frequency. The Bangkok embassy, for instance, sent an average of 22 cables per day in the 1970s, and was concerned with topics regarding southeast Asia more generally.  We can describe the general interests of entities in the same topic space we use to describe individual cables, and we will call these per-entity interests $\phi$ and can assign them a formal distribution.
 \begin{itemize}
-\item Draw the entity's base topics: $\phi_{0k} \sim \mbox{Gamma}(\alpha, \beta)$
+\item Draw the entity's base topics: $\phi_{0k} \sim \mbox{Gamma}(\alpha_\phi, \mu_\phi/\alpha_\phi)$,\footnote{Here and throughout this work, we use the shape $\alpha$ and scale $\theta$ parameterization of the Gamma, or \[\mbox{Gamma}(x \g \alpha, \theta) = \frac{1}{\Gamma(\alpha) \theta^\alpha} x^{(\alpha-1)}e^{- x / \theta}.\]}, where sparsity $\alpha_\phi$ and mean $\mu_\phi$ are fixed hyperparameters.
+%\footnote{We use an atypical parameterization of the Gamma with parameters mean $\mu$ and sparsity $\alpha$: \[\mbox{Gamma}(x \g \mu, \alpha) = \frac{\alpha^\alpha}{\Gamma(\alpha) \mu^\alpha} x^{(\alpha-1)}e^{-\alpha x / \mu}.\]  It is equivalent to the usual shape/scale parameterization where shape $k=\alpha$ and scale $\theta=\mu/\alpha$.}
 \end{itemize}
 Eventually we will want to model the interactions between entities, but for now we can consider a single entity at a time.
 
@@ -70,7 +71,7 @@ Now imagine that at a particular time, an event occurs, such as the capture of S
 \item Generate event occurrence/strength $\epsilon \sim \mbox{Poisson}
 (\eta_\epsilon)$,\footnote{Event occurrence can alternatively be modeled with a Bernoulli distribution.  The advantage to the Bernoulli is that it is more interpretable.  Poisson-distributed event occurrences lay the groundwork for more complicated models based in Poisson processes, and allow for a nuanced interpretation of multiple real-world events occurring in a single day, but convolving into a single event in model space.} where $\eta_\epsilon$ is a fixed, non-negative
 hyperparameter for the mean event strength.
-\item Generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_0, \beta_0)$, where $\alpha_0$ and $\beta_0$ are fixed hyperparameters.
+\item Generate the day/event's description in terms of each topic $k$: $\pi_{ik} \sim \mbox{Gamma}(\alpha_\pi, \mu_\pi/\alpha_\pi)$, where $\alpha_\pi$ and $\mu_\pi$ are fixed hyperparameters like above.
 \end{itemize}
 \end{itemize}
 
@@ -90,7 +91,7 @@ Recall that the key hidden values are event descriptions $\pi$ (``what''), event
 \item For each cable $j$ on date $c_j$:
 \begin{itemize}
 	\item Set cable topic parameter: $\phi_{jk} = \phi_{0k} + \sum_i f(a_i, c_j) \pi_{ik} \epsilon_i$.
-	\item Draw cable topic: $\theta_{jk} \sim \mbox{Gamma}(\beta_c \phi_{jk}, \beta_c)$.
+	\item Draw cable topic: $\theta_{jk} \sim \mbox{Gamma}(\alpha_\theta, \phi_{jk} / \alpha_\theta)$, where sparsity $\alpha_\theta$ is a fixed hyperparameter.
 \end{itemize}
 \end{itemize}
 
@@ -157,11 +158,11 @@ Variational inference approaches the problem of posterior inference by minimizin
 This is equivalent to maximizing the ELBO: \[\mathcal{L}(q)  = \E_{q(\epsilon, \pi, \phi)}[\log p(\theta,\epsilon,\pi,\phi) - \log q(\epsilon, \pi, \phi)].\]
 
 We define the approximating distribution $q$ using the mean field assumption: \[q(\epsilon, \pi, \phi) = \prod_i q(\epsilon_{i})\prod_k\left[q(\phi_{0k})\prod_i q(\pi_{ik})\right].\]
-The variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Because these parameters are free, we use the softmax function $\mathcal{M}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.
-The variational distribution $q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$; this free parameter is also constrained by the softmax function.
+The variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Each parameter $\lambda$ has two components: sparsity $\alpha$ and mean $\mu$, which parameterize a shape-rate gamma as $\mbox{Gamma}(\alpha,\mu/\alpha)$, as used previously. Because these parameters are free, we use the softplus function $\mathcal{P}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.
+The variational distribution $q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$; this free parameter is also constrained by the softplus function.
 
 The expectations under $q$, which are needed to maximize the ELBO, do not have a simple analytic form, so we use ``black box'' VI techniques.
-F or each variable, we can write the log probability of all terms containing that variable, giving us 
+For each variable, we can write the log probability of all terms containing that variable, giving us 
 \[\log p^\epsilon_{i}(\theta, \epsilon, \pi, \phi) \triangleq \log p(\epsilon_{i} \g \eta_\epsilon) + \sum_{j : f(a_i, c_j) \neq 0}\sum_k\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
 \[\log p^\pi_{ik}(\theta, \epsilon, \pi, \phi) \triangleq \log p(\pi_{ik} \g \alpha_0, \beta_0) + \mathbf{1}[\epsilon_i \neq 0] \sum_{j : f(a_i, c_j) \neq 0}\log p(\theta_{jk} \g \phi_{0k}, c_j, a_i, d, \beta_c, \pi_{ik}, \epsilon_i),\]
 and
@@ -177,28 +178,28 @@ Using this framework, we construct our black box algorithm below in Algorithm 1.
 \paragraph{For Reference}
 The gamma distribution and derivatives:
 \begin{align}
-\log\mbox{Gamma}(x \g a,b) & = ab\log b - \log\Gamma \left(ab\right) +(ab-1)\log x - bx \label{eq:gamma}\\
-%\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) & = 
-%\mathcal{M}(a)\mathcal{M}(b)\log \mathcal{M}(b) - \log\Gamma \left(\mathcal{M}(a)\mathcal{M}(b)\right) +(\mathcal{M}(a)\mathcal{M}(b)-1)\log x - \mathcal{M}(b)x \\
-\nabla_a \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
-\mathcal{M}'(a) \mathcal{M}(b) \left[ \log \mathcal{M}(b) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right] \label{eq:dgammaA}
+\log\mbox{Gamma}(x \g \alpha, \mu/\alpha) & = \alpha\log\alpha - \alpha\log\mu - \log\Gamma \left(\alpha\right) + (\alpha-1)\log x - \frac{\alpha x}{\mu} \label{eq:gamma}\\
+%\log\mbox{Gamma}(x \g \mathcal{P}(a), \mathcal{P}(b)) & = 
+%\mathcal{P}(a)\mathcal{P}(b)\log \mathcal{P}(b) - \log\Gamma \left(\mathcal{P}(a)\mathcal{P}(b)\right) +(\mathcal{P}(a)\mathcal{P}(b)-1)\log x - \mathcal{P}(b)x \\
+\nabla_\alpha \log\mbox{Gamma}(x \g \mathcal{P}(\alpha), \mathcal{P}(\mu)/\mathcal{P}(\alpha)) &= 
+\mathcal{P}'(\alpha) \left[\log\mathcal{P}(\alpha) + 1 - \log\mathcal{P}(\mu) - \Psi \left(\mathcal{P}(\alpha)\right) + \log x - \frac{x}{\mathcal{P}(\mu)}\right] \label{eq:dgammaA}
 \\
-\nabla_b \log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
-\mathcal{M}'(b) \left[ \mathcal{M}(a) \left((\log \mathcal{M}(b) + 1) - \Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \log x\right) - x\right]\label{eq:dgammaB}
-%\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{M}(a), \mathcal{M}(b)) &= 
-%\mathcal{M}'(b) \left[ \mathcal{M}(a) (\log \mathcal{M}(b) + 1) - \mathcal{M}(a)\Psi \left(\mathcal{M}(a)\mathcal{M}(b)\right) + \mathcal{M}(a)\log x - x\right]
+\nabla_\mu \log\mbox{Gamma}(x \g \mathcal{P}(\alpha), \mathcal{P}(\mu)/\mathcal{P}(\alpha) &= 
+\mathcal{P}'(\mu) \left[ -\frac{\mathcal{P}(\alpha)}{\mathcal{P}(\mu)} + \frac{\mathcal{P}(\alpha)x}{\mathcal{P}(\mu)^2}\right]\label{eq:dgammaB}
+%\frac{d}{d b}\log\mbox{Gamma}(x \g \mathcal{P}(a), \mathcal{P}(b)) &= 
+%\mathcal{P}'(b) \left[ \mathcal{P}(a) (\log \mathcal{P}(b) + 1) - \mathcal{P}(a)\Psi \left(\mathcal{P}(a)\mathcal{P}(b)\right) + \mathcal{P}(a)\log x - x\right]
 \end{align}
 
 The Poisson distribution and derivative:
 \begin{align}
 \log\mbox{Poisson}(x~\vert~\lambda) &= x\log\lambda - \log(x!) - \lambda \label{eq:poisson} \\
-%\log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= x\log\mathcal{M}(\lambda) - \log(x!) -\mathcal{M}(\lambda) \\
-\nabla_\lambda \log\mbox{Poisson}(x~\vert~\mathcal{M}(\lambda)) &= \mathcal{M}'(\lambda)\left[\frac{x}{\mathcal{M}(\lambda)} -1\right].\label{eq:dpoisson}
+%\log\mbox{Poisson}(x~\vert~\mathcal{P}(\lambda)) &= x\log\mathcal{P}(\lambda) - \log(x!) -\mathcal{P}(\lambda) \\
+\nabla_\lambda \log\mbox{Poisson}(x~\vert~\mathcal{P}(\lambda)) &= \mathcal{P}'(\lambda)\left[\frac{x}{\mathcal{P}(\lambda)} -1\right].\label{eq:dpoisson}
 \end{align}
 
-The softmax function and derivative:
-\[\mathcal{M}(x) = \log(1+e^x)\]
-\[\mathcal{M}'(x) = \frac{e^x}{1+e^x}\]
+The softplus function and derivative:
+\[\mathcal{P}(x) = \log(1+e^x)\]
+\[\mathcal{P}'(x) = \frac{e^x}{1+e^x}\]
 %\SetCommentSty{mycommfont}
 
 
@@ -215,25 +216,25 @@ respective priors \;
 	initialize $\sigma^\pi = 0$ \;
 	\For {each sample $s = 1, \dots, S$}{
 		\For {each component $k$} {
-			draw sample entity topics $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\phi_{k}))$ \;
+			draw sample entity topics $\phi_{0k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\phi_{k}))$ \;
 			\BlankLine
 			set $p^\phi_k[s] = \log p(\phi_{0k}[s] \g \alpha, \beta)$ \tcp*{see Eqn.~\ref{eq:gamma}}
-			set $q^\phi_k[s] = \log q(\phi_{0k}[s] \g \lambda^\phi_k)$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{M}(\lambda^{\phi}_k)$}
+			set $q^\phi_k[s] = \log q(\phi_{0k}[s] \g \lambda^\phi_k)$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{P}(\lambda^{\phi}_k)$}
 			set $g^\phi_k[s] = \nabla_{\lambda^\phi_{k}} \log q(\phi_{0k}[s] \g \lambda^\phi_{k})$ \tcp*{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
 		}
 		\For {each timestep $i$} {
-			draw sample event occurance $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{M}(\lambda^\epsilon_i))$ \;
+			draw sample event occurance $\epsilon_i[s] \sim \mbox{Poisson}(\mathcal{P}(\lambda^\epsilon_i))$ \;
 			\BlankLine
 			set $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \tcp*{see Eqn.~\ref{eq:poisson}}
-			set $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \lambda^\epsilon_i)$ \tcp*{Eqn.~\ref{eq:poisson} with param $\mathcal{M}(\lambda^{\epsilon}_i)$}
+			set $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \lambda^\epsilon_i)$ \tcp*{Eqn.~\ref{eq:poisson} with param $\mathcal{P}(\lambda^{\epsilon}_i)$}
 			set $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \lambda^\epsilon_{i})$ \tcp*{see Eqn.~\ref{eq:dpoisson}}
 			\BlankLine
 			\If {$\epsilon_i[s] \neq 0$} {
 				\For {each component $k$} {
-					draw sample event topics $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{M}(\lambda^\pi_{ik}))$ \;
+					draw sample event topics $\pi_{ik}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\pi_{ik}))$ \;
 					\BlankLine
 					set $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \tcp*{see Eqn.~\ref{eq:gamma}}
-					set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{M}(\lambda^{\pi}_{ik})$}
+					set $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \tcp*{Eqn.~\ref{eq:gamma} with params $\mathcal{P}(\lambda^{\pi}_{ik})$}
 					set $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \tcp*{see Eqns.~\ref{eq:dgammaA}, \ref{eq:dgammaB}}
 				}
 			}
