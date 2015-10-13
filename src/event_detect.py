@@ -536,7 +536,7 @@ class Model:
 
             es = eoccur.sum(0) + sys.float_info.min
             #self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
-            self.b_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_b)
+            self.b_events +=  (rho / es) * cv_update(p_events, q_events, g_events_b * (eoccur > 0))
             self.a_events[self.a_events < 0.005] = 0.005
             self.b_events[self.b_events < 1e-5] = 1e-5
 
