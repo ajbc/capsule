@@ -337,23 +337,32 @@ class Model:
         self.likelihood_decreasing_count = 0
 
     def compute_ELBO(self):
-        log_priors = pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum() + \
-            pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
-        log_q = pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
-            pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
+        pent = pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum()
+        pevt = pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
+        log_priors = pent + pevt#pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum() + \
+            #pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
+        qent = pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum()
+        qevt = pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
+        log_q = qent + qevt#pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
+            #pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
         if self.params.event_dist == "Poisson":
+            peoc = pPoisson(self.eoccur, self.params.l_eoccur).sum()
             log_priors += pPoisson(self.eoccur, self.params.l_eoccur).sum()
+            qeoc = pPoisson(self.eoccur, M(self.l_eoccur)).sum()
             log_q += pPoisson(self.eoccur, M(self.l_eoccur)).sum()
         else:
+            peoc = pBernoulli(self.eoccur, self.params.l_eoccur).sum()
             log_priors += pBernoulli(self.eoccur, self.params.l_eoccur).sum()
+            qeoc = pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
         ll = self.compute_likelihood(False)
-        print "ELBO breakdown", ll, log_priors, - log_q
-        print "log q breakdown"
-        print "\t- log q(entity)", -pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum()
-        print "\t- log q(events)", -(pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events))*self.eoccur).sum()
-        print "\t- log q(event occur)", -pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
-        return ll + log_priors - log_q
+        #print "ELBO breakdown", ll, log_priors, - log_q
+        #print "log q breakdown"
+        #print "\t- log q(entity)", -pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum()
+        #print "\t- log q(events)", -(pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events))*self.eoccur).sum()
+        #print "\t- log q(event occur)", -pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
+        return ll, qent, pent, qevt, pevt, qeoc, peoc, ll+log_priors - log_q
+        #return ll + log_priors - log_q
         #return self.compute_likelihood(False) + log_priors - log_q
 
     def compute_likelihood(self, valid=True):
@@ -373,6 +382,8 @@ class Model:
             self.elbo = -sys.float_info.max
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
             flog.write("iteration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
+            flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'w+')
+            flogE.write("iteration\ttime\tlog.likelihood\tlog.q.entity\tlog.p.entity\tlog.q.events\tlog.p.events\tlog.q.eoccur\tlog.p.eoccur\tELBO\n")
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
@@ -380,13 +391,16 @@ class Model:
             abs(self.old_likelihood)
 
         self.old_elbo = self.elbo
-        self.elbo = self.compute_ELBO()
+        #self.elbo = self.compute_ELBO()
+        ll, qent, pent, qevt, pevt, qeoc, peoc, self.elbo = self.compute_ELBO()
         elbodelta = (self.elbo - self.old_elbo) / \
             abs(self.old_elbo)
 
         flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
         flog.write("%d\t%s\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
         print "%d\t%s\t%f\t%f\t%f\t%f" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta)
+        flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'a')
+        flogE.write("%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), ll, qent, pent, qevt, pevt, qeoc, peoc, self.elbo))
 
         if elbodelta < 0:
             print "ELBO decreasing (bad)"
