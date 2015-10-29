@@ -8,7 +8,8 @@ FIT <- args[2]
 ITER <- as.integer(args[3])
 #DATA <- "~/Projects/Academic/declass/cables/src/simulated/dat/simk6_v5"
 #FIT <- "~/Projects/Academic/declass/cables/src/fit/32"
-#ITER <- 6
+#FIT <- "~/Projects/Academic/declass/cables/src/src/simtest"
+#ITER <- 33
 
 dat.truth <- read.csv(paste(DATA, 'simulated_truth.tsv', sep='/'), sep='\t')
 dat.truth <- melt(dat.truth, id.vars=c("source", "time"))
@@ -75,6 +76,35 @@ LL <- melt(LL, id.vars=c("iteration"))
 
 ggplot(LL, aes(x=iteration, y=value, color=variable)) + geom_line() + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=ymin, yend=ymax), color='black', size=0.1) +theme_bw()
 ggsave(file='log.pdf',width=5, height=3)
+
+
+
+
+
+# ELBO broken down
+LL <- read.csv(paste(FIT, 'log.ELBO.dat', sep='/'), sep='\t')
+
+ymin <- min(LL$ELBO)
+ymax <- max(LL$ELBO)
+
+LL$ELBO <- NULL
+LL$time <- NULL
+#LL$log.likelihood <- NULL
+LL <- melt(LL, id.vars=c("iteration"))
+
+
+ggplot(LL, aes(x=iteration, y=value, color=variable)) + geom_line() +theme_bw()#position = 'stack')# + geom_segment(aes(x=min(LL$iteration), xend=max(LL$iteration), y=ymin, yend=ymax), color='black', size=0.1)
+
+
+
+
+
+
+
+
+
+
+
 
 
 # from pre-melt era

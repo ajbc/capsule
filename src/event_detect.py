@@ -13,34 +13,6 @@ import warnings #TODO rm
 warnings.filterwarnings('error')
 
 ## helper functions
-def rmsprop(history, latest):
-    if history == []:
-        for g in latest:
-            history.append(g)
-        return 1
-    ms = sum([h ** 2 for h in history]) / len(history)
-    for g in latest:
-        history.append(g)
-    return np.sqrt(ms)
-
-# softplus
-def M(x):
-    x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
-    rv = np.log(1.0 + np.exp(x))
-    rv[rv == 0] = (sys.float_info.min)**0.5
-    return rv
-
-# derivative of softplus
-def dM(x):
-    #x[x > np.log(sys.float_info.max)] = np.log(sys.float_info.max)
-    #return np.exp(x) / (1.0 + np.exp(x))
-    x[-x > np.log(sys.float_info.max)] = -np.log(sys.float_info.max)
-    return 1.0 / (1.0 + np.exp(-x))
-
-# inverse of softplus
-def iM(x):
-    return np.log(np.exp(x) - 1.0)
-
 # sigmoid
 def S(x):
     x[x < -np.log(sys.float_info.max)] = -np.log(sys.float_info.max)
@@ -54,114 +26,51 @@ def dS(x):
 def iS(x):
     return -np.log(1.0/x - 1)
 
+# soft-plus
+def SP(x):
+    return np.log(1. + np.exp(x))
 
-def lngamma(val):
-    if isinstance(val, float):
-        return gammaln(val) if val > sys.float_info.min else gammaln(sys.float_info.max)
-    else:
-        val[val < sys.float_info.min] = sys.float_info.min
-        return gammaln(val)
+# derivative of soft-plus
+def dSP(x):
+    return np.exp(x) / (1. + np.exp(x))
 
+# inverse of soft-plus
+def iSP(x):
+    return np.log(np.exp(x) - 1.)
+
+# log probability of a gamma given sparsity a and mean m
+def Gamma(x, a, m):
+    return a * np.log(a) - a * np.log(m) - gammaln(a) + (a-1.) * np.log(x) - a * x / m
+
+# derivative of above log gamma with respect to sparsity a
+def dGamma_alpha(x, a, m):
+    return np.log(a) + 1. - np.log(m) - digamma(a) + np.log(x) - (x / m)
+
+# derivative of above log gamma with respect to mean m
+def dGamma_mu(x, a, m):
+    return - (a / m) + ((a * x) / m**2)
+
+# log probabilty of a Normal distribution with unit variance and mean m
+def Normal(x, m):
+    return - 0.5 * (x - m)**2 - np.log(np.sqrt(2 * np.pi))
+
+# covariance where each column is draws for a variable
+# (returns a row of covariances)
 def cov(a, b):
-    # the below was in the figure i sent to dave
     v = (a - sum(a)/a.shape[0]) * (b - sum(b)/b.shape[0])
     return sum(v)/v.shape[0]
 
+# variance with same structure as covariance above
 def var(a):
-    rv = cov(a, a)
-    if isinstance(rv, float):
-        rv = sys.float_info.min if rv == 0 else rv
-    else:
-        rv[rv == 0] = sys.float_info.min
-    return rv
+    return cov(a,a)
 
-def draw_gamma(a, b, shape):
-    rv = np.random.gamma(M(a), M(b)/M(a), shape)
+def draw_gamma(a, m, shape):
+    rv = np.random.gamma(SP(a), SP(m)/SP(a), shape)
     rv[rv < 1e-300] = 1e-300
     return rv
 
-def pGamma(x, a, b):
-    if (x == 0).any() or (np.array(b) == 0).any():
-        x[x==0] = sys.float_info.min
-    return a*np.log(a/b) - lngamma(a) + (a-1.0)*np.log(x) - x * a / b
 
-def qgGamma(x, a, b):
-    dMb = dM(b)
-    b = M(b)
-    dMa = dM(a)
-    a = M(a)
 
-    g_a = dMa * (np.log(a) + 1 - np.log(b) - digamma(a) + np.log(x) - x/b)
-    g_b = dMb * (-a / b + x / b**2)
-
-    return (pGamma(x, a, b), g_a, g_b)
-
-def EGamma(a, b):
-    return M(b)
-
-def pExponential(x, rate):
-    return rate * np.exp(-rate*x)
-
-def qgExponential(x, rate, b):
-    return (pExponential(x, M(rate)), dM(rate) * (1.0 / M(rate) - x), np.zeros(b.shape))
-
-def EExponential(rate):
-    return 1.0 / M(rate)
-
-def pLogNormal(x, loc, scale):
-    if isinstance(loc, float):
-        loc = loc if loc < np.log(sys.float_info.max)/2 else np.log(sys.float_info.max)/2
-    else:
-        loc[loc > np.log(sys.float_info.max)/2] = np.log(sys.float_info.max)/2
-    x[x < np.sqrt(sys.float_info.min)] = np.sqrt(sys.float_info.min)
-    x[x > np.sqrt(sys.float_info.max)] = np.sqrt(sys.float_info.max)
-    return -np.log(x * scale * np.sqrt(2 * np.pi)) - \
-        (np.log(x)-loc)**2 / (2 * scale**2)
-
-def qgLogNormal(x, loc, scale):
-    dMs = dM(scale)
-    scale = M(scale)
-    return (pLogNormal(x, loc, scale), \
-        (scale**-2 * (np.log(x) - loc)), \
-        dMs * (scale**-3 * (np.log(x) - loc)**2 - scale**-2))
-
-def ELogNormal(loc, scale):
-    #scale[scale > iM(np.sqrt(np.log(sys.float_info.max)))] = iM(np.sqrt(np.log(sys.float_info.max)))
-    loc[loc > np.log(sys.float_info.max)/2] = np.log(sys.float_info.max)/2
-    return np.exp(loc + M(scale)**2/2)
-
-def pTopics(dist, x, a, b):
-    if dist == "Gamma":
-        return pGamma(x, a, b)
-    elif dist == "LogNormal":
-        return pLogNormal(x, a, b)
-    elif dist == "Exponential":
-        return pExponential(x, a)
-    else:
-        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
-        sys.exit(-1)
-
-def qgTopics(dist, x, a, b):
-    if dist == "Gamma":
-        return qgGamma(x, a, b)
-    elif dist == "LogNormal":
-        return qgLogNormal(x, a, b)
-    elif dist == "Exponential":
-        return qgExponential(x, a, b)
-    else:
-        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
-        sys.exit(-1)
-
-def ETopics(dist, a, b):
-    if dist == "Gamma":
-        return EGamma(a, b)
-    elif dist == "LogNormal":
-        return ELogNormal(a, b)
-    elif dist == "Exponential":
-        return EExponential(a)
-    else:
-        print "Invalid topic distribution.  Options: Gamma, LogNormal, Exponential.  Given:", dist
-        sys.exit(-1)
 
 def pBernoulli(x, p):
     return p**x * (1-p)**(1-x)
@@ -238,7 +147,7 @@ class Corpus:
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, min_iter, max_iter, tau, kappa, \
-        a_ent, b_ent, a_evn, b_evn, a_doc, eoc, \
+        a_ent, m_ent, a_evn, m_evn, a_doc, eoc, \
         event_duration, event_dist, topic_dist,\
         content, time):
         self.outdir = outdir
@@ -253,15 +162,14 @@ class Parameters:
         self.kappa = kappa
 
         self.a_entity = a_ent
-        self.b_entity = b_ent
+        self.m_entity = m_ent
         self.a_events = a_evn
-        self.b_events = b_evn
+        self.m_events = m_evn
         self.a_docs = a_doc
         self.l_eoccur = eoc
 
         self.d = event_duration
         self.event_dist = event_dist
-        self.topic_dist = topic_dist
 
         self.content = content
         self.time = time
@@ -282,14 +190,13 @@ class Parameters:
         f.write("tau:\t%d\n" % self.tau)
         f.write("kappa:\t%f\n" % self.kappa)
         f.write("a_entity:\t%f\n" % self.a_entity)
-        f.write("b_entity:\t%f\n" % self.b_entity)
+        f.write("m_entity:\t%f\n" % self.m_entity)
         f.write("a_events:\t%f\n" % self.a_events)
-        f.write("b_events:\t%f\n" % self.b_events)
+        f.write("m_events:\t%f\n" % self.m_events)
         f.write("a_docs:\t%f\n" % self.a_docs)
         f.write("prior on event occurance:\t%f\n" % self.l_eoccur)
         f.write("event duration:\t%d\n" % self.d)
         f.write("event dist:\t%s\n" % self.event_dist)
-        f.write("topic dist:\t%s\n" % self.topic_dist)
         f.write("data, content:\t%s\n" % self.content)
         f.write("data, times:\t%s\n" % self.time)
 
@@ -320,31 +227,28 @@ class Model:
     def init(self):
         # free variational parameters
         self.a_entity = np.ones(self.data.dimension) * 0.1
-        self.b_entity = np.ones(self.data.dimension) * 0.01
+        self.m_entity = np.ones(self.data.dimension) * 0.01
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
-        self.b_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
-        if self.params.topic_dist == "LogNormal":
-            self.a_entity *= 0
-            self.a_events *= 0
+        self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
 
         # expected values of goal model parameters
-        self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
+        self.entity = SP(self.m_entity)
         self.eoccur = (M(self.l_eoccur) if self.params.event_dist == "Poisson" else S(self.l_eoccur))
-        self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
+        self.events = SP(self.m_events)
 
         self.likelihood_decreasing_count = 0
 
     def compute_ELBO(self):
-        pent = pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum()
-        pevt = pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
-        log_priors = pent + pevt#pTopics(self.params.topic_dist, self.entity, self.params.a_entity, self.params.b_entity).sum() + \
-            #pTopics(self.params.topic_dist, self.events, self.params.a_events, self.params.b_events).sum()
-        qent = pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum()
-        qevt = pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
-        log_q = qent + qevt#pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum() + \
-            #pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events)).sum()
+        pent = Gamma(self.entity, self.params.a_entity, self.params.m_entity).sum()
+        pevt = Gamma(self.events, self.params.a_events, self.params.m_events).sum()
+        log_priors = pent + pevt
+
+        qent = Gamma(self.entity, SP(self.a_entity), SP(self.m_entity)).sum()
+        qevt = Gamma(self.events, SP(self.a_events), SP(self.m_events)).sum()
+        log_q = qent + qevt
+
         if self.params.event_dist == "Poisson":
             peoc = pPoisson(self.eoccur, self.params.l_eoccur).sum()
             log_priors += pPoisson(self.eoccur, self.params.l_eoccur).sum()
@@ -356,14 +260,7 @@ class Model:
             qeoc = pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
         ll = self.compute_likelihood(False)
-        #print "ELBO breakdown", ll, log_priors, - log_q
-        #print "log q breakdown"
-        #print "\t- log q(entity)", -pTopics(self.params.topic_dist, self.entity, M(self.a_entity), M(self.b_entity)).sum()
-        #print "\t- log q(events)", -(pTopics(self.params.topic_dist, self.events, M(self.a_events), M(self.b_events))*self.eoccur).sum()
-        #print "\t- log q(event occur)", -pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
         return ll, qent, pent, qevt, pevt, qeoc, peoc, ll+log_priors - log_q
-        #return ll + log_priors - log_q
-        #return self.compute_likelihood(False) + log_priors - log_q
 
     def compute_likelihood(self, valid=True):
         log_likelihood = 0
@@ -373,7 +270,7 @@ class Model:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
-            log_likelihood += np.sum(pGamma(doc.rep, self.params.a_docs, doc_params))
+            log_likelihood += np.sum(Gamma(doc.rep, self.params.a_docs, doc_params))
         return log_likelihood
 
     def converged(self, iteration):
@@ -453,7 +350,7 @@ class Model:
 
             # document contributions to updates
             doc_params = entity + (f_array*events*eoccur).sum(1)
-            p_doc = pGamma(doc.rep, self.params.a_docs, doc_params)
+            p_doc = Gamma(doc.rep, self.params.a_docs, doc_params)
 
             p_entity += p_doc * doc_scale
 
@@ -470,14 +367,11 @@ class Model:
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
 
-        #print "a-ent", self.a_entity
-        #print "b-ent", self.b_entity
-        #print "M(b-ent)", M(self.b_entity)
-        #print "entity", self.entity
-        #print "*************************************"
-        b_entity_history = []
-        eoccur_history = []
-        b_events_history = []
+        MS_a_entity = np.zeros(self.data.dimension)
+        MS_m_entity = np.zeros(self.data.dimension)
+        #MS_eoccur = []
+        #MS_a_events = []
+        #MS_m_events = []
 
         print "starting..."
         while not self.converged(iteration):
@@ -489,21 +383,20 @@ class Model:
 
             print "sampling latent parameters"
             # sample latent parameters
-            entity = draw_gamma(self.a_entity, self.b_entity, (self.params.num_samples, self.data.dimension))
+            entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.dimension))
             if self.params.event_dist == "Poisson":
                 eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             else:
                 eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
-            events = draw_gamma(self.a_events, self.b_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
+            events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
 
             print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
             # entity topics
-            p_entity = pTopics(self.params.topic_dist, entity, self.params.a_entity, self.params.b_entity)
-            q_entity, g_entity_a, g_entity_b = \
-                qgTopics(self.params.topic_dist, entity, self.a_entity, self.b_entity)
-            #print "src a", M(self.a_entity)
-            #print "src b", M(self.b_entity)
+            p_entity = Gamma(entity, self.params.a_entity, self.params.m_entity)
+            q_entity = Gamma(entity, SP(self.a_entity), SP(self.m_entity))
+            g_entity_a = dSP(self.a_entity) * dGamma_alpha(entity, SP(self.a_entity), SP(self.m_entity))
+            g_entity_m = dSP(self.m_entity) * dGamma_mu(entity, SP(self.a_entity), SP(self.m_entity))
 
             # event occurance
             if self.params.event_dist == "Poisson":
@@ -514,9 +407,10 @@ class Model:
                 q_eoccur, g_eoccur = qgBernoulli(eoccur, self.l_eoccur)
 
             # event content
-            p_events = pTopics(self.params.topic_dist, events, self.params.a_events, self.params.b_events)
-            q_events, g_events_a, g_events_b = \
-                qgTopics(self.params.topic_dist, events, self.a_events, self.b_events)
+            p_events = Gamma(events, self.params.a_events, self.params.m_events)
+            q_events = Gamma(events, SP(self.a_events), SP(self.m_events))
+            g_events_a = dSP(self.a_events) * dGamma_alpha(events, SP(self.a_events), SP(self.m_events))
+            g_events_m = dSP(self.m_events) * dGamma_mu(events, SP(self.a_events), SP(self.m_events))
 
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
@@ -543,41 +437,57 @@ class Model:
             for date in self.data.days:
                 self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
 
+            # control variates to decrease variance of gradient; one for each variational parameter
+            cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
+            cv_m_entity = cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
+            #TODO: others
+
+            # RMSprop: keep running average of gradient magnitudes
+            # (the gradient will be divided by sqrt of this later)
+            if MS_a_entity.all() == 0:
+                MS_a_entity = (g_entity_a**2).sum(0)
+                MS_m_entity = (g_entity_m**2).sum(0)
+            else:
+                MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
+                MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
+
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
-            #TODO: update a after b converges a little (also aldd rmsprop)
-            #self.a_entity += (rho/self.params.num_samples) * cv_update(p_entity, q_entity, g_entity_a)
-            self.b_entity += (rho/self.params.num_samples) * \
-                cv_update(p_entity, q_entity, g_entity_b) / \
-                rmsprop(b_entity_history, g_entity_b)
-            self.a_entity[self.a_entity < iM(0.005)] = iM(0.005)
-            self.b_entity[self.b_entity < iM(1e-5)] = iM(1e-5)
+            # update each variational parameter with average over samples
+            self.a_entity += rho * (1. / self.params.num_samples) * \
+                (g_entity_a / np.sqrt(MS_a_entity) * \
+                (p_entity - q_entity - cv_a_entity)).sum(0)
+            self.m_entity += rho * (1. / self.params.num_samples) * \
+                (g_entity_m / np.sqrt(MS_m_entity) * \
+                (p_entity - q_entity - cv_m_entity)).sum(0)
 
-            self.l_eoccur += (rho/self.params.num_samples) * \
-                 cv_update(p_eoccur, q_eoccur, g_eoccur) / \
-                 rmsprop(eoccur_history, g_eoccur)
+            # truncate variational parameters
+            self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
+            self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+            self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
+            self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+            #self.l_eoccur += (rho/self.params.num_samples) * \
+            #     cv_update(p_eoccur, q_eoccur, g_eoccur) / \
+            #     rmsprop(eoccur_history, g_eoccur)
 
 
             es = eoccur.sum(0) + sys.float_info.min
             #self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
-            self.b_events += (rho / es) * \
-                cv_update(p_events, q_events, g_events_b * (eoccur > 0)) / \
-                rmsprop(b_events_history, g_events_b)
-            self.a_events[self.a_events < iM(0.005)] = iM(0.005)
-            self.b_events[self.b_events < iM(1e-5)] = iM(1e-5)
+            #self.b_events += (rho / es) * \
+            #    cv_update(p_events, q_events, g_events_b * (eoccur > 0)) / \
+            #    rmsprop(b_events_history, g_events_b)
+            #self.a_events[self.a_events < iM(0.005)] = iM(0.005)
+            #self.b_events[self.b_events < iM(1e-5)] = iM(1e-5)
 
-            self.entity = ETopics(self.params.topic_dist, self.a_entity, self.b_entity)
-            print "*************************************"
-            #print "a-ent", self.a_entity
-            #print "b-ent", self.b_entity
-            #print "M(b-ent)", M(self.b_entity)
+            self.entity = SP(self.m_entity)
             print "entity", self.entity
             if self.params.event_dist == "Poisson":
                 self.eoccur = M(self.l_eoccur)
             else:
                 self.eoccur = S(self.l_eoccur)
             print "events", self.eoccur.T
-            self.events = ETopics(self.params.topic_dist, self.a_events, self.b_events)
+            self.events = SP(self.m_events)
             #print "end of iteration"
             print "*************************************"
 
@@ -631,11 +541,11 @@ if __name__ == '__main__':
 
     parser.add_argument('--a_entities', dest='a_entities', type=float, \
         default=0.1, help = 'sparsity prior on entities; default 0.1')
-    parser.add_argument('--b_entities', dest='b_entities', type=float, \
+    parser.add_argument('--m_entities', dest='m_entities', type=float, \
         default=1.0, help = 'mean prior on entities; default 1')
     parser.add_argument('--a_events', dest='a_events', type=float, \
         default=0.1, help = 'sparsity prior on events; default 0.1')
-    parser.add_argument('--b_events', dest='b_events', type=float, \
+    parser.add_argument('--m_events', dest='m_events', type=float, \
         default=1.0, help = 'mean prior on events; default 1')
     parser.add_argument('--a_docs', dest='a_docs', type=float, \
         default=0.1, help = 'sparisty of documents; default 0.1')
@@ -666,7 +576,7 @@ if __name__ == '__main__':
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
-        args.a_entities, args.b_entities, args.a_events, args.b_events, args.a_docs, args.event_occurance, \
+        args.a_entities, args.m_entities, args.a_events, args.m_events, args.a_docs, args.event_occurance, \
         args.event_duration, args.event_dist, args.topic_dist, \
         args.content_filename, args.time_filename)
     params.save(args.seed, args.message)
