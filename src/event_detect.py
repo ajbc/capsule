@@ -148,7 +148,7 @@ class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, min_iter, max_iter, tau, kappa, \
         a_ent, m_ent, a_evn, m_evn, a_doc, eoc, \
-        event_duration, event_dist, topic_dist,\
+        event_duration, event_dist,\
         content, time):
         self.outdir = outdir
         self.batch_size = batch_size
@@ -556,8 +556,6 @@ if __name__ == '__main__':
         default=7, help = 'the length of time an event can be relevant; default 7')
     parser.add_argument('--event_dist', dest='event_dist', type=str, \
         default="Bernoulli", help = 'what distribution used to model event occurance: \"Poisson\" or \"Bernoulli\" (default)')
-    parser.add_argument('--topic_dist', dest='topic_dist', type=str, \
-        default="Gamma", help = 'what distribution used to model topics: \"Gamma\" (default) or \"LogNormal\" or \"Exponential\"')
 
     # parse the arguments
     args = parser.parse_args()
@@ -577,7 +575,7 @@ if __name__ == '__main__':
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.m_entities, args.a_events, args.m_events, args.a_docs, args.event_occurance, \
-        args.event_duration, args.event_dist, args.topic_dist, \
+        args.event_duration, args.event_dist, \
         args.content_filename, args.time_filename)
     params.save(args.seed, args.message)
 
