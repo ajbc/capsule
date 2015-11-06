@@ -7,7 +7,7 @@ from collections import defaultdict
 import subprocess, time
 
 # suppress scientific notation when printing
-np.set_printoptions(suppress=True)
+np.set_printoptions(suppress=True, linewidth=100)
 
 import warnings #TODO rm
 warnings.filterwarnings('error')
@@ -103,7 +103,7 @@ class Document:
         self.id = id
         self.day = day
         self.rep = sparse_rep
-        self.rep[self.rep == 0] = sys.float_info.min
+        self.rep[self.rep < 1e-6] = 1e-6
 
 
 class Corpus:
@@ -230,6 +230,17 @@ class Model:
         self.m_entity = np.ones(self.data.dimension) * 0.01
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
+
+        #tmp
+        self.l_eoccur = np.ones((self.data.day_count(), 1)) * iS(1e-10)
+        self.l_eoccur[0] = iS(0.99999)
+        self.l_eoccur[7] = iS(0.99999)
+        self.l_eoccur[10] = iS(0.99999)
+        self.l_eoccur[14] = iS(0.99999)
+        self.l_eoccur[16] = iS(0.99999)
+        self.l_eoccur[17] = iS(0.99999)
+        self.l_eoccur[22] = iS(0.99999)
+
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
         self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
 
@@ -265,11 +276,18 @@ class Model:
     def compute_likelihood(self, valid=True):
         log_likelihood = 0
         f_array = np.zeros((self.data.day_count(),1))
+        d = 0
         ds = self.data.validation if valid else self.data.docs
         for doc in ds:
+            #TODO: group by day for more efficient computation?
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
+            #print "doc %d [day %d]" % (d, doc.day)
+            d += 1
+            #print "\trep:", doc.rep
+            #print "\tpar:", doc_params
+            #print '\t LL:', Gamma(doc.rep, self.params.a_docs, doc_params)
             log_likelihood += np.sum(Gamma(doc.rep, self.params.a_docs, doc_params))
         return log_likelihood
 
@@ -369,9 +387,9 @@ class Model:
 
         MS_a_entity = np.zeros(self.data.dimension)
         MS_m_entity = np.zeros(self.data.dimension)
-        #MS_eoccur = []
-        #MS_a_events = []
-        #MS_m_events = []
+        MS_eoccur = np.zeros(self.data.day_count())
+        MS_a_events = np.zeros((self.data.day_count(), self.data.dimension))
+        MS_m_events = np.zeros((self.data.day_count(), self.data.dimension))
 
         print "starting..."
         while not self.converged(iteration):
@@ -440,6 +458,9 @@ class Model:
             # control variates to decrease variance of gradient; one for each variational parameter
             cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
             cv_m_entity = cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
+            cv_eoccur = cov(g_eoccur * (p_eoccur - q_eoccur), g_eoccur) / var(g_eoccur)
+            cv_a_events = cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
+            cv_m_events = cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
             #TODO: others
 
             # RMSprop: keep running average of gradient magnitudes
@@ -447,19 +468,38 @@ class Model:
             if MS_a_entity.all() == 0:
                 MS_a_entity = (g_entity_a**2).sum(0)
                 MS_m_entity = (g_entity_m**2).sum(0)
+                MS_eoccur = (g_eoccur**2).sum(0)
+                MS_a_events = (g_events_a**2).sum(0)
+                MS_m_events = (g_events_m**2).sum(0)
             else:
                 MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
                 MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
+                MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
+                MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
+                MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
 
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
             # update each variational parameter with average over samples
-            self.a_entity += rho * (1. / self.params.num_samples) * \
-                (g_entity_a / np.sqrt(MS_a_entity) * \
-                (p_entity - q_entity - cv_a_entity)).sum(0)
-            self.m_entity += rho * (1. / self.params.num_samples) * \
-                (g_entity_m / np.sqrt(MS_m_entity) * \
-                (p_entity - q_entity - cv_m_entity)).sum(0)
+            if iteration >= 0:
+                self.a_entity += rho * (1. / self.params.num_samples) * \
+                    (g_entity_a / np.sqrt(MS_a_entity) * \
+                    (p_entity - q_entity - cv_a_entity)).sum(0)
+                self.m_entity += rho * (1. / self.params.num_samples) * \
+                    (g_entity_m / np.sqrt(MS_m_entity) * \
+                    (p_entity - q_entity - cv_m_entity)).sum(0)
+
+            if iteration >= 0:
+                #self.l_eoccur += rho * (1. / self.params.num_samples) * \
+                #    (g_eoccur / np.sqrt(MS_eoccur) * \
+                #    (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
+
+                self.a_events += rho * (1. / self.params.num_samples) * \
+                    (g_events_a / np.sqrt(MS_a_events) * \
+                    (p_events - q_events - cv_a_events)).sum(0)
+                self.m_events += rho * (1. / self.params.num_samples) * \
+                    (g_events_m / np.sqrt(MS_m_events) * \
+                    (p_events - q_events - cv_m_events)).sum(0)
 
             # truncate variational parameters
             self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
@@ -467,9 +507,13 @@ class Model:
             self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
             self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
 
-            #self.l_eoccur += (rho/self.params.num_samples) * \
-            #     cv_update(p_eoccur, q_eoccur, g_eoccur) / \
-            #     rmsprop(eoccur_history, g_eoccur)
+            self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+            self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
+            self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+            self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
+            self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
 
 
             es = eoccur.sum(0) + sys.float_info.min
@@ -483,7 +527,7 @@ class Model:
             self.entity = SP(self.m_entity)
             print "entity", self.entity
             if self.params.event_dist == "Poisson":
-                self.eoccur = M(self.l_eoccur)
+                self.eoccur = SP(self.l_eoccur)
             else:
                 self.eoccur = S(self.l_eoccur)
             print "events", self.eoccur.T

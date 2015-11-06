@@ -11,6 +11,7 @@ print base
 
 #events = np.random.poisson(event_rate, D)
 #events[events > 1] = 1
+events = np.random.binomial(1, event_rate, D)
 cables = np.random.poisson(cable_rate, D)
 event_content = {}
 cable_content = {}
@@ -22,7 +23,7 @@ fout3.write("base\t-1%s\n" % ('\t%f'*K % tuple(base)))
 for i in range(D):
     #print "event:",events[i], "\t# cables:", cables[i]
     print "DAY", i, "**********"
-    if False:#events[i] != 0:
+    if events[i] != 0:
         event_content[i] = np.random.gamma(0.02,20,size=K)
         print "\tevent **", event_content[i]
         fout3.write("event\t%d%s\n" % (i,'\t%f'*K % tuple(event_content[i])))
