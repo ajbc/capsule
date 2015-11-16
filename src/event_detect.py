@@ -99,19 +99,23 @@ def cv_update(p, q, g, pr=False):
 ## Classes
 
 class Document:
-    def __init__(self, id, day, sparse_rep):
+    def __init__(self, id, sender, receiver, day, sparse_rep):
         self.id = id
+        self.sender = sender
+        self.receiver = receiver
         self.day = day
         self.rep = sparse_rep
         self.rep[self.rep < 1e-6] = 1e-6
 
 
 class Corpus:
-    def __init__(self, content_filename, time_filename, date_function):
+    def __init__(self, content_filename, meta_filename, date_function):
         self.docs = []
         self.dated_docs = defaultdict(list)
-        times = [int(t.strip()) for t in open(time_filename).readlines()]
-        self.days = sorted(set(times))
+        metadata = [tuple([int(tt) for tt in t.strip().split('\t')]) \
+            for t in open(meta_filename).readlines()]
+        self.days = sorted(set([t[2] for t in metadata]))
+        self.senders = sorted(set([t[1] for t in metadata]))
         self.dimension = 0
         for line in open(content_filename):
             rep = np.array([float(v) for v in line.strip().split('\t')])
@@ -120,7 +124,8 @@ class Corpus:
             elif self.dimension != len(rep):
                 print "Data malformed; document representations not of equal length"
                 sys.exit(-1)
-            doc = Document(len(self.docs), times.pop(0), rep)
+            meta = metadata.pop(0) # sender, receiver, date, all as ints
+            doc = Document(len(self.docs), meta[0], meta[1], meta[2], rep)
             self.docs.append(doc)
             self.dated_docs[doc.day].append(doc)
 
@@ -130,6 +135,9 @@ class Corpus:
 
     def day_count(self):
         return len(self.days)
+
+    def entity_count(self):
+        return len(self.senders) + 1
 
     def num_docs(self):
         return len(self.docs)
@@ -226,21 +234,10 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.ones(self.data.dimension) * 0.1
-        self.m_entity = np.ones(self.data.dimension) * 0.01
+        self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
+        self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iM(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
-
-        #tmp
-        self.l_eoccur = np.ones((self.data.day_count(), 1)) * iS(1e-10)
-        self.l_eoccur[0] = iS(0.99999)
-        self.l_eoccur[7] = iS(0.99999)
-        self.l_eoccur[10] = iS(0.99999)
-        self.l_eoccur[14] = iS(0.99999)
-        self.l_eoccur[16] = iS(0.99999)
-        self.l_eoccur[17] = iS(0.99999)
-        self.l_eoccur[22] = iS(0.99999)
-
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
         self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
 
@@ -282,7 +279,7 @@ class Model:
             #TODO: group by day for more efficient computation?
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
-            doc_params = self.entity + (f_array*self.events*self.eoccur).sum(0)
+            doc_params = self.entity[doc.sender] + (f_array*self.events*self.eoccur).sum(0)
             #print "doc %d [day %d]" % (d, doc.day)
             d += 1
             #print "\trep:", doc.rep
@@ -337,7 +334,8 @@ class Model:
 
     def save(self, tag):
         fout = open(os.path.join(self.params.outdir, "entities_%s.tsv" % tag), 'w+')
-        fout.write(('\t'.join(["%f"]*len(self.entity))+'\n') % tuple(self.entity))
+        for i in range(len(self.entity)):
+            fout.write(('\t'.join(["%f"]*len(self.entity[i]))+'\n') % tuple(self.entity[i]))
         fout.close()
 
         fout = open(os.path.join(self.params.outdir, "events_%s.tsv" % tag), 'w+')
@@ -367,10 +365,10 @@ class Model:
                 relevant_days.add(day)
 
             # document contributions to updates
-            doc_params = entity + (f_array*events*eoccur).sum(1)
+            doc_params = entity[:,doc.sender,:] + (f_array*events*eoccur).sum(1)
             p_doc = Gamma(doc.rep, self.params.a_docs, doc_params)
 
-            p_entity += p_doc * doc_scale
+            p_entity[:,doc.sender,:] += p_doc * doc_scale
 
             for i in relevant_days:
                 p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
@@ -401,7 +399,7 @@ class Model:
 
             print "sampling latent parameters"
             # sample latent parameters
-            entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.dimension))
+            entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
             if self.params.event_dist == "Poisson":
                 eoccur = np.random.poisson(M(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             else:
@@ -490,9 +488,9 @@ class Model:
                     (p_entity - q_entity - cv_m_entity)).sum(0)
 
             if iteration >= 0:
-                #self.l_eoccur += rho * (1. / self.params.num_samples) * \
-                #    (g_eoccur / np.sqrt(MS_eoccur) * \
-                #    (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
+                self.l_eoccur += rho * (1. / self.params.num_samples) * \
+                    (g_eoccur / np.sqrt(MS_eoccur) * \
+                    (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
 
                 self.a_events += rho * (1. / self.params.num_samples) * \
                     (g_events_a / np.sqrt(MS_a_events) * \
@@ -556,8 +554,8 @@ if __name__ == '__main__':
 
     parser.add_argument('content_filename', type=str, \
         help='a path to document content; lda-svi doc-topic output form (one doc per line, tab separated values)')
-    parser.add_argument('time_filename', type=str, \
-        help='a path to document times; one line per document with integer value')
+    parser.add_argument('meta_filename', type=str, \
+        help='a path to document metadata; one line per document with integer values (sender, receiver, time)')
     parser.add_argument('--out', dest='outdir', type=str, \
         default='out', help='output directory')
     parser.add_argument('--msg', dest='message', type=str, \
@@ -620,11 +618,11 @@ if __name__ == '__main__':
         args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
         args.a_entities, args.m_entities, args.a_events, args.m_events, args.a_docs, args.event_occurance, \
         args.event_duration, args.event_dist, \
-        args.content_filename, args.time_filename)
+        args.content_filename, args.meta_filename)
     params.save(args.seed, args.message)
 
     # read in data
-    data = Corpus(args.content_filename, args.time_filename, params.f)
+    data = Corpus(args.content_filename, args.meta_filename, params.f)
 
     ## Fit model
     model = Model(data, params)
