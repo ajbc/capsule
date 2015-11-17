@@ -101,8 +101,8 @@ def cv_update(p, q, g, pr=False):
 class Document:
     def __init__(self, id, sender, receiver, day, sparse_rep):
         self.id = id
-        self.sender = sender
-        self.receiver = receiver
+        self.sender = sender # TODO: - 1
+        self.receiver = receiver #TODO: - 1
         self.day = day
         self.rep = sparse_rep
         self.rep[self.rep < 1e-6] = 1e-6
@@ -137,7 +137,7 @@ class Corpus:
         return len(self.days)
 
     def entity_count(self):
-        return len(self.senders) + 1
+        return len(self.senders) + 1 # TODO rm this!
 
     def num_docs(self):
         return len(self.docs)
@@ -348,7 +348,7 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
-    def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
+    def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl, var):
         doc_scale = 1.0
         docset = []
         #print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
@@ -365,15 +365,31 @@ class Model:
                 relevant_days.add(day)
 
             # document contributions to updates
-            doc_params = entity[:,doc.sender,:] + (f_array*events*eoccur).sum(1)
-            p_doc = Gamma(doc.rep, self.params.a_docs, doc_params)
+            if var == "entity":
+                doc_params_entity = entity[:,doc.sender,:] + (f_array * \
+                    (self.events*np.ones((self.params.num_samples, self.data.day_count(), self.data.dimension))) \
+                    * self.eoccur).sum(1)
+            elif var == "eoccur":
+                doc_params_eoccur = self.entity[doc.sender,:] + (f_array*self.events*eoccur).sum(1)
+            elif var == "events":
+                doc_params_events = self.entity[doc.sender,:] + (f_array*events*self.eoccur).sum(1)
 
-            p_entity[:,doc.sender,:] += p_doc * doc_scale
+            if var == "entity":
+                p_doc_entity = Gamma(doc.rep, self.params.a_docs, doc_params_entity)
+            elif var == "eoccur":
+                p_doc_eoccur = Gamma(doc.rep, self.params.a_docs, doc_params_eoccur)
+            elif var == "events":
+                p_doc_events = Gamma(doc.rep, self.params.a_docs, doc_params_events)
+
+            if var == "entity":
+                p_entity[:,doc.sender,:] += p_doc_entity * doc_scale
 
             for i in relevant_days:
-                p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                if var == "eoccur":
+                    p_eoccur[:,i,:] += np.transpose(p_doc_eoccur.sum(1) * np.ones((1,1))) * doc_scale
 
-                p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                if var == "events":
+                    p_events[:,i,:] += incl[:,i,:] * p_doc_events * doc_scale
 
     def fit(self):
         self.init()
@@ -431,66 +447,81 @@ class Model:
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
 
-            '''
-            doc_scale = self.data.num_docs() / self.params.batch_size
-            for d in range(self.params.batch_size):
-                doc = self.data.random_doc()
-                f_array = np.zeros((self.data.day_count(),1))
-                relevant_days = set()
-                for day in range(self.data.day_count()):
-                    f_array[day] = self.params.f(self.data.days[day], doc.day)
-                    relevant_days.add(day)
-
-                # document contributions to updates
-                doc_params = entity + (f_array*events*eoccur).sum(1)
-                p_doc = pGamma(doc.rep, doc_params, self.params.b_docs)
-                p_entity += p_doc * doc_scale
-                for i in relevant_days:
-                    p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
-                    p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale'''
-            print "\tgoing through each day"
-
+            ### entity first
             for date in self.data.days:
-                self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
+                self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl, "entity")
 
             # control variates to decrease variance of gradient; one for each variational parameter
             cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
             cv_m_entity = cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
-            cv_eoccur = cov(g_eoccur * (p_eoccur - q_eoccur), g_eoccur) / var(g_eoccur)
-            cv_a_events = cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
-            cv_m_events = cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
-            #TODO: others
 
             # RMSprop: keep running average of gradient magnitudes
             # (the gradient will be divided by sqrt of this later)
             if MS_a_entity.all() == 0:
                 MS_a_entity = (g_entity_a**2).sum(0)
                 MS_m_entity = (g_entity_m**2).sum(0)
-                MS_eoccur = (g_eoccur**2).sum(0)
-                MS_a_events = (g_events_a**2).sum(0)
-                MS_m_events = (g_events_m**2).sum(0)
             else:
                 MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
                 MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
-                MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
-                MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
-                MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
 
+            # only set this once (not in below two)
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
             # update each variational parameter with average over samples
-            if iteration >= 0:
-                self.a_entity += rho * (1. / self.params.num_samples) * \
-                    (g_entity_a / np.sqrt(MS_a_entity) * \
-                    (p_entity - q_entity - cv_a_entity)).sum(0)
-                self.m_entity += rho * (1. / self.params.num_samples) * \
-                    (g_entity_m / np.sqrt(MS_m_entity) * \
-                    (p_entity - q_entity - cv_m_entity)).sum(0)
+            self.a_entity += rho * (1. / self.params.num_samples) * \
+                (g_entity_a / np.sqrt(MS_a_entity) * \
+                (p_entity - q_entity - cv_a_entity)).sum(0)
+            self.m_entity += rho * (1. / self.params.num_samples) * \
+                (g_entity_m / np.sqrt(MS_m_entity) * \
+                (p_entity - q_entity - cv_m_entity)).sum(0)
+
+            # truncate variational parameters
+            self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
+            self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+            self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
+            self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+            # set params with expectation
+            self.entity = SP(self.m_entity)
+
 
             if iteration >= 0:
+                ### second: event occurance (eoccur)
+                for date in self.data.days:
+                    self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl, "eoccur")
+
+                cv_eoccur = cov(g_eoccur * (p_eoccur - q_eoccur), g_eoccur) / var(g_eoccur)
+
+                if MS_eoccur.all() == 0:
+                    MS_eoccur = (g_eoccur**2).sum(0)
+                else:
+                    MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
+
                 self.l_eoccur += rho * (1. / self.params.num_samples) * \
                     (g_eoccur / np.sqrt(MS_eoccur) * \
                     (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
+
+                self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+                if self.params.event_dist == "Poisson":
+                    self.eoccur = SP(self.l_eoccur)
+                else:
+                    self.eoccur = S(self.l_eoccur)
+
+
+                ### last: event content (events)
+                for date in self.data.days:
+                    self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl, "events")
+
+                cv_a_events = cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
+                cv_m_events = cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
+
+                if MS_a_events.all() == 0:
+                    MS_a_events = (g_events_a**2).sum(0)
+                    MS_m_events = (g_events_m**2).sum(0)
+                else:
+                    MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
+                    MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
 
                 self.a_events += rho * (1. / self.params.num_samples) * \
                     (g_events_a / np.sqrt(MS_a_events) * \
@@ -499,49 +530,23 @@ class Model:
                     (g_events_m / np.sqrt(MS_m_events) * \
                     (p_events - q_events - cv_m_events)).sum(0)
 
-            # truncate variational parameters
-            self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
-            self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
-            self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
+                self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
+                self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
 
-            self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-
-            self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
-            self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
-            self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.events = SP(self.m_events)
 
 
-
-            es = eoccur.sum(0) + sys.float_info.min
-            #self.a_events += (eoccur.sum(0) != 0) * (rho / es) * cv_update(p_events, q_events, g_events_a)
-            #self.b_events += (rho / es) * \
-            #    cv_update(p_events, q_events, g_events_b * (eoccur > 0)) / \
-            #    rmsprop(b_events_history, g_events_b)
-            #self.a_events[self.a_events < iM(0.005)] = iM(0.005)
-            #self.b_events[self.b_events < iM(1e-5)] = iM(1e-5)
-
-            self.entity = SP(self.m_entity)
             print "entity", self.entity
-            if self.params.event_dist == "Poisson":
-                self.eoccur = SP(self.l_eoccur)
-            else:
-                self.eoccur = S(self.l_eoccur)
             print "events", self.eoccur.T
-            self.events = SP(self.m_events)
-            #print "end of iteration"
             print "*************************************"
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
 
-            #if iteration == 3:
-            #    break
-
         # save final state
         self.save('final')
-
 
 
 if __name__ == '__main__':
