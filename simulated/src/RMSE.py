@@ -39,7 +39,7 @@ for i in sorted(iters):
     for line in open(join(fit, "entities_%04d.tsv" % i)):
         tok = np.array([float(t) for t in line.split('\t')])
         try:
-            entRMSE += ((entities[entity_count+1] - tok)**2).sum()
+            entRMSE += ((entities[entity_count] - tok)**2).sum()
             entity_count += 1
         except:
             continue
