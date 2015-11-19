@@ -62,7 +62,9 @@ def cov(a, b):
 
 # variance with same structure as covariance above
 def var(a):
-    return cov(a,a)
+    rv = cov(a,a)
+    rv[rv < 1e-300] = 1e-300
+    return rv
 
 def draw_gamma(a, m, shape):
     rv = np.random.gamma(SP(a), SP(m)/SP(a), shape)
