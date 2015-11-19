@@ -116,6 +116,8 @@ class Corpus:
             for t in open(meta_filename).readlines()]
         self.days = sorted(set([t[2] for t in metadata]))
         self.senders = sorted(set([t[1] for t in metadata]))
+        self.dated_doc_count = defaultdict(int)
+        self.sender_doc_count = defaultdict(int)
         self.dimension = 0
         for line in open(content_filename):
             rep = np.array([float(v) for v in line.strip().split('\t')])
@@ -127,7 +129,8 @@ class Corpus:
             meta = metadata.pop(0) # sender, receiver, date, all as ints
             doc = Document(len(self.docs), meta[0], meta[1], meta[2], rep)
             self.docs.append(doc)
-            self.dated_docs[doc.day].append(doc)
+            self.dated_doc_count[doc.day] += 1
+            self.sender_doc_count[doc.sender] += 1
 
         self.validation = set()
         while len(self.validation) < 0.05 * len(self.docs):
@@ -142,14 +145,14 @@ class Corpus:
     def num_docs(self):
         return len(self.docs)
 
-    def num_docs_by_day(self, day):
-        return len(self.dated_docs[day])
+    def num_docs_by_date(self, date):
+        return self.dated_doc_count[date]
+
+    def num_docs_by_sender(self, sender):
+        return self.sender_doc_count[sender]
 
     def random_doc(self):
         return self.docs[np.random.randint(len(self.docs))]
-
-    def random_doc_by_day(self, day):
-        return self.dated_docs[day][np.random.randint(len(self.dated_docs[day]))]
 
 
 class Parameters:
@@ -348,15 +351,16 @@ class Model:
             fout.write("%f\n" % self.eoccur[i])
         fout.close()
 
-    def doc_contributions(self, date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
-        doc_scale = 1.0
+    def doc_contributions(self, p_entity, p_eoccur, p_events, entity, eoccur, events, incl):
         docset = []
-        #print "\t\t day", date, "(%d docs)" % self.data.num_docs_by_day(date)
-        if self.data.num_docs_by_day(date) < self.params.batch_size:
-            docset = self.data.dated_docs[date]
+        if self.data.num_docs() < self.params.batch_size:
+            docset = self.data.docs
+            scale = False
+            entity_scale = 1.0
+            event_scale = 1.0
         else:
-            doc_scale = self.data.num_docs_by_day(date) * 1.0 / self.params.batch_size
-            docset = [self.data.random_doc_by_day(date) for d in range(self.params.batch_size)]
+            docset = [self.data.random_doc() for d in range(self.params.batch_size)]
+            scale = True
         for doc in docset:
             f_array = np.zeros((self.data.day_count(),1))
             relevant_days = set()
@@ -369,12 +373,16 @@ class Model:
 
             p_doc = Gamma(doc.rep, self.params.a_docs, doc_params)
 
-            p_entity[:,doc.sender,:] += p_doc * doc_scale
+            if scale:
+                entity_scale = self.data.num_docs_by_sender(doc.sender) * 1.0 / self.params.batch_size
+                event_scale = self.data.num_docs_by_date(doc.day) * 1.0 / self.params.batch_size
+
+            p_entity[:,doc.sender,:] += p_doc * entity_scale
 
             for i in relevant_days:
-                p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * doc_scale
+                p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * event_scale
 
-                p_events[:,i,:] += incl[:,i,:] * p_doc * doc_scale
+                p_events[:,i,:] += incl[:,i,:] * p_doc * event_scale
 
     def fit(self):
         self.init()
@@ -432,9 +440,7 @@ class Model:
             #TODO: constrain event content based on occurance (e.g. probabilties above)
             incl = eoccur != 0
 
-            ### entity first
-            for date in self.data.days:
-                self.doc_contributions(date, p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
+            self.doc_contributions(p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
 
             # control variates to decrease variance of gradient; one for each variational parameter
             cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
