@@ -103,8 +103,8 @@ def cv_update(p, q, g, pr=False):
 class Document:
     def __init__(self, id, sender, receiver, day, sparse_rep):
         self.id = id
-        self.sender = sender - 1
-        self.receiver = receiver - 1
+        self.sender = sender #- 1
+        self.receiver = receiver #- 1
         self.day = day
         self.rep = sparse_rep
         self.rep[self.rep < 1e-6] = 1e-6
@@ -117,7 +117,7 @@ class Corpus:
         metadata = [tuple([int(tt) for tt in t.strip().split('\t')]) \
             for t in open(meta_filename).readlines()]
         self.days = sorted(set([t[2] for t in metadata]))
-        self.senders = sorted(set([t[1] for t in metadata]))
+        self.senders = sorted(set([t[0] for t in metadata]))
         self.dated_doc_count = defaultdict(int)
         self.sender_doc_count = defaultdict(int)
         self.dimension = 0
