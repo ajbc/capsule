@@ -16,16 +16,20 @@ entity_set = set()
 senders = []
 receivers = []
 for d in range(D):
-    senders.append(np.random.poisson(entities, cables[d]))
-    receivers.append(np.random.poisson(entities, cables[d]))
-    entity_set = entity_set.union(set(senders[d]))
+    #senders.append(np.random.poisson(entities, cables[d]))
+    #receivers.append(np.random.poisson(entities, cables[d]))
+    senders.append(np.random.randint(0, entities, cables[d]))
+    receivers.append(np.random.randint(0, entities, cables[d]))
+    #entity_set = entity_set.union(set(senders[d]))
     #entity_set = entity_set.union(set(recievers[d]))  not needed in practice
 
-if min(entity_set) != 1:
-    for d in range(D):
-        senders[d] -= min(entity_set)
-        #recievers[d] -= min(entity_set) ??
-base = np.random.gamma(0.1,1/0.1,size=(len(entity_set)+1, K))
+#if min(entity_set) != 1:
+#    for d in range(D):
+#        senders[d] -= min(entity_set)
+#        #recievers[d] -= min(entity_set) ??
+#base = np.random.gamma(0.1,1/0.1,size=(len(entity_set), K))
+base = np.random.gamma(0.1,1/0.1,size=(entities, K))
+base[base < 0.001] = 0.001
 print base
 
 event_content = {}
@@ -36,9 +40,10 @@ fout3 = open("simulated_events.tsv", 'w+')
 fout4 = open("simulated_entities.tsv", 'w+')
 fout3.write("time%s\n" % ('\tk.%d'*K % tuple(range(K))))
 fout4.write("entity%s\n" % ('\tk.%d'*K % tuple(range(K))))
-for d in range(len(entity_set)):
+for d in range(entities):#len(entity_set)):
     fout4.write("%d%s\n" % (d, '\t%f'*K % tuple(base[d])))
 fout4.close()
+#s = dict()
 for i in range(D):
     #print "event:",events[i], "\t# cables:", cables[i]
     print "DAY", i, "**********"
@@ -59,7 +64,7 @@ for i in range(D):
             mean += event_content[j] * f
             print "\t\t=", mean
     print "mean", mean
-    print min(entity_set), max(entity_set), len(entity_set)
+    #print min(entity_set), max(entity_set), len(entity_set)
     print "# of cables for today:", cables[i]
     print "corresponding senders:",senders[i]
     for sender in senders[i]:
@@ -67,8 +72,14 @@ for i in range(D):
 
     for cable in range(cables[i]):
         print "day", i, "cable", cable, "sender", senders[i][cable]
-        fout.write("%d\t%d\t%d\n" % (senders[i][cable], receivers[i][cable], i))
+        #if senders[i][cable] not in s:
+        #    s[senders[i][cable]] = len(s)
+        #sender = s[senders[i][cable]]
+        sender = senders[i][cable]
+        fout.write("%d\t%d\t%d\n" % (sender, receivers[i][cable], i))
         content = np.random.gamma(0.1,(mean+base[senders[i][cable]])/0.1,size=K)
+        #content = np.random.gamma(0.1,(base[sender])/0.1,size=K)
+        content[content < 0.01] = 0.01
         fout2.write(('\t%f'*K % tuple(content)).strip() + '\n')
         #print content
 fout.close()
