@@ -39,6 +39,8 @@ def iSP(x):
     return np.log(np.exp(x) - 1.)
 
 # log probability of a gamma given sparsity a and mean m
+def Gammac(x, a, m):
+    return a * np.log(a) - a * np.log(m) + (a-1.) * np.log(x) - a * x / m
 def Gamma(x, a, m):
     return a * np.log(a) - a * np.log(m) - gammaln(a) + (a-1.) * np.log(x) - a * x / m
 
@@ -155,12 +157,16 @@ class Corpus:
         return self.dated_doc_count[date]
 
     def ave_day(self, day):
+        if self.dated_doc_count[day] == 0:
+            return np.ones(self.dimension) * 0.001
         return self.date_sum[day] / self.dated_doc_count[day]
 
     def num_docs_by_sender(self, sender):
         return self.sender_doc_count[sender]
 
     def ave_entity(self, entity):
+        if self.sender_doc_count[entity] == 0:
+            return np.ones(self.dimension) * 0.001
         return self.sender_sum[entity] / self.sender_doc_count[entity]
 
     def random_doc(self):
@@ -395,21 +401,29 @@ class Model:
             scale = False
             entity_scale = 1.0
             event_scale = 1.0
+            print len(docset), "A"
         else:
             docset = [self.data.random_doc() for d in range(self.params.batch_size)]
             scale = True
+            print len(docset), "B"
+        days = {}
+        dc  = 0
         for doc in docset:
-            f_array = np.zeros((self.data.day_count(),1))
-            relevant_days = set()
-            for day in range(self.data.day_count()):
-                f_array[day] = self.params.f(self.data.days[day], doc.day)
-                relevant_days.add(day)
+            #print dc
+            dc +=1
+            if doc.day not in days:
+                f_array = np.zeros((self.data.day_count(),1))
+                relevant_days = set()
+                for day in range(self.data.day_count()):
+                    f_array[day] = self.params.f(self.data.days[day], doc.day)
+                    relevant_days.add(day)
+                days[doc.day] = (f_array * events * eoccur).sum(1)
 
             # document contributions to updates
-            doc_params = entity[:,doc.sender,:] + (f_array * events * eoccur).sum(1)
+            doc_params = entity[:,doc.sender,:] + days[doc.day]
 
             #p_doc = Gamma(doc.rep, docspar[:,doc.sender,:], doc_params)
-            p_doc = Gamma(doc.rep, 0.1, doc_params)
+            p_doc = Gammac(doc.rep, 0.1, doc_params)
 
             if scale:
                 entity_scale = self.data.num_docs_by_sender(doc.sender) * 1.0 / self.params.batch_size
@@ -492,18 +506,20 @@ class Model:
             self.doc_contributions(p_entity, p_eoccur, p_events, entity, eoccur, events, incl)
             #self.doc_contributions(p_entity, p_docspar, p_eoccur, p_events, entity, docspar, eoccur, events, incl)
 
+            print "cv"
             # control variates to decrease variance of gradient; one for each variational parameter
-            cv_a_entity = 0#cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
-            cv_m_entity = 0#cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
+            cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
+            cv_m_entity = cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
             #cv_a_docspar = cov(g_docspar_a * (p_docspar - q_docspar), g_docspar_a) / var(g_docspar_a)
             #cv_m_docspar = cov(g_docspar_m * (p_docspar - q_docspar), g_docspar_m) / var(g_docspar_m)
             cv_eoccur = 0#cov(g_eoccur * (p_eoccur - q_eoccur), g_eoccur) / var(g_eoccur)
-            cv_a_events = 0#cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
-            cv_m_events = 0#cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
+            cv_a_events = cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
+            cv_m_events = cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
 
+            print "RMSprop"
             # RMSprop: keep running average of gradient magnitudes
             # (the gradient will be divided by sqrt of this later)
-            '''if MS_a_entity.all() == 0:
+            if MS_a_entity.all() == 0:
                 MS_a_entity = (g_entity_a**2).sum(0)
                 MS_m_entity = (g_entity_m**2).sum(0)
                 #MS_a_docspar = (g_docspar_a**2).sum(0)
@@ -518,12 +534,12 @@ class Model:
                 #MS_m_docspar = 0.9 * MS_m_docspar + 0.1 * (g_docspar_m**2).sum(0)
                 MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
                 MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
-                MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)'''
-            MS_a_entity = 1.0
-            MS_m_entity = 1.0
-            MS_eoccur = 1.0
-            MS_a_events = 1.0
-            MS_m_events = 1.0
+                MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
+            #MS_a_entity = 1.0
+            #MS_m_entity = 1.0
+            #MS_eoccur = 1.0
+            #MS_a_events = 1.0
+            #MS_m_events = 1.0
 
             # only set this once (not in below two)
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
