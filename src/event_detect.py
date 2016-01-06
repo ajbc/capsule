@@ -59,15 +59,21 @@ def Normal(x, m):
 
 # covariance where each column is draws for a variable
 # (returns a row of covariances)
-def cov(a, b):
-    v = (a - sum(a)/a.shape[0]) * (b - sum(b)/b.shape[0])
-    return sum(v)/v.shape[0]
-
-# variance with same structure as covariance above
-def var(a):
-    rv = cov(a,a)
-    rv[rv < 1e-300] = 1e-300
-    return rv
+def cv(a, b):
+    # subample rows
+    r = np.random.choice(a.shape[0], a.shape[0]/10, replace=False)
+    a = a[r]
+    b = b[r]
+    # compute true cv function
+    aa = (a - sum(a)/a.shape[0])
+    ab = a*b
+    ab = (ab - sum(ab)/ab.shape[0])
+    cov = (aa * ab)
+    var = (aa * aa)
+    cov = sum(cov) / cov.shape[0]
+    var = sum(var) / var.shape[0]
+    var[var < 1e-300] = 1e-300
+    return cov / var
 
 def draw_gamma(a, m, shape):
     rv = np.random.gamma(SP(a), SP(m)/SP(a), shape)
@@ -92,13 +98,6 @@ def qgPoisson(x, p):
     dMp = dSP(p)
     p = SP(p)
     return (pPoisson(x, p), dMp * (x/p - 1))
-
-def cv_update(p, q, g, pr=False):
-    f = g * (p - q)
-    cv = cov(f, g) / var(g)
-    if pr:
-        return (f - cv *g)
-    return (f - cv * g).sum(0)
 
 
 ## Classes
@@ -142,7 +141,7 @@ class Corpus:
             self.sender_sum[doc.sender] += doc.rep
 
         self.validation = set()
-        while len(self.validation) < 0.05 * len(self.docs):
+        while len(self.validation) < 1000:
             self.validation.add(self.random_doc())
 
     def day_count(self):
@@ -302,7 +301,7 @@ class Model:
             log_priors += pBernoulli(self.eoccur, self.params.l_eoccur).sum()
             qeoc = pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
-        ll = self.compute_likelihood(False)
+        ll = self.compute_likelihood(True)
         #return ll, pent, qent, pdsp, qdsp, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
         return ll, pent, qent, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
 
@@ -311,6 +310,7 @@ class Model:
         f_array = np.zeros((self.data.day_count(),1))
         d = 0
         ds = self.data.validation if valid else self.data.docs
+        mult = len(self.data.docs) / len(self.data.validation) if valid else 1.0
         for doc in ds:
             #TODO: group by day for more efficient computation?
             for day in range(self.data.day_count()):
@@ -323,7 +323,7 @@ class Model:
             #print '\t LL:', Gamma(doc.rep, self.params.a_docs, doc_params)
             #log_likelihood += np.sum(Gamma(doc.rep, self.docspar[doc.sender], doc_params))
             log_likelihood += np.sum(Gamma(doc.rep, 0.1, doc_params))
-        return log_likelihood
+        return log_likelihood * mult
 
     def converged(self, iteration):
         if iteration == 0:
@@ -332,8 +332,7 @@ class Model:
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
             flog.write("iteration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
             flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'w+')
-            #flogE.write("iteration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.docspar\tlog.q.docspar\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO\n")
-            flogE.write("iteration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO\n")
+            flogE.write("iteration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO.approx\n")
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
@@ -512,13 +511,13 @@ class Model:
 
             print "cv"
             # control variates to decrease variance of gradient; one for each variational parameter
-            cv_a_entity = cov(g_entity_a * (p_entity - q_entity), g_entity_a) / var(g_entity_a)
-            cv_m_entity = cov(g_entity_m * (p_entity - q_entity), g_entity_m) / var(g_entity_m)
-            #cv_a_docspar = cov(g_docspar_a * (p_docspar - q_docspar), g_docspar_a) / var(g_docspar_a)
-            #cv_m_docspar = cov(g_docspar_m * (p_docspar - q_docspar), g_docspar_m) / var(g_docspar_m)
-            cv_eoccur = cov(g_eoccur * (p_eoccur - q_eoccur), g_eoccur) / var(g_eoccur)
-            cv_a_events = cov(g_events_a * (p_events - q_events), g_events_a) / var(g_events_a)
-            cv_m_events = cov(g_events_m * (p_events - q_events), g_events_m) / var(g_events_m)
+            cv_a_entity = cv(g_entity_a, p_entity - q_entity)
+            cv_m_entity = cv(g_entity_m, p_entity - q_entity)
+            #cv_a_docspar = cv(g_docspar_a, p_docspar - q_docspar)
+            #cv_m_docspar = cv(g_docspar_m, p_docspar - q_docspar)
+            cv_eoccur = cv(g_eoccur, p_eoccur - q_eoccur)
+            cv_a_events = cv(g_events_a, p_events - q_events)
+            cv_m_events = cv(g_events_m, p_events - q_events)
 
             print "RMSprop"
             # RMSprop: keep running average of gradient magnitudes
