@@ -41,9 +41,9 @@ def iSP(x):
 
 # log probability of a gamma given sparsity a and mean m
 def Gammac(x, a, m):
-    return a * np.log(a) - a * np.log(m) + (a-1.) * np.log(x) - a * x / m
+    return a * (np.log(a) - np.log(m) - x/m) + (a-1.) * np.log(x)
 def Gamma(x, a, m):
-    return a * np.log(a) - a * np.log(m) - gammaln(a) + (a-1.) * np.log(x) - a * x / m
+    return a * (np.log(a) - np.log(m) - x/m) - gammaln(a) + (a-1.) * np.log(x)
 
 # derivative of above log gamma with respect to sparsity a
 def dGamma_alpha(x, a, m):
@@ -51,7 +51,8 @@ def dGamma_alpha(x, a, m):
 
 # derivative of above log gamma with respect to mean m
 def dGamma_mu(x, a, m):
-    return - (a / m) + ((a * x) / m**2)
+    #return - (a / m) + ((a * x) / m**2)
+    return (a / m) * (x / m - 1.)
 
 # log probabilty of a Normal distribution with unit variance and mean m
 def Normal(x, m):
@@ -80,8 +81,12 @@ def draw_gamma(a, m, shape):
     rv[rv < 1e-300] = 1e-300
     return rv
 
-
-
+def draw_masked_gamma(a, m, shape, rows):
+    events = np.ones(shape) * 1e-300
+    for row in range(len(rows)):
+        if rows[row] != 0:
+            events[row] = draw_gamma(a[row], b[row], (shape[1], shape[2]))
+    return events
 
 def pBernoulli(x, p):
     return p**x * (1-p)**(1-x)
@@ -326,6 +331,10 @@ class Model:
         return log_likelihood * mult
 
     def converged(self, iteration):
+        #only check every 10 iterations
+        if iteration % 10 != 0:
+            return False
+
         if iteration == 0:
             self.likelihood = -sys.float_info.max
             self.elbo = -sys.float_info.max
@@ -470,7 +479,7 @@ class Model:
                 eoccur = np.zeros((self.params.num_samples, self.data.day_count(), 1))
             #elif iteration < 500:
             #    eoccur = np.ones((self.params.num_samples, self.data.day_count(), 1))
-            events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
+            events = draw_masked_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension), mask=eoccur)
 
             #eoccur = np.zeros((S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1))).shape)
             #docspar = 0.1 * np.ones((self.params.num_samples, self.data.entity_count(), self.data.dimension))
