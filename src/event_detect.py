@@ -5,6 +5,7 @@ from scipy.special import gammaln, digamma
 from scipy.misc import factorial
 from collections import defaultdict
 import subprocess, time
+import cProfile, pstats, StringIO
 
 # suppress scientific notation when printing
 np.set_printoptions(suppress=True, linewidth=100)
@@ -668,9 +669,12 @@ if __name__ == '__main__':
     parser.add_argument('--event_dist', dest='event_dist', type=str, \
         default="Bernoulli", help = 'what distribution used to model event occurance: \"Poisson\" or \"Bernoulli\" (default)')
 
+    # start a profile of program
+    pr = cProfile.Profile()
+    pr.enable()
+
     # parse the arguments
     args = parser.parse_args()
-
 
     ## Other setup: input (data), output, parameters object
     # seed random number generator
@@ -696,3 +700,11 @@ if __name__ == '__main__':
     ## Fit model
     model = Model(data, params)
     model.fit()
+
+    #print out profile data
+    pr.disable()
+    s = StringIO.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue()
