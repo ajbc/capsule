@@ -261,10 +261,10 @@ class Model:
     def init(self):
         # free variational parameters
         self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 10.0
-        self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
-        #self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
-        #for entity in range(self.data.entity_count()):
-        #    self.m_entity[entity] = iSP(self.data.ave_entity(entity))
+        #self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
+        self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
+        for entity in range(self.data.entity_count()):
+            self.m_entity[entity] = iSP(self.data.ave_entity(entity))
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
