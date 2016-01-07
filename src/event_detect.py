@@ -64,8 +64,6 @@ def Normal(x, m):
 # covariance where each column is draws for a variable
 # (returns a row of covariances)
 def cv(a, b):
-    a = a[not np.isinf(a)]
-    b = b[not np.isna(b)]
     if a.shape[0] == 0:
         return np.zeros((a.shape[1], a.shape[2]))
     # subample rows
@@ -500,8 +498,8 @@ class Model:
             cv_m_entity = cv(g_entity_m, p_entity - q_entity)
             cv_eoccur = cv(g_eoccur, p_eoccur - q_eoccur)
 
-            cv_a_events = cv(g_events_a, p_events - q_events)
-            cv_m_events = cv(g_events_m, p_events - q_events)
+            cv_a_events = cv(g_events_a[eoccur!=0], (p_events - q_events)[eoccur!=0])
+            cv_m_events = cv(g_events_m[eoccur!=0], (p_events - q_events)[eoccur!=0])
             g_events_a[np.isinf(g_events_a)] = 0
             g_events_a[np.isnan(g_events_a)] = 0
             g_events_m[np.isinf(g_events_m)] = 0
