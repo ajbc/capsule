@@ -185,7 +185,7 @@ class Corpus:
 class Parameters:
     def __init__(self, outdir, batch_size, num_samples, save_freq, \
         conv_thresh, min_iter, max_iter, tau, kappa, \
-        a_ent, m_ent, a_evn, m_evn, a_dsp, m_dsp, eoc, \
+        a_ent, m_ent, a_evn, m_evn, eoc, \
         event_duration, event_dist,\
         content, time):
         self.outdir = outdir
@@ -203,8 +203,6 @@ class Parameters:
         self.m_entity = m_ent
         self.a_events = a_evn
         self.m_events = m_evn
-        #self.a_docspar = a_dsp
-        #self.m_docspar = m_dsp
         self.l_eoccur = eoc
 
         self.d = event_duration
@@ -232,8 +230,6 @@ class Parameters:
         f.write("m_entity:\t%f\n" % self.m_entity)
         f.write("a_events:\t%f\n" % self.a_events)
         f.write("m_events:\t%f\n" % self.m_events)
-        #f.write("a_docspar:\t%f\n" % self.a_docspar)
-        #f.write("m_docspar:\t%f\n" % self.m_docspar)
         f.write("prior on event occurance:\t%f\n" % self.l_eoccur)
         f.write("event duration:\t%d\n" % self.d)
         f.write("event dist:\t%s\n" % self.event_dist)
@@ -271,8 +267,6 @@ class Model:
         #self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
         #for entity in range(self.data.entity_count()):
         #    self.m_entity[entity] = iSP(self.data.ave_entity(entity))
-        #self.a_docspar = np.ones((self.data.entity_count(), self.data.dimension)) * 10.0
-        #self.m_docspar = np.ones((self.data.entity_count(), self.data.dimension)) * iSP(0.1)#-1.0
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
@@ -283,7 +277,6 @@ class Model:
 
         # expected values of goal model parameters
         self.entity = SP(self.m_entity)
-        #self.docspar = SP(self.m_docspar)
         self.eoccur = (SP(self.l_eoccur) if self.params.event_dist == "Poisson" else S(self.l_eoccur))
         self.events = SP(self.m_events)
 
@@ -291,14 +284,12 @@ class Model:
 
     def compute_ELBO(self):
         pent = Gamma(self.entity, self.params.a_entity, self.params.m_entity).sum()
-        pdsp = 0#Gamma(self.docspar, self.params.a_docspar, self.params.m_docspar).sum()
         pevt = Gamma(self.events, self.params.a_events, self.params.m_events).sum()
-        log_priors = pent + pevt + pdsp
+        log_priors = pent + pevt
 
         qent = Gamma(self.entity, SP(self.a_entity), SP(self.m_entity)).sum()
-        qdsp = 0#Gamma(self.docspar, SP(self.a_docspar), SP(self.m_docspar)).sum()
         qevt = Gamma(self.events, SP(self.a_events), SP(self.m_events)).sum()
-        log_q = qent + qevt + qdsp
+        log_q = qent + qevt
 
         if self.params.event_dist == "Poisson":
             peoc = pPoisson(self.eoccur, self.params.l_eoccur).sum()
@@ -311,7 +302,6 @@ class Model:
             qeoc = pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
         ll = self.compute_likelihood(True)
-        #return ll, pent, qent, pdsp, qdsp, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
         return ll, pent, qent, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
 
     def compute_likelihood(self, valid=True):
@@ -325,12 +315,7 @@ class Model:
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
             doc_params = self.entity[doc.sender] + (f_array*self.events*self.eoccur).sum(0)
-            #print "doc %d [day %d]" % (d, doc.day)
             d += 1
-            #print "\trep:", doc.rep
-            #print "\tpar:", doc_params
-            #print '\t LL:', Gamma(doc.rep, self.params.a_docs, doc_params)
-            #log_likelihood += np.sum(Gamma(doc.rep, self.docspar[doc.sender], doc_params))
             log_likelihood += np.sum(Gamma(doc.rep, 0.1, doc_params))
         return log_likelihood * mult
 
@@ -354,7 +339,6 @@ class Model:
 
         self.old_elbo = self.elbo
         #self.elbo = self.compute_ELBO()
-        #ll, pent, qent, pdsp, qdsp, pevt, qevt, peoc, qeoc, self.elbo = self.compute_ELBO()
         ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo = self.compute_ELBO()
         elbodelta = (self.elbo - self.old_elbo) / \
             abs(self.old_elbo)
@@ -363,7 +347,6 @@ class Model:
         flog.write("%d\t%s\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
         print "%d\t%s\t%f\t%f\t%f\t%f" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta)
         flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'a')
-        #flogE.write("%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), ll, pent, qent, pdsp, qdsp, pevt, qevt, peoc, qeoc, self.elbo))
         flogE.write("%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo))
 
         if elbodelta < 0:
@@ -389,12 +372,7 @@ class Model:
         for i in range(len(self.entity)):
             fout.write(('\t'.join(["%f"]*len(self.entity[i]))+'\n') % tuple(self.entity[i]))
         fout.close()
-        '''
-        fout = open(os.path.join(self.params.outdir, "docspar_%s.tsv" % tag), 'w+')
-        for i in range(len(self.docspar)):
-            fout.write(('\t'.join(["%f"]*len(self.docspar[i]))+'\n') % tuple(self.docspar[i]))
-        fout.close()
-        '''
+
         fout = open(os.path.join(self.params.outdir, "events_%s.tsv" % tag), 'w+')
         for i in range(len(self.events)):
             fout.write(('\t'.join(["%f"]*len(self.events[i])) +'\n') % tuple(self.events[i]))
@@ -434,7 +412,6 @@ class Model:
             # document contributions to updates
             doc_params = entity[:,doc.sender,:] + days[doc.day]
 
-            #p_doc = Gamma(doc.rep, docspar[:,doc.sender,:], doc_params)
             p_doc = Gammac(doc.rep, 0.1, doc_params)
 
             if scale:
@@ -442,7 +419,6 @@ class Model:
                 event_scale = self.data.num_docs_by_date(doc.day) * 1.0 / self.params.batch_size
 
             p_entity[:,doc.sender,:] += p_doc * entity_scale
-            #p_docspar[:,doc.sender,:] += p_doc * entity_scale
 
             for i in relevant_days:
                 p_eoccur[:,i,:] += np.transpose(p_doc.sum(1) * np.ones((1,1))) * event_scale
@@ -502,12 +478,6 @@ class Model:
             g_entity_a = dSP(self.a_entity) * dGamma_alpha(entity, SP(self.a_entity), SP(self.m_entity))
             g_entity_m = dSP(self.m_entity) * dGamma_mu(entity, SP(self.a_entity), SP(self.m_entity))
 
-            # document sparsity
-            '''p_docspar = Gamma(docspar, self.params.a_docspar, self.params.m_docspar)
-            q_docspar = Gamma(docspar, SP(self.a_docspar), SP(self.m_docspar))
-            g_docspar_a = dSP(self.a_docspar) * dGamma_alpha(docspar, SP(self.a_docspar), SP(self.m_docspar))
-            g_docspar_m = dSP(self.m_docspar) * dGamma_mu(docspar, SP(self.a_docspar), SP(self.m_docspar))'''
-
             # event occurance
             if self.params.event_dist == "Poisson":
                 p_eoccur = pPoisson(eoccur, self.params.l_eoccur)
@@ -532,13 +502,6 @@ class Model:
 
             cv_a_events = cv(g_events_a, p_events - q_events)
             cv_m_events = cv(g_events_m, p_events - q_events)
-            '''cv_a_events = np.zeros((self.data.day_count(), self.data.dimension))
-            cv_m_events = np.zeros((self.data.day_count(), self.data.dimension))
-            for i in xrange(self.data.day_count()):
-                mask = p_events[:,i] != 0
-                #NAN and Inf are allowed for events, since some of the cells are zeroed out
-                cv_a_events[i] = cv(g_events_a[:,i,:][mask], p_events[:,i,:][mask] - q_events[:,i,:][mask])
-                cv_m_events[i] = cv(g_events_m[:,i,:][mask], p_events[:,i,:][mask] - q_events[:,i,:][mask])'''
             g_events_a[np.isinf(g_events_a)] = 0
             g_events_a[np.isnan(g_events_a)] = 0
             g_events_m[np.isinf(g_events_m)] = 0
@@ -575,12 +538,6 @@ class Model:
             self.m_entity += rho * (1. / self.params.num_samples) * \
                 (g_entity_m / np.sqrt(MS_m_entity) * \
                 (p_entity - q_entity - cv_m_entity)).sum(0)
-            #self.a_docspar += rho * (1. / self.params.num_samples) * \
-            #    (g_docspar_a / np.sqrt(MS_a_docspar) * \
-            #    (p_docspar - q_docspar - cv_a_docspar)).sum(0)
-            #self.m_docspar += rho * (1. / self.params.num_samples) * \
-            #    (g_docspar_m / np.sqrt(MS_m_docspar) * \
-            #    (p_docspar - q_docspar - cv_m_docspar)).sum(0)
             if iteration >= 0: #200
                 #if iteration >= 500:
                 self.l_eoccur += rho * (1. / self.params.num_samples) * \
@@ -613,10 +570,6 @@ class Model:
             self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
             self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
             self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            #self.a_docspar[self.a_docspar < iSP(0.005)] = iSP(0.005)
-            #self.a_docspar[self.a_docspar > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            #self.m_docspar[self.m_docspar < iSP(1e-5)] = iSP(1e-5)
-            #self.m_docspar[self.m_docspar > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
             self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
             self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
             self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
@@ -625,7 +578,6 @@ class Model:
 
             # set params with expectation
             self.entity = SP(self.m_entity)
-            #self.docspar = SP(self.m_docspar)
 
             if self.params.event_dist == "Poisson":
                 self.eoccur = SP(self.l_eoccur)
@@ -636,7 +588,6 @@ class Model:
 
 
             print "entity", self.entity
-            #print "sparsity", self.docspar
             print "events", self.eoccur.T
             print "*************************************"
 
@@ -692,10 +643,6 @@ if __name__ == '__main__':
         default=0.1, help = 'sparsity prior on events; default 0.1')
     parser.add_argument('--m_events', dest='m_events', type=float, \
         default=1.0, help = 'mean prior on events; default 1')
-    parser.add_argument('--a_docspar', dest='a_docspar', type=float, \
-        default=0.1, help = 'sparisty prior on document sparsity; default 0.1')
-    parser.add_argument('--m_docspar', dest='m_docspar', type=float, \
-        default=1.0, help = 'mean prior on document sparsity; default 1.0')
     parser.add_argument('--event_occur', dest='event_occurance', type=float, \
         default=0.5, help = 'prior to how often events should occur; range [0,1] and default 0.5')
 
@@ -724,7 +671,7 @@ if __name__ == '__main__':
     # create an object of model parameters
     params = Parameters(args.outdir, args.B, args.S, args.save_freq, \
         args.convergence_thresh, args.min_iter, args.max_iter, args.tau, args.kappa, \
-        args.a_entities, args.m_entities, args.a_events, args.m_events, args.a_docspar, args.m_docspar, args.event_occurance, \
+        args.a_entities, args.m_entities, args.a_events, args.m_events, args.event_occurance, \
         args.event_duration, args.event_dist, \
         args.content_filename, args.meta_filename)
     params.save(args.seed, args.message)
