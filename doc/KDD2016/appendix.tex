@@ -1,0 +1,147 @@
+In this appendix, we describe the details of the variational inference algorithm for Capsule. This algorithm fits the parameters of the variational distribution $q$ in Eq.~\ref{eq:q} so that it is close in KL divergence to the posterior.
+
+Recall that the variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Each parameter $\lambda$ has two components: sparsity $\alpha$ and mean $\mu$, which parameterize a shape-rate gamma as $\mbox{Gamma}(\alpha,\mu/\alpha)$, as noted previously. Because these parameters are free, we use the softplus function $\mathcal{P}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.
+The variational distribution $q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$, which is also constrained by the softplus function.
+
+Minimizing the KL divergence between the true posterior $p$ and the variational approximation $q$ is equivalent to maximizing the ELBO (Eq.~\ref{eq:elbo}).  This maximization is often achieved with closed form coordinate updates, but the Capsule model is not specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.  Instead, we rely on ``black box'' variational inference techniques~\cite{Ranganath:2014} to perform this optimization.
+
+Black box techniques optimize the ELBO directly with stochastic optimization, which maximizes a function using noisy estimates of its gradient~\cite{Robbins:1951}.  In this case, the function is the ELBO, and we take derivatives with respect to each of the variational parameters.  To obtain the noisy estimates, we sample from the variational approximation $q$; these samples then give us the noisy, unbiased gradients used to update our parameters.
+
+It is essential to employ variance reducing techniques; without them, the algorithm would converge too slowly to be of practical value.  Details on each of these techniques may be found in the original black box variational inference paper~\cite{Ranganath:2014}.
+
+One of these techniques is Rao-Blackwellization~\cite{Casella:1996}: for each variable, we can write the log probability of all terms containing that variable, giving us 
+\[\log p^\epsilon_{t} \triangleq \log p(\epsilon_{t} \g \eta_\epsilon) + \sum_{d\in D_t}\sum_k\log p(\theta_{d,k} \g \cdots),\footnotemark\]
+\footnotetext{Note that we abbreviate \[p^\epsilon_t = p^\epsilon_{t}(\theta, \epsilon, \pi, \phi)\] and 
+\[p(\theta_{d,k} \g \cdots) = p(\theta_{d,k} \g \epsilon_t, \pi_{t,k}, \phi_{n_d,k}, \alpha_\theta),\]
+and define
+\[D_t \triangleq \forall d \in D : f(t, m_d) \neq 0.\]
+}
+\[\log p^\pi_{t,k} \triangleq \log p(\pi_{t,k} \g \mu_\pi, \alpha_\pi) + \mathbf{1}_{\epsilon_t} \sum_{d\in D_t}\log p(\theta_{d,k} \g \cdots),\footnotemark\]
+\footnotetext{We use the indicator shorthand: 
+\[\mathbf{1}_{\epsilon_t}=
+\begin{cases}
+  0, & \mbox{if } \epsilon_t = 0 \\
+  1, & \mbox{otherwise.}
+\end{cases}\]}
+and
+\[\log p^\phi_{n,k} \triangleq \log p(\phi_{n,k} \g \mu_\phi, \alpha_\phi) + \sum_{d\in D} \log p(\theta_{d,k} \g \cdots).\]
+Then we can write the gradients with respect to the variational parameters as:
+\[\nabla_{\lambda^\epsilon_{t}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\epsilon_{t}} \log q^\epsilon_{t} \left( \log p^\epsilon_{t} - \log q^\epsilon_{t} \right)\right],\footnotemark\]
+\footnotetext{We employ yet another abbreviation:\[q^\epsilon_{t} = q(\epsilon_{t} \g \lambda^\epsilon_{t}).\]}
+\[\nabla_{\lambda^\pi_{t,k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{t,k}} \log q^\pi_{t,k} \left( \log p^\pi_{t,k} - \log q^\pi_{t,k} \right)\right],\]
+and
+\[\nabla_{\lambda^\phi_{n,k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{n,k}} \log q^\phi_{n,k} \left( \log p^\phi_{n,k} - \log q^\phi_{n,k} \right)\right].\]
+
+Using these gradients, we construct our black box algorithm below in Algorithm 1.  As shown, the algorithm does not subsample documents, but for large corpora, we subsample $B$ documents at each iteration and scale the contribution of these samples by $D/B$.
+
+While not shown explicitly in Algorithm 1, we also use control variates and RMSProp~\cite{Dauphin:2015} to reduce variance.\footnote{In a conversation with Ranganath, he suggested replacing AdaGrad with RMSprop in setting the learning rate.}
+Additionally, we truncate in two instances: sampled gamma variables are given a lower bound to avoid sampling too close to zero, and free parameters are given both lower and upper bounds---the latter is to avoid overflow.
+
+\parhead{For Reference}
+The gamma distribution and derivatives:
+\begin{align}
+\log\mbox{Gamma}(x \g \mu, \alpha) = & 
+\alpha\log\alpha - \alpha\log\mu - \log\Gamma \left(\alpha\right)\nonumber \\
+& + (\alpha-1)\log x - \frac{\alpha x}{\mu}, \label{eq:gamma} \\
+\nabla_\mu \log\mbox{Gamma}(x \g \mu, \alpha) =&
+-\frac{\alpha}{\mu} + \frac{\alpha x}{\mu^2},\label{eq:dgammaMu} \\
+\nabla_\alpha \log\mbox{Gamma}(x \g \mu, \alpha) =& 
+\log\alpha + 1 - \log\mu - \Psi \left(\alpha\right) \nonumber \\
+& + \log x - \frac{x}{\mu}. \label{eq:dgammaAlpha}%was dgammaA
+\end{align}
+
+The Poisson distribution and derivative:
+\begin{align}
+\log\mbox{Poisson}(x~\vert~\lambda) &= x\log\lambda - \log(x!) - \lambda, \label{eq:poisson} \\
+%\log\mbox{Poisson}(x~\vert~\mathcal{P}(\lambda)) &= x\log\mathcal{P}(\lambda) - \log(x!) -\mathcal{P}(\lambda) \\
+\nabla_\lambda \log\mbox{Poisson}(x~\vert~\lambda) &= \frac{x}{\lambda} -1.\label{eq:dpoisson}
+\end{align}
+
+The softplus function and derivative:
+\[\mathcal{P}(x) = \log(1+e^x),\]
+\begin{equation}
+\mathcal{P}'(x) = \frac{e^x}{1+e^x}.
+\label{eq:dsoftplus}
+\end{equation}
+
+Note that the derivatives in Equations~\ref{eq:dgammaMu},~\ref{eq:dgammaAlpha}, and~\ref{eq:dpoisson} will always be used in conjunction with Equation~\ref{eq:dsoftplus}, as part of the chain rule:
+\begin{equation}
+\frac{d}{dx} f(\mathcal{P}(x)) = \mathcal{P}'(x)f'(\mathcal{P}(x)).
+\label{eq:chain}
+\end{equation}
+
+
+
+\begin{algorithm}
+\small
+\DontPrintSemicolon
+\KwIn{document topics $\theta$}
+\KwOut{estimates of latent parameters event occurrences $\epsilon$, event topics $\pi$, and entity topics $\phi$}
+\textbf{Initialize} $\lambda^\epsilon$, $\lambda^\phi$, and $\lambda^\pi$ to respective priors \;
+\textbf{Initialize} iteration count $i = 0$ and $\sigma^\pi = 0$ \;
+\While {change in validation likelihood $< \Delta$}{
+  \For {each sample $s = 1, \dots, S$}{
+    \For {each entity $n$ and component $k$} {
+      draw sample entity topics $\phi_{n,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\phi_{n,k}))$ \;
+      \BlankLine
+      set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
+      $p^\phi_{n,k}[s] = \log p(\phi_{n,k}[s] \g \mu_\phi, \alpha_\phi)$ \;
+      $q^\phi_{n,k}[s] = \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
+      $g^\phi_{n,k}[s] = \nabla_{\lambda^\phi_{n,k}} \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
+    }
+    \For {each time step $t$} {
+      draw sample event occurrence $\epsilon_t[s] \sim \mbox{Poisson}(\mathcal{P}(\lambda^\epsilon_t))$ \;
+      \BlankLine
+      set $p$, $q$, and $g$ using Equations~\ref{eq:poisson}--\ref{eq:chain}: \;
+      $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \;
+      $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \mathcal{P}(\lambda^\epsilon_i))$ \;
+      $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \mathcal{P}(\lambda^\epsilon_{i}))$ \;
+      \BlankLine
+      \If {$\epsilon_i[s] \neq 0$} {
+        \For {each component $k$} {
+          draw sample event topics $\pi_{t,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\pi_{t,k}))$ \;
+          \BlankLine
+          set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
+          $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \;
+          $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
+          $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
+        }
+      }
+    }
+  }
+  
+  \For {each document $d$, sample $s$ and component $k$}{
+    set $\mu_{d,k}[s] = \phi_{n_d,k}[s] + \sum_t f(t, m_d) \epsilon_t[s] \pi_{t,k}[s]$ \;
+    set $p^\theta_{d,k}[s] = \log p(\theta_{d,k} \g \mu_{d,k}[s], \alpha_\theta)$ (Eqn.~\ref{eq:gamma})
+    \BlankLine
+    $p^\phi_{n,k}[s] \pluseq p^\theta_{n,k}[s]$ \;
+    \For {each timestep $t$ where $t \le m_d < t + \delta$}{
+      $p^\epsilon_{t}[s] \pluseq \sum_k p^\theta_{d,k}[s]$ \;
+      \If {$\epsilon_t[s] \neq 0$} {
+        $p^\pi_{t,k}[s] \pluseq p^\theta_{t,k}[s]$ \;
+        update $\sigma^\pi_t \pluseq 1$ \;
+      }
+    }
+  }
+
+  
+  set $\hat\nabla_{\lambda^{\phi} }\mathcal{L} \triangleq \frac{1}{S} \sum_s g^\phi[s] ( p^\phi[s] -  q^\phi[s] )$ \;
+  set $\hat\nabla_{\lambda^{\epsilon}} \mathcal{L} \triangleq \frac{1}{S} \sum_s g^\epsilon[s] ( p^\epsilon[s] -  q^\epsilon[s] )$ \;
+  set $\hat\nabla_{\lambda^{\pi}} \mathcal{L} \triangleq \frac{1}{\sigma_\pi} \sum_s g^\pi[s] ( p^\pi[s] -  q^\pi[s] )$ \;
+
+  \BlankLine
+  set $\rho= (t +\tau)^\kappa$ \;
+  % update event content for each event $i$ and topic $k$: 
+  set $\lambda^{\pi} \pluseq \rho \hat\nabla_{\lambda^{\pi}} \mathcal{L}$ \;
+  set $\lambda^{\epsilon} \pluseq \rho \hat\nabla_{\lambda^{\epsilon}} \mathcal{L}$ \;
+  set $\lambda^{\phi} \pluseq \rho \hat\nabla_{\lambda^{\phi}} \mathcal{L}$ \;
+}
+
+set $\E[\pi] = \lambda^{\pi,a}$ \;
+set $\E[\phi] = \lambda^{\phi,a}$ \;
+set $\E[\epsilon] = \lambda^{\epsilon}$ \;
+\BlankLine
+\Return{$\E[\pi]$, $\E[\phi]$, $\E[\epsilon]$} \;
+\caption{Inference for Cables Model}
+\label{alg:cables}
+\end{algorithm}
