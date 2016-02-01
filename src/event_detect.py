@@ -65,9 +65,9 @@ def Normal(x, m):
 # (returns a row of covariances)
 def cv(a, b):
     if a.shape[0] == 0:
-        return np.zeros((a.shape[1], a.shape[2]))
+        return 0# np.zeros((a.shape[1], a.shape[2]))
     # subample rows
-    r = np.random.choice(a.shape[0], 100, replace=False)
+    r = np.random.choice(a.shape[0], min(100, a.shape[0]), replace=False)
     a = a[r]
     b = b[r]
     # compute true cv function
@@ -260,11 +260,11 @@ class Model:
 
     def init(self):
         # free variational parameters
-        self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 10.0
-        #self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
-        self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
-        for entity in range(self.data.entity_count()):
-            self.m_entity[entity] = iSP(self.data.ave_entity(entity))
+        self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
+        self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
+        #self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
+        #for entity in range(self.data.entity_count()):
+        #    self.m_entity[entity] = iSP(self.data.ave_entity(entity))
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
@@ -413,8 +413,8 @@ class Model:
             p_doc = Gammac(doc.rep, 0.1, doc_params)
 
             if scale:
-                entity_scale = self.data.num_docs_by_sender(doc.sender) * 1.0 / self.params.batch_size
-                event_scale = self.data.num_docs_by_date(doc.day) * 1.0 / self.params.batch_size
+                entity_scale = self.data.num_docs() * 1.0 / self.params.batch_size
+                event_scale = self.data.num_docs() * 1.0 / self.params.batch_size
 
             p_entity[:,doc.sender,:] += p_doc * entity_scale
 
@@ -447,20 +447,26 @@ class Model:
 
             print "sampling latent parameters"
             # sample latent parameters
-            entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
+            if iteration < 100:
+                entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
+            else:
+                entity = SP(self.m_entity) * np.ones((self.params.num_samples, self.data.entity_count(), self.data.dimension))
 
-            if iteration < 0:#200
+            if iteration < 0:
                 eoccur = np.zeros((self.params.num_samples, self.data.day_count(), 1))
+            elif iteration < 100:
+                eoccur = np.ones((self.params.num_samples, self.data.day_count(), 1))
             elif self.params.event_dist == "Poisson":
                 eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             else:
                 eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
 
-            if iteration < 0:#200
-                events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
-            else:
+            if iteration < 100:#200
+                #events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
                 events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
-                events[eoccur==0] = 0
+                #events[eoccur==0] = 0
+            else:
+                events = SP(self.m_events) * np.ones((self.params.num_samples, self.data.day_count(), self.data.dimension))
 
                 #events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
                 #s,d,x = np.nonzero(eoccur)
@@ -530,38 +536,41 @@ class Model:
 
             print "update variational parameters"
             # update each variational parameter with average over samples
-            self.a_entity += rho * (1. / self.params.num_samples) * \
-                (g_entity_a / np.sqrt(MS_a_entity) * \
-                (p_entity - q_entity - cv_a_entity)).sum(0)
-            self.m_entity += rho * (1. / self.params.num_samples) * \
-                (g_entity_m / np.sqrt(MS_m_entity) * \
-                (p_entity - q_entity - cv_m_entity)).sum(0)
+            if iteration < 0: #< 500: # hold fixed after 500
+                self.a_entity += rho * (1. / self.params.num_samples) * \
+                    (g_entity_a / np.sqrt(MS_a_entity) * \
+                    (p_entity - q_entity - cv_a_entity)).sum(0)
+                self.m_entity += rho * (1. / self.params.num_samples) * \
+                    (g_entity_m / np.sqrt(MS_m_entity) * \
+                    (p_entity - q_entity - cv_m_entity)).sum(0)
             if iteration >= 0: #200
-                #if iteration >= 500:
-                self.l_eoccur += rho * (1. / self.params.num_samples) * \
-                    (g_eoccur / np.sqrt(MS_eoccur) * \
-                    (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
+                #rho = (iteration - 200 + self.params.tau) ** (-1.0 * self.params.kappa)
+                if iteration >= 100:
+                    self.l_eoccur += rho * (1. / self.params.num_samples) * \
+                        (g_eoccur / np.sqrt(MS_eoccur) * \
+                        (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
 
                 print "****"
                 print (rho * (1. / eoccur.sum(0))).shape
                 print g_events_a.shape, p_events.shape, q_events.shape
                 print np.sqrt(MS_a_events).shape
-                print cv_a_events.shape
+                #print cv_a_events.shape
 
-                adv = rho * (1. / eoccur.sum(0)) * \
-                    (g_events_a / np.sqrt(MS_a_events) * \
-                    (p_events - q_events - cv_a_events)).sum(0)
+                if iteration < 0:#100:
+                    adv = rho * (1. / eoccur.sum(0)) * \
+                        (g_events_a / np.sqrt(MS_a_events) * \
+                        (p_events - q_events - cv_a_events)).sum(0)
 
-                adv[np.isinf(adv)] = 0
-                adv[np.isnan(adv)] = 0
-                self.a_events += adv
+                    adv[np.isinf(adv)] = 0
+                    adv[np.isnan(adv)] = 0
+                    self.a_events += adv
 
-                adv = rho * (1. / eoccur.sum(0)) * \
-                    (g_events_m / np.sqrt(MS_m_events) * \
-                    (p_events - q_events - cv_m_events)).sum(0)
-                adv[np.isinf(adv)] = 0
-                adv[np.isnan(adv)] = 0
-                self.m_events += adv
+                    adv = rho * (1. / eoccur.sum(0)) * \
+                        (g_events_m / np.sqrt(MS_m_events) * \
+                        (p_events - q_events - cv_m_events)).sum(0)
+                    adv[np.isinf(adv)] = 0
+                    adv[np.isnan(adv)] = 0
+                    self.m_events += adv
 
             # truncate variational parameters
             self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
