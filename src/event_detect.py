@@ -355,15 +355,23 @@ class Model:
             print "ELBO decreasing (bad)"
             self.elbo_decreasing_count += 1
             if iteration > self.params.min_iter and self.elbo_decreasing_count >= 3:
-                print "STOP: 3 consecutive iterations of increasing ELBO"
+                if self.ee_converged:
+                    print "STOP: 3 consecutive iterations of increasing ELBO"
+                else:
+                    self.ee_converged = True
+                    print "SWITCH to event occur: 3 consecutive iterations of increasing ELBO"
+                    return False
                 return True
             return False
         else:
             self.elbo_decreasing_count = 0
 
         if iteration > self.params.min_iter and elbodelta < self.params.convergence_thresh:
-            print "STOP: model converged!"
-            return True
+            if self.ee_converged:
+                print "STOP: model converged!"
+                return True
+            else:
+                print "SWITCH to event occur: entity concerns and event descriptions converged"
         if iteration == self.params.max_iter:
             print "STOP: iteration cap reached"
             return True
@@ -431,6 +439,7 @@ class Model:
         self.init()
 
         iteration = 0
+        self.ee_converged = False
         days_seen = np.zeros((self.data.day_count(),1))
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
@@ -451,32 +460,22 @@ class Model:
 
             print "sampling latent parameters"
             # sample latent parameters
-            if iteration > -500:
+            if not self.ee_converged:
                 entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
             else:
                 entity = SP(self.m_entity) * np.ones((self.params.num_samples, self.data.entity_count(), self.data.dimension))
 
-            if iteration < 0:
-                eoccur = np.zeros((self.params.num_samples, self.data.day_count(), 1))
-            elif iteration < 100:
+            if not self.ee_converged:
                 eoccur = np.ones((self.params.num_samples, self.data.day_count(), 1))
             elif self.params.event_dist == "Poisson":
                 eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             else:
                 eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
 
-            if iteration > -500:#200
-                #events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
+            if not self.ee_converged:
                 events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
-                #events[eoccur==0] = 0
             else:
                 events = SP(self.m_events) * np.ones((self.params.num_samples, self.data.day_count(), self.data.dimension))
-
-                #events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
-                #s,d,x = np.nonzero(eoccur)
-                #for i in xrange(len(s)):
-                #    events[s[i],d[i],:] = draw_gamma(self.a_events[d[i]], self.m_events[d[i]], \
-                #        (1, 1, self.data.dimension))
 
             print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
@@ -522,84 +521,79 @@ class Model:
             print "RMSprop"
             # RMSprop: keep running average of gradient magnitudes
             # (the gradient will be divided by sqrt of this later)
-            if MS_a_entity.all() == 0:
-                MS_a_entity = (g_entity_a**2).sum(0)
-                MS_m_entity = (g_entity_m**2).sum(0)
-                MS_eoccur = (g_eoccur**2).sum(0)
-                MS_a_events = (g_events_a**2).sum(0)
-                MS_m_events = (g_events_m**2).sum(0)
-            else:
-                MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
-                MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
-                MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
-                MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
-                MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
+            if not self.ee_converged:
+                if MS_a_entity.all() == 0:
+                    MS_a_entity = (g_entity_a**2).sum(0)
+                    MS_m_entity = (g_entity_m**2).sum(0)
+                    MS_eoccur = (g_eoccur**2).sum(0)
+                    MS_a_events = (g_events_a**2).sum(0)
+                    MS_m_events = (g_events_m**2).sum(0)
+                else:
+                    MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
+                    MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
+                    MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
+                    MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
+                    MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
 
             # only set this once (not in below two)
             rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
             print "update variational parameters"
             # update each variational parameter with average over samples
-            if iteration > -500: #< 500: # hold fixed after 500
+
+            if self.ee_converged:
+                self.l_eoccur += rho * (1. / self.params.num_samples) * \
+                    (g_eoccur / np.sqrt(MS_eoccur) * \
+                    (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
+
+                # truncate variational parameters
+                self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+                # set params with expectation
+                if self.params.event_dist == "Poisson":
+                    self.eoccur = SP(self.l_eoccur)
+                else:
+                    self.eoccur = S(self.l_eoccur)
+
+                print "events", self.eoccur.T
+            else:
                 self.a_entity += rho * (1. / self.params.num_samples) * \
                     (g_entity_a / np.sqrt(MS_a_entity) * \
                     (p_entity - q_entity - cv_a_entity)).sum(0)
                 self.m_entity += rho * (1. / self.params.num_samples) * \
                     (g_entity_m / np.sqrt(MS_m_entity) * \
                     (p_entity - q_entity - cv_m_entity)).sum(0)
-            if iteration >= 0: #200
-                #rho = (iteration - 200 + self.params.tau) ** (-1.0 * self.params.kappa)
-                if iteration >= 100:
-                    self.l_eoccur += rho * (1. / self.params.num_samples) * \
-                        (g_eoccur / np.sqrt(MS_eoccur) * \
-                        (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
 
-                print "****"
-                print (rho * (1. / eoccur.sum(0))).shape
-                print g_events_a.shape, p_events.shape, q_events.shape
-                print np.sqrt(MS_a_events).shape
-                #print cv_a_events.shape
+                adv = rho * (1. / eoccur.sum(0)) * \
+                    (g_events_a / np.sqrt(MS_a_events) * \
+                    (p_events - q_events - cv_a_events)).sum(0)
 
-                if iteration >= 0:#100:
-                    adv = rho * (1. / eoccur.sum(0)) * \
-                        (g_events_a / np.sqrt(MS_a_events) * \
-                        (p_events - q_events - cv_a_events)).sum(0)
+                adv[np.isinf(adv)] = 0
+                adv[np.isnan(adv)] = 0
+                self.a_events += adv
 
-                    adv[np.isinf(adv)] = 0
-                    adv[np.isnan(adv)] = 0
-                    self.a_events += adv
+                adv = rho * (1. / eoccur.sum(0)) * \
+                    (g_events_m / np.sqrt(MS_m_events) * \
+                    (p_events - q_events - cv_m_events)).sum(0)
+                adv[np.isinf(adv)] = 0
+                adv[np.isnan(adv)] = 0
+                self.m_events += adv
 
-                    adv = rho * (1. / eoccur.sum(0)) * \
-                        (g_events_m / np.sqrt(MS_m_events) * \
-                        (p_events - q_events - cv_m_events)).sum(0)
-                    adv[np.isinf(adv)] = 0
-                    adv[np.isnan(adv)] = 0
-                    self.m_events += adv
+                # truncate variational parameters
+                self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
+                self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
+                self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
+                self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
+                self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
 
-            # truncate variational parameters
-            self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
-            self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
-            self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
-            self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-            self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
-            self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                # set params with expectation
+                self.entity = SP(self.m_entity)
+                self.events = SP(self.m_events)
 
-            # set params with expectation
-            self.entity = SP(self.m_entity)
-
-            if self.params.event_dist == "Poisson":
-                self.eoccur = SP(self.l_eoccur)
-            else:
-                self.eoccur = S(self.l_eoccur)
-
-            self.events = SP(self.m_events)
-
-
-            print "entity", self.entity
-            print "events", self.eoccur.T
+                print "entity", self.entity
             print "*************************************"
 
             if iteration % params.save_freq == 0:
@@ -633,7 +627,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_freq', dest='save_freq', type=int, \
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
-        default=1e-5, help = 'likelihood threshold for convergence, default 1e-5')
+        default=1e-4, help = 'likelihood threshold for convergence, default 1e-4')
     parser.add_argument('--min_iter', dest='min_iter', type=int, \
         default=30, help = 'minimum number of iterations, default 30')
     parser.add_argument('--max_iter', dest='max_iter', type=int, \
