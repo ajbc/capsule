@@ -456,8 +456,6 @@ class Model:
             iteration += 1
             print "iteration", iteration
 
-            event_count = np.zeros((self.data.day_count(),self.data.dimension))
-
             print "sampling latent parameters"
             # sample latent parameters
             if not self.ee_converged:
@@ -621,9 +619,9 @@ if __name__ == '__main__':
         default='', help='log message')
 
     parser.add_argument('--batch', dest='B', type=int, \
-        default=1024, help = 'number of docs per batch, default 1024')
+        default=4096, help = 'number of docs per batch, default 4096')
     parser.add_argument('--samples', dest='S', type=int, \
-        default=1024, help = 'number of approximating samples, default 1024')
+        default=128, help = 'number of approximating samples, default 128')
     parser.add_argument('--save_freq', dest='save_freq', type=int, \
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
