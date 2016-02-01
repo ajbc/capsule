@@ -245,12 +245,16 @@ class Parameters:
         f.close()
 
     def f(self, a, c):
-        if a > c or c >= (a+self.d):
+        if a == c:
+            return 1
+        else:
             return 0
-        return (1 - ((0.0+c-a)/self.d))
+        #if a > c or c >= (a+self.d):
+        #    return 0
+        #return (1 - ((0.0+c-a)/self.d))
 
-    def fdays(a):
-        return range(a, a + self.d)
+    #def fdays(a):
+    #    return range(a, a + self.d)
 
 
 class Model:
@@ -447,7 +451,7 @@ class Model:
 
             print "sampling latent parameters"
             # sample latent parameters
-            if iteration < 100:
+            if iteration > -500:
                 entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
             else:
                 entity = SP(self.m_entity) * np.ones((self.params.num_samples, self.data.entity_count(), self.data.dimension))
@@ -461,7 +465,7 @@ class Model:
             else:
                 eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
 
-            if iteration < 100:#200
+            if iteration > -500:#200
                 #events = np.zeros((self.params.num_samples, self.data.day_count(), self.data.dimension))
                 events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
                 #events[eoccur==0] = 0
@@ -536,7 +540,7 @@ class Model:
 
             print "update variational parameters"
             # update each variational parameter with average over samples
-            if iteration < 0: #< 500: # hold fixed after 500
+            if iteration > -500: #< 500: # hold fixed after 500
                 self.a_entity += rho * (1. / self.params.num_samples) * \
                     (g_entity_a / np.sqrt(MS_a_entity) * \
                     (p_entity - q_entity - cv_a_entity)).sum(0)
@@ -556,7 +560,7 @@ class Model:
                 print np.sqrt(MS_a_events).shape
                 #print cv_a_events.shape
 
-                if iteration < 0:#100:
+                if iteration >= 0:#100:
                     adv = rho * (1. / eoccur.sum(0)) * \
                         (g_events_a / np.sqrt(MS_a_events) * \
                         (p_events - q_events - cv_a_events)).sum(0)
