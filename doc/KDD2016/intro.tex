@@ -1,17 +1,176 @@
-\PP why are events interesting?
+%!TEX root = submission.tex
+% Events are interesting by definition; they are anomalous observations that deviate from the ordinary.  But o
 
-\PP what is an event?  (how do we characterize it)
 
-\PP how can this construction be used? (why do we use the name ``Capsule?'')
+% % Events occur in many sources of data: historical events can be identified from diplomatic messages, scientific events from publications, and network events from communications between users (such as email).  
+% % Detecting events automatically is a well-studied problem, but approa
 
-\PP contributions list (vis, model, code for both, exploration on historical corpus and arxiv/enron)
+% % We present a model that detects when events occur and characterize.
 
-\PP outline of remainder of paper
+% % Characterizing an event, however, can prove challenging.  
 
-\parhead{Related work.} 
+% \PP why are events interesting?
 
-\PP automatic event detection approaches % see http://www.cs.cmu.edu/~neill/papers/eventdetection.pdf
+% \PP what is an event?  (how do we characterize it)
 
-\PP topic modeling + viz (incl dynamic topic models)
+% \PP how can this construction be used? (why do we use the name ``Capsule?'')
 
-\PP network and related work there (e.g. hanna's work); say this isnt explicitly about netorks, but the data has this structure dn the model can be extended to use these concepts (do small experiment where ``entites'' are defined as to/from pairs)
+% \PP contributions list (vis, model, code for both, exploration on historical corpus and arxiv/enron)
+
+% \PP outline of remainder of paper
+
+% \parhead{Related work.} 
+
+% Automatic event detection is a well-studied problem.  \cite{Neill:2009}
+
+% \PP automatic event detection approaches % see http://www.cs.cmu.edu/~neill/papers/eventdetection.pdf
+
+% \PP topic modeling + viz (incl dynamic topic models)
+
+% \PP network and related work there (e.g. hanna's work); say this isnt explicitly about netorks, but the data has this structure dn the model can be extended to use these concepts (do small experiment where ``entites'' are defined as to/from pairs)
+
+
+
+
+% - anomoly detection, outliers vs events
+% - change points
+% - social event detection and twitter (incl. locations)
+% - event detection in text
+% - event summarization in text
+% - dynamic topic models and topic modeling viz + hanna's work
+
+
+
+\PP event detection is a real-world problem (why interesting?)
+
+\PP what are events?
+- they occur rarely
+- deviate from normal behavior
+- usually affect many datapoints (not just one)
+- how does capsule define events?
+
+\PP contibutitions and capsule name
+
+\PP outline of the paper
+
+
+\parhead{Related work.}  We first review previous work on event detection and other related concepts.  
+
+\PP Automatic event detection is often performed with univariate input data.  In this context, the typical signal is often uniform or a repeating pattern.  Burstiness defiens an event (relate to outliers). poisson processes.  Alternatively, change points. (ordinary changes as you go) 
+
+burtsy: \cite{kleinberg2003bursty}
+
+change points \cite{guralnik1999event} 
+
+\cite{Ihler:2006} univariate data, captures cylical/repreating and rare, persident events (very nice paper), used for prediction
+\cite{ihler2007learning} same work?
+
+
+\cite{weiss1998learning} event prediction (uses genetic algorithm)
+
+
+%bayseian apprach includes uncertainy and full posterior disyribution
+
+\PP multivariate.  now we can characterize events beyond magnitude.  and work with things like text content.
+- Bursty event detection in text: \cite{fung2005parameter} (uses tf-idf, then groups---grouping with topic models first reduces feature space and improves scalability.  this paper has < 100k documents)
+
+\cite{das2008anomaly} anomaly detection is another name for event detection (but not necisarity with time as a dimension).  this paper dies categoriacal data in multi dimensions, but requires trainign dataset (we want unsupervised to just hand it a dataset and learn!)
+
+
+TEXT:
+\cite{mccallum1998comparison} naive bayes classification; teh document is an ``event'' (pbserved events)
+
+\cite{yang2000improving}event tracking; events are manually predetermined
+
+\cite{kumaran2004text} uses tfidf (not scalable), named entities (just another measure for tf-idf, treat them preferentially)
+
+
+\cite{brants2003system} tfidf
+
+\cite{das2011dynamic} features ; makes distiction between periodic and aperiodic but uses words (not scalable)
+
+\cite{zhao2007temporal} includes rich metadata (sender) for text data 3d: (social, text content, time), content based clustering, again tf-idf (similarity in word space, but then clostered so each document only has one topic...not a mixed membership model)
+
+
+\cite{pustejovsky2003timeml} int eh complex taxonomy of question-answerign system
+
+
+\cite{allan1998line} small corpus (even for 1998; cluster into events) 
+
+\cite{li2005probabilistic} news articles and news events; generative model; does event sumarization + basic viz (strange because it's trying to detect events from news articles...each article should already be associated with an event).  
+
+
+\cite{lau2012line} topic modeling in social media; novel  (essentially find news events from twitter)
+
+\cite{VanDam:2012} each document explicitly recieves a class (topic modeling extension)
+
+\cite{zhang2002novelty} novelty detection (mentions events and first story detecting in news)
+
+\cite{zhao2012novel} bursty text; clusters (efficient, but not really what we want...again using term features)
+
+\cite{wang2007mining} bursty correlated text streams (news events from multiple outlets)
+
+% \PP outliers vs events \cite{Neill:2009} (univariate -> multivariate)
+% How is event detection different from:
+% 1. SupervisedLearning:
+% • Abnormal events are extremely rare, normal events are
+% plentiful
+% 2. Clustering:
+% • Clustering = partitioning data into groups
+% • Not the same as finding statistically anomalous groups
+% 3. OutlierDetection:
+% • Events of interest are usually not individual outliers
+% • The event typically affects a subgroup of the data rather than a single data point
+
+summarization:
+\cite{peng2007event} events are observations (summarize observtions and dermine relationships between them)
+\cite{chakrabarti2011event} events are bursty; collect bursty tweets and summarize them
+\cite{gao2012joint} news and tweets toghter; no time series info
+
+
+\PP other metadata: social netowrks and space (disease breakouts)
+social: 
+\cite{das2011dynamic} co-bursting; relationship detection between entities (co-mentions)--this is a cpmpletely different problem
+
+\cite{sakaki2010earthquake} user observe real time event; particle filters since twitter is noisy
+\cite{jackoway2011identification} breaking news events detected with twitter (includes locations)
+\cite{reuter2012event} classify event (scalable) from social media posts
+\cite{becker2010learning} identify events and classify (same as above)
+\cite{sayyadi2009event} story tracking in social streams
+
+not many of these actually use socialk info...most just use ``social'' just to describe the data source
+
+
+hanna's paper...\cite{schein2015bayesian} which has sender/reciever adn maps to  (data is counts of labelled interactions at times-a 4 tuple of (sendrr, reciever, acton, time))
+
+
+spatial: \cite{Neill:2005}
+ \cite{mathioudakis2010identifying} identifying and describing spatial bursts
+\cite{liu2011using} detect events based on social media activity (incl lat long)
+
+
+
+\PP visualizations and interfaces
+
+TODO: \cite{dou2012leadline} uses topic modeling, viualization ** this is main competitor  differences:
+ - documents overall (not using author information)
+ - deterministic
+ - focused on interface and exploration (users can adjust events)
+
+
+
+
+% We first review previous research on event detection, topic modeling, and visualization.
+
+% Automatic event detection is a well-studied problem.  \cite{Neill:2009}
+
+
+
+
+% using social networks to help recommend items to users. A crucial component of SPF is that it infers the influence that users have with each other. In previous work, some systems assume that user influence (sometimes called “trust”) is observed [27]. However, trust information beyond a binary yes/no is onerous for users to input, and thus observing trust beyond “following” or “friending” is impractical in a large system. Others assume that trust is propagated [2] or computed from the structure of the network [10]. This is limited in that it ignores user activity, which can reveal the trust of a user for some parts of the network over others; SPF captures this idea. Information diffusion [8, 12] also relies on user activity to describe influence, but focuses on understanding the widespread flow of information. A final alternative is to compute trust from rating similarities be- tween users [9]. However, performing this computation in advance of fitting the model confounds general preference similarity with instances of influence—two people with the same preferences might read the same books in isolation.
+
+% Other research has included social information directly into vari- ous collaborative filtering methods. Ref. [36] incorporates the net- work into pairwise ranking methods. Their approach is interesting, but one-class ranking methods are not as interpretable as factor- ization, which is important in many applications of recommender systems [15]. Refs. [25, 28, 34] have explored how traditional fac- torization methods can exploit network connections. For example, many of these models factorize both user-item data and the user-user network. This brings the latent preferences of connected users closer to each other, reflecting that friends have similar tastes. Refs [24, 35] incorporate this idea more directly by including friends’ latent representations in computing recommendations made for a user.
+
+% Our model has a fundamentally different approach to using the network to form recommendations. It seeks to find friends with different preferences to help recommend items to a user that are outside of her usual taste. For example, imagine that a user likes an item simply because many of her friends liked it too, but that it falls squarely outside of her usual preferences. Models that adjust
+% their friends’ overall preferences according to the social network do not allow the possibility that the user may still enjoy this anomalous item. As we show in Section 3, using the soci
+
