@@ -245,13 +245,13 @@ class Parameters:
         f.close()
 
     def f(self, a, c):
-        if a == c:
-            return 1
-        else:
-            return 0
-        #if a > c or c >= (a+self.d):
+        #if a == c:
+        #    return 1
+        #else:
         #    return 0
-        #return (1 - ((0.0+c-a)/self.d))
+        if a > c or c >= (a+self.d):
+            return 0
+        return (1 - ((0.0+c-a)/self.d))
 
     #def fdays(a):
     #    return range(a, a + self.d)
@@ -322,17 +322,17 @@ class Model:
         return log_likelihood * mult
 
     def converged(self, iteration):
-        #only check every 10 iterations
-        if iteration % 10 != 0:
-            return False
+        #if iteration % self.params.save_freq != 0:
+        #    return False
 
         if iteration == 0:
+            self.mult = 1.0
             self.likelihood = -sys.float_info.max
             self.elbo = -sys.float_info.max
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
-            flog.write("iteration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
+            flog.write("var\titeration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
             flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'w+')
-            flogE.write("iteration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO.approx\n")
+            flogE.write("var\titeration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO.approx\n")
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
@@ -345,11 +345,16 @@ class Model:
         elbodelta = (self.elbo - self.old_elbo) / \
             abs(self.old_elbo)
 
+        desc = "ee" if not self.ee_converged else "oc"
         flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
-        flog.write("%d\t%s\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
+        flog.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\n" % (desc, iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
         print "%d\t%s\t%f\t%f\t%f\t%f" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta)
         flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'a')
-        flogE.write("%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (iteration, dt.now(), ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo))
+        flogE.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (desc, iteration, dt.now(), ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo))
+
+        if np.isnan(elbodelta):
+            print "STOP: NANs encountered"
+            return True
 
         if elbodelta < 0:
             print "ELBO decreasing (bad)"
@@ -360,18 +365,21 @@ class Model:
                 else:
                     self.ee_converged = True
                     print "SWITCH to event occur: 3 consecutive iterations of increasing ELBO"
+                    self.mult = 0.01
                     return False
                 return True
             return False
         else:
             self.elbo_decreasing_count = 0
 
-        if iteration > self.params.min_iter and elbodelta < self.params.convergence_thresh:
+        if iteration > self.params.min_iter and elbodelta < self.params.convergence_thresh * self.mult:
             if self.ee_converged:
                 print "STOP: model converged!"
                 return True
             else:
                 print "SWITCH to event occur: entity concerns and event descriptions converged"
+                self.ee_converged = True
+                self.mult = 0.01
         if iteration == self.params.max_iter:
             print "STOP: iteration cap reached"
             return True
@@ -625,9 +633,9 @@ if __name__ == '__main__':
     parser.add_argument('--save_freq', dest='save_freq', type=int, \
         default=10, help = 'how often to save, default every 10 iterations')
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
-        default=1e-4, help = 'likelihood threshold for convergence, default 1e-4')
+        default=1e-3, help = 'likelihood threshold for convergence, default 1e-3')
     parser.add_argument('--min_iter', dest='min_iter', type=int, \
-        default=30, help = 'minimum number of iterations, default 30')
+        default=10, help = 'minimum number of iterations, default 10')
     parser.add_argument('--max_iter', dest='max_iter', type=int, \
         default=1000, help = 'maximum number of iterations, default 1000')
     parser.add_argument('--seed', dest='seed', type=int, \
@@ -650,7 +658,7 @@ if __name__ == '__main__':
         default=0.5, help = 'prior to how often events should occur; range [0,1] and default 0.5')
 
     parser.add_argument('--event_dur', dest='event_duration', type=int, \
-        default=7, help = 'the length of time an event can be relevant; default 7')
+        default=3, help = 'the length of time an event can be relevant; default 3')
     parser.add_argument('--event_dist', dest='event_dist', type=str, \
         default="Bernoulli", help = 'what distribution used to model event occurance: \"Poisson\" or \"Bernoulli\" (default)')
 
