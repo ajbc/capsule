@@ -1,16 +1,27 @@
 %!TEX root = submission.tex
 
-Historical events are difficult to define; historians and political scientists read large quantities of text to construct an accurate picture of a single ``event.''  Events are interesting by definition: they are the hidden causes of anomalous observations.  But they are also inherently abstract---we can observe that changes occur, but we cannot directly observe whether or not an event occurs.
+Historical events are difficult to define; historians and political scientists read large quantities of text to construct an accurate picture of a single event.  Events are interesting by definition: they are the hidden causes of anomalous observations.  But they are also inherently abstract---we can observe that changes occur, but we cannot directly observe whether or not an event occurs.
 
-\PP event detection is a real-world problem (why interesting?)
+Consider embassies sending diplomatic messages, such as shown in Figure~\ref{fig:cartoon}.  The Bangkok and Hong Kong embassies have \emph{typical concerns} about which they usually send messages.  At date $d$, however, the message content changes for both embassies---again, we only observe the changes in message content, and do not observe the event directly.  Our first goal is to determine \emph{when} events happen, or identify these rare but pervasive deviations from the typical concerns.
 
-\PP what are events?
-- they occur rarely
-- deviate from normal behavior
-- usually affect many datapoints (not just one)
+Our second goal is to characterize \emph{what} occurs.  We rely on topic models~\cite{Blei:2012} to summarize documents and use that same latent space to characterize events.
+
+We develop a Bayesian model that discovers the typical concerns of authors, identifies when events occur, and characterizes these events; we call this the \emph{Capsule} model, as it encapsulates events.
+
+Our final goal is to visualize the results of the Capsule model to make them accessible.   We provide source code for both Capsule and its associated visualization.
+
+We first review previous research related to event detect, summarization, and visualization.  In Section~\ref{sec:model}, we describe the Capsule model and how to infer the latent parameters (the appendix provides further inference details).  Section~\ref{sec:eval} provides an exploration of results on simulated and three real-world datasets, and we conclude with a discussion in Section~\ref{sec:discussion}.
 
 
-% \PP outliers vs events \cite{Neill:2009} (univariate -> multivariate)
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/cartoon.pdf}
+\label{fig:cartoon}
+\vskip -12pt
+\caption{Cartoon intuition of Capsule.  Both the Bangkok and Honk Kong embassies have typical concerns about which they usually send messages (represented in topic space).  When an events occurs at date $d$, the stream of message content alters to include the event, then fades back to ``business as usual.''  Capsule discovers both entities' typical concerns and the event locations and content.}
+\end{figure}
+
+% \PP outliers vs events \cite{Neill:2009} (univariate -> multivariate); this whoudlbe in reated work?
 % How is event detection different from:
 % 1. SupervisedLearning:
 % • Abnormal events are extremely rare, normal events are
@@ -21,48 +32,6 @@ Historical events are difficult to define; historians and political scientists r
 % 3. OutlierDetection:
 % • Events of interest are usually not individual outliers
 % • The event typically affects a subgroup of the data rather than a single data point
-
-
-- how does capsule define events?
-
-\PP contibutitions and capsule name
-
-\PP outline of the paper
-
-
-
-% % Events occur in many sources of data: historical events can be identified from diplomatic messages, scientific events from publications, and network events from communications between users (such as email).  
-% % Detecting events automatically is a well-studied problem, but approa
-
-% % We present a model that detects when events occur and characterize.
-
-% % Characterizing an event, however, can prove challenging.  
-
-% \PP why are events interesting?
-
-% \PP what is an event?  (how do we characterize it)
-
-% \PP how can this construction be used? (why do we use the name ``Capsule?'')
-
-% \PP contributions list (vis, model, code for both, exploration on historical corpus and arxiv/enron)
-
-% \PP outline of remainder of paper
-
-% \parhead{Related work.} 
-
-% Automatic event detection is a well-studied problem.  \cite{Neill:2009}
-
-% \PP automatic event detection approaches % see http://www.cs.cmu.edu/~neill/papers/eventdetection.pdf
-
-% \PP topic modeling + viz (incl dynamic topic models)
-
-% \PP network and related work there (e.g. hanna's work); say this isnt explicitly about netorks, but the data has this structure dn the model can be extended to use these concepts (do small experiment where ``entites'' are defined as to/from pairs)
-
-
-
-
-
-
 
 
 \parhead{Related work.}  We first review previous work on automatic event detection and other related concepts.  

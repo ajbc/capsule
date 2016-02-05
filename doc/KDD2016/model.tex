@@ -11,16 +11,6 @@ Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:c
 Now imagine that at a particular time, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but each event can again be described in the same topic space used to describe individual messages.  Further, when an event occurs, the message content changes for multiple entities. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy were about Vietnam war refugees.
 Thus we imagine that an entity's stream of messages is controlled by what it usually talks about as well as the higher level stream of unobserved events.
 
-
-\begin{figure}
-\centering
-\includegraphics[width=\linewidth]{fig/cartoon.pdf}
-\label{fig:cartoon}
-\vskip -12pt
-\caption{Cartoon intuition of Capsule.  Both the Bangkok and Honk Kong embassies have typical concerns about which they usually send messages (represented in topic space).  When an events occurs at date $d$, the stream of message content alters to include the event, then fades back to ``business as usual.''  Capsule discovers both entities' typical concerns and the event locations and content.}
-\end{figure}
-
-
 \parhead{Model Specification.}
 We formally describe Capsule. The observed data are documents represented in topic space; each document has an author (or entity) and a time (or date) associated with it.  The document content for each document $d$ is represented as $\theta_d$, a $K$-dimensional vector, where $K$ is the number of topics.  The author and time associated with document $d$ are represented as $n_d$ and $m_d$, respectively.
 
