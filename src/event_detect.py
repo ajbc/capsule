@@ -265,17 +265,17 @@ class Model:
     def init(self):
         # free variational parameters
         self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
-        self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
-        #self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
-        #for entity in range(self.data.entity_count()):
-        #    self.m_entity[entity] = iSP(self.data.ave_entity(entity))
+        #self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
+        self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
+        for entity in range(self.data.entity_count()):
+            self.m_entity[entity] = iSP(self.data.ave_entity(entity))
         self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
             (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
         self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
-        self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
-        #self.m_events = np.zeros((self.data.day_count(), self.data.dimension))
-        #for day in range(self.data.day_count()):
-        #    self.m_events[day] = iSP(self.data.ave_day(day))
+        #self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
+        self.m_events = np.zeros((self.data.day_count(), self.data.dimension))
+        for day in range(self.data.day_count()):
+            self.m_events[day] = iSP(self.data.ave_day(day))
 
         # expected values of goal model parameters
         self.entity = SP(self.m_entity)
@@ -447,6 +447,7 @@ class Model:
         self.init()
 
         iteration = 0
+        eoc_iter = 0
         self.ee_converged = False
         days_seen = np.zeros((self.data.day_count(),1))
 
@@ -462,6 +463,8 @@ class Model:
         while not self.converged(iteration):
             print "*************************************"
             iteration += 1
+            if self.ee_converged:
+                eoc_iter += 1
             print "iteration", iteration
 
             print "sampling latent parameters"
@@ -531,18 +534,24 @@ class Model:
                 if MS_a_entity.all() == 0:
                     MS_a_entity = (g_entity_a**2).sum(0)
                     MS_m_entity = (g_entity_m**2).sum(0)
-                    MS_eoccur = (g_eoccur**2).sum(0)
                     MS_a_events = (g_events_a**2).sum(0)
                     MS_m_events = (g_events_m**2).sum(0)
                 else:
                     MS_a_entity = 0.9 * MS_a_entity + 0.1 * (g_entity_a**2).sum(0)
                     MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
-                    MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
                     MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
                     MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
+            else:
+                if MS_eoccur.all() == 0:
+                    MS_eoccur = (g_eoccur**2).sum(0)
+                else:
+                    MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
 
             # only set this once (not in below two)
-            rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
+            if self.ee_converged:
+                rho = (eoc_iter + self.params.tau) ** (-1.0 * self.params.kappa)
+            else:
+                rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
 
             print "update variational parameters"
             # update each variational parameter with average over samples
@@ -554,10 +563,11 @@ class Model:
 
                 # truncate variational parameters
                 self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+                self.l_eoccur[self.l_eoccur < iSP(1e-6)] = iSP(1e-6)
 
                 # set params with expectation
                 if self.params.event_dist == "Poisson":
-                    self.eoccur = SP(self.l_eoccur)
+                    self.eoccur = np.minimum(SP(self.l_eoccur), self.eoccur+1)
                 else:
                     self.eoccur = S(self.l_eoccur)
 
@@ -586,14 +596,17 @@ class Model:
                 self.m_events += adv
 
                 # truncate variational parameters
-                self.a_entity[self.a_entity < iSP(0.005)] = iSP(0.005)
+                self.a_entity[self.a_entity < 0.1] = 0.1
                 self.a_entity[self.a_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
                 self.m_entity[self.m_entity < iSP(1e-5)] = iSP(1e-5)
                 self.m_entity[self.m_entity > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-                self.a_events[self.a_events < iSP(0.005)] = iSP(0.005)
+                self.a_events[self.a_events < 0.1] = 0.1
                 self.a_events[self.a_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
                 self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
                 self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
+
+                self.a_events = np.minimum(self.a_events, self.m_events*0.1)
+                self.a_entity = np.minimum(self.a_entity, self.m_entity*0.1)
 
                 # set params with expectation
                 self.entity = SP(self.m_entity)
