@@ -82,7 +82,6 @@ void Capsule::learn() {
             } else {
                 doc = i;
             }
-            //printf("\tdoc %d/%d\n", doc, data->train_doc_count());
 
             entities.insert(data->get_entity(doc));
             date = data->get_date(doc);
@@ -94,11 +93,9 @@ void Capsule::learn() {
                 terms.insert(term);
 
                 count = data->get_term_count(doc, j);
-                //printf("\t\tterm %d: %d has count %d\n", j, term, count);
                 update_shape(doc, term, count);
             }
         }
-        //printf("done iterating through all documents for shape updates\n");
 
         set<int>::iterator it;
         if (!settings->event_only) {
@@ -124,9 +121,6 @@ void Capsule::learn() {
                 date = *it;
                 iter_count_date[date]++;
                 for (int d = date; d < min(date + settings->event_dur, data->date_count()); d++) {
-                    //b_epsilon[date] = b_epsilon[date] * f(d, date);
-                    //b_epsilon[date] = b_epsilon[date] * accu(pi.col(d));
-                    //b_epsilon[date] = b_epsilon[date] * data->doc_count(d);
                     b_epsilon[date] = b_epsilon[date] * f(d, date) * accu(pi.col(d)) * data->doc_count(d);
                 }
                 update_epsilon(date);
@@ -470,7 +464,7 @@ void Capsule::update_pi(int date) {
     }
     pi(date)  = a_pi(date) / b_pi(date);
     for (int v = 0; v < data->term_count(); v++)
-        logpi(date, v) = gsl_sf_psi(a_theta(date, v));
+        logpi(date, v) = gsl_sf_psi(a_pi(date, v));
     logpi(date) = logpi(date) - log(b_pi(date));
 }
 
