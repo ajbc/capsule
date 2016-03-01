@@ -8,7 +8,7 @@ import subprocess, time
 import cProfile, pstats, StringIO
 
 # suppress scientific notation when printing
-np.set_printoptions(suppress=True, linewidth=100)
+np.set_printoptions(suppress=True, linewidth=100, threshold=100*1025)
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -30,14 +30,17 @@ def iS(x):
 # soft-plus
 def SP(x):
     return np.log(1. + np.exp(x))
+    #return np.log(1. + np.exp(x/10.))
 
 # derivative of soft-plus
 def dSP(x):
     return np.exp(x) / (1. + np.exp(x))
+    #return np.exp(x/10.) / (10.*(1. + np.exp(x/10.)))
 
 # inverse of soft-plus
 def iSP(x):
     return np.log(np.exp(x) - 1.)
+    #return 10*np.log(np.exp(x) - 1.)
 
 # log probability of a gamma given sparsity a and mean m
 def Gammac(x, a, m):
@@ -152,9 +155,11 @@ class Corpus:
             self.validation.add(self.random_doc())
 
     def day_count(self):
+        #print "day count:", len(self.days)
         return len(self.days)
 
     def entity_count(self):
+        #print "entity count:", len(self.senders)
         return len(self.senders)
 
     def num_docs(self):
@@ -249,9 +254,9 @@ class Parameters:
         #    return 1
         #else:
         #    return 0
-        if a > c or c >= (a+self.d):
+        if c > a or a >= (c+self.d):
             return 0
-        return (1 - ((0.0+c-a)/self.d))
+        return (1-(0.0+a-c)/self.d)
 
     #def fdays(a):
     #    return range(a, a + self.d)
@@ -265,20 +270,21 @@ class Model:
     def init(self):
         # free variational parameters
         self.a_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.1
-        #self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
-        self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
-        for entity in range(self.data.entity_count()):
-            self.m_entity[entity] = iSP(self.data.ave_entity(entity))
-        self.l_eoccur = np.ones((self.data.day_count(), 1)) * \
-            (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
-        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.1
-        #self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
-        self.m_events = np.zeros((self.data.day_count(), self.data.dimension))
-        for day in range(self.data.day_count()):
-            self.m_events[day] = iSP(self.data.ave_day(day))
+        self.m_entity = np.ones((self.data.entity_count(), self.data.dimension)) * 0.01
+        #self.m_entity = np.zeros((self.data.entity_count(), self.data.dimension))
+        #for entity in range(self.data.entity_count()):
+        #    self.m_entity[entity] = iSP(self.data.ave_entity(entity))
+        self.l_eoccur = np.ones((self.data.day_count(), 1)) * iSP(0.1) #\
+        #    (iSP(self.params.l_eoccur) if self.params.event_dist == "Poisson" else iS(self.params.l_eoccur))
+        self.a_events = np.ones((self.data.day_count(), self.data.dimension)) * 1.0
+        self.m_events = np.ones((self.data.day_count(), self.data.dimension)) * 0.01
+        #self.m_events = np.zeros((self.data.day_count(), self.data.dimension))
+        #for day in range(self.data.day_count()):
+        #    self.m_events[day] = iSP(self.data.ave_day(day))
 
         # expected values of goal model parameters
         self.entity = SP(self.m_entity)
+        print "entity shape", self.entity.shape
         self.eoccur = (SP(self.l_eoccur) if self.params.event_dist == "Poisson" else S(self.l_eoccur))
         self.events = SP(self.m_events)
 
@@ -304,7 +310,64 @@ class Model:
             qeoc = pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
             log_q += pBernoulli(self.eoccur, S(self.l_eoccur)).sum()
         ll = self.compute_likelihood(True)
+        #print ll, pent, qent, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
         return ll, pent, qent, pevt, qevt, peoc, qeoc, ll+log_priors - log_q
+
+    def AUC(self):
+        p = 0
+        n = 0
+        auc = 0.0
+        eoc = 1.0 * self.eoccur
+        cc = 0
+        tc = 0
+        for d in range(len(eoc)):
+            if eoc[d] >= 1.0:
+                tc += 1
+                #eoc[d] = -np.random.random()
+            if eoc[d] < 1e-2:
+                eoc[d] = -np.random.random()
+                cc += 1
+        cd =0
+        ctd = 0
+        for (v,r,t) in sorted(zip(eoc,np.random.rand(len(eoc)),self.eoc_true), reverse=True):
+            #print v,t, (auc/(n*p+1e-10))
+            if t == 0:
+                auc += p
+                n += 1
+            else:
+                if v < 0:
+                    cd += 1
+                elif v>=1.0:
+                    ctd += 1
+                p += 1
+        #print '0:', cd, '/', cc, '\t>=1:', ctd, '/', tc
+        #true_set = [1,8]#[13,20,31,48,70,71,78,84]
+        true_set = [13,20,31,48,70,71,78,84]
+        #print '\t', self.eoccur[13], self.eoccur[20], self.eoccur[31], self.eoccur[48], self.eoccur[70], self.eoccur[71], self.eoccur[78], self.eoccur[84]
+        print '\tentity RMSE:', np.sqrt(((self.entity - self.entity_true)**2).mean()), '\tevents RMSE:', np.sqrt(((self.events[true_set] - self.events_true)**2).mean())
+        return auc / (n*p)
+
+    def increases_likelihood(self, m_entity_update):
+        #tmp_eoccur = self.eoccur
+        #tmp_events = self.events
+        tmp_entity = self.entity
+
+        #self.eoccur =
+        #self.events =
+        self.entity = SP(self.m_entity + m_entity_update)
+
+        ll = self.compute_likelihood()
+
+        #tmp_eoccur = self.eoccur
+        #tmp_events = self.events
+        self.entity = tmp_entity
+
+        if ll > self.likelihood:
+            print "increases likelihood!"
+            return True
+        print "decreases likelihood!"
+        return False
+
 
     def compute_likelihood(self, valid=True):
         log_likelihood = 0
@@ -316,6 +379,7 @@ class Model:
             #TODO: group by day for more efficient computation?
             for day in range(self.data.day_count()):
                 f_array[day] = self.params.f(self.data.days[day], doc.day)
+            #print doc.sender, self.entity.shape
             doc_params = self.entity[doc.sender] + (f_array*self.events*self.eoccur).sum(0)
             d += 1
             log_likelihood += np.sum(Gamma(doc.rep, 0.1, doc_params))
@@ -326,13 +390,16 @@ class Model:
         #    return False
 
         if iteration == 0:
-            self.mult = 1.0
             self.likelihood = -sys.float_info.max
             self.elbo = -sys.float_info.max
+            self.elbo_delta = [sys.float_info.max] * 20
             flog = open(os.path.join(self.params.outdir, 'log.dat'), 'w+')
-            flog.write("var\titeration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\n")
+            flog.write("var\titeration\ttime\tlog.likelihood\tll.change\tELBO\tELBO.change\tELBO.change.ave\tAUC\n")
+            print "var\titeration\ttime\t\t\t\tlog.likelihood\tll.change\tELBO\t\tELBO.change\tave\tAUC"
             flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'w+')
             flogE.write("var\titeration\ttime\tlog.likelihood\tlog.p.entity\tlog.q.entity\tlog.p.events\tlog.q.events\tlog.p.eoccur\tlog.q.eoccur\tELBO.approx\n")
+            self.focus = 'ee'
+            #self.focus = 'oc'
 
         self.old_likelihood = self.likelihood
         self.likelihood = self.compute_likelihood()
@@ -342,44 +409,50 @@ class Model:
         self.old_elbo = self.elbo
         #self.elbo = self.compute_ELBO()
         ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo = self.compute_ELBO()
-        elbodelta = (self.elbo - self.old_elbo) / \
-            abs(self.old_elbo)
+        self.elbo_delta.pop(0)
+        self.elbo_delta.append((self.elbo - self.old_elbo) / abs(self.old_elbo))
+        auc = self.AUC()
 
-        desc = "ee" if not self.ee_converged else "oc"
         flog = open(os.path.join(self.params.outdir, 'log.dat'), 'a')
-        flog.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\n" % (desc, iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta))
-        print "%d\t%s\t%f\t%f\t%f\t%f" % (iteration, dt.now(), self.likelihood, lldelta, self.elbo, elbodelta)
+        flog.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\n" % (self.focus, iteration, dt.now(), self.likelihood, lldelta, self.elbo, self.elbo_delta[-1], np.mean(np.abs(self.elbo_delta)), auc))
+        print "%s\t%d\t\t%s\t%f\t%f\t%f\t%f\t%f\t%f" % (self.focus, iteration, dt.now(), self.likelihood, lldelta, self.elbo, self.elbo_delta[-1], np.mean(np.abs(self.elbo_delta)), auc)
         flogE = open(os.path.join(self.params.outdir, 'log.ELBO.dat'), 'a')
-        flogE.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (desc, iteration, dt.now(), ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo))
+        flogE.write("%s\t%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n" % (self.focus, iteration, dt.now(), ll, pent, qent, pevt, qevt, peoc, qeoc, self.elbo))
 
-        if np.isnan(elbodelta):
+        if np.isnan(sum(self.elbo_delta)/2):
             print "STOP: NANs encountered"
             return True
 
-        if elbodelta < 0:
+        '''if self.elbo_delta[-1] < 0:
             print "ELBO decreasing (bad)"
             self.elbo_decreasing_count += 1
-            if iteration > self.params.min_iter and self.elbo_decreasing_count >= 3:
-                if self.ee_converged:
-                    print "STOP: 3 consecutive iterations of increasing ELBO"
-                else:
-                    self.ee_converged = True
-                    print "SWITCH to event occur: 3 consecutive iterations of increasing ELBO"
-                    self.mult = 0.01
-                    return False
+            if iteration > self.params.min_iter and self.elbo_decreasing_count >= 5:
+                print "STOP: 5 consecutive iterations of increasing ELBO"
                 return True
             return False
         else:
-            self.elbo_decreasing_count = 0
+            self.elbo_decreasing_count = 0'''
 
-        if iteration > self.params.min_iter and elbodelta < self.params.convergence_thresh * self.mult:
-            if self.ee_converged:
-                print "STOP: model converged!"
-                return True
-            else:
-                print "SWITCH to event occur: entity concerns and event descriptions converged"
-                self.ee_converged = True
-                self.mult = 0.01
+        #if np.mean(np.abs(self.elbo_delta[-3:])) < self.params.convergence_thresh*10:
+        m = 1#0 #if self.focus == 'oc' else 10
+        #if iteration > self.params.min_iter and np.mean(np.abs(self.elbo_delta)) < self.params.convergence_thresh:
+        #    self.focus = 'oc' if self.focus == 'ee' else 'ee'
+        #if self.focus == 'ee' and np.mean(self.elbo_delta) < self.params.convergence_thresh:
+        if self.focus == 'ee' and np.mean(np.abs(self.elbo_delta)) < self.params.convergence_thresh:
+            self.focus = 'oc'
+            self.elbo_delta.pop(0)
+            self.elbo_delta.append(sys.float_info.max)
+            return False
+        if self.focus == 'oc' and np.mean(np.abs(self.elbo_delta)) < self.params.convergence_thresh*10:
+            self.focus = 'ee'
+            #self.focus = 'ee and oc'
+            self.elbo_delta.pop(0)
+            self.elbo_delta.append(sys.float_info.max)
+            return False
+
+        if iteration > self.params.min_iter and np.mean(np.abs(self.elbo_delta)) < self.params.convergence_thresh:
+            print "STOP: model converged!"
+            return True
         if iteration == self.params.max_iter:
             print "STOP: iteration cap reached"
             return True
@@ -408,23 +481,33 @@ class Model:
             scale = False
             entity_scale = 1.0
             event_scale = 1.0
-            print len(docset), "A"
+            #print len(docset), "A"
         else:
             docset = [self.data.random_doc() for d in range(self.params.batch_size)]
             scale = True
-            print len(docset), "B"
+            #print len(docset), "B"
         days = {}
         dc  = 0
         incl = eoccur > 0
+
+        entity_counts_in_batch = defaultdict(int)
+        date_counts_in_batch = defaultdict(int)
+        for doc in docset:
+            entity_counts_in_batch[doc.sender] += 1
+            date_counts_in_batch[doc.day] += 1
+
         for doc in docset:
             #print dc
             dc +=1
             if doc.day not in days:
                 f_array = np.zeros((self.data.day_count(),1))
                 relevant_days = set()
+                #print "doc at day", doc.day
                 for day in range(self.data.day_count()):
                     f_array[day] = self.params.f(self.data.days[day], doc.day)
-                    relevant_days.add(day)
+                    if f_array[day] > 0:
+                        relevant_days.add(day)
+                        #print '\trelevant',day,'(', f_array[day],')'
                 days[doc.day] = (f_array * events * eoccur).sum(1)
 
             # document contributions to updates
@@ -435,6 +518,8 @@ class Model:
             if scale:
                 entity_scale = self.data.num_docs() * 1.0 / self.params.batch_size
                 event_scale = self.data.num_docs() * 1.0 / self.params.batch_size
+                #entity_scale = self.data.num_docs_by_sender(doc.sender) * 1.0 / entity_counts_in_batch[doc.sender]
+                #event_scale = self.data.num_docs_by_date(doc.day) * 1.0 / date_counts_in_batch[doc.day]
 
             p_entity[:,doc.sender,:] += p_doc * entity_scale
 
@@ -445,10 +530,23 @@ class Model:
 
     def fit(self):
         self.init()
+        self.eoc_true = [int(i.strip()) for i in open('/home/statler/achaney/cables/src/event_detect/simulated/dat/f7s007/simulated_eoccur.tsv')]
+        self.events_true = np.loadtxt('/home/statler/achaney/cables/src/event_detect/simulated/dat/f7s007/simulated_events_stripped.tsv')
+        self.entity_true = np.loadtxt('/home/statler/achaney/cables/src/event_detect/simulated/dat/f7s007/simulated_entities_stripped.tsv')
+        #self.eoc_true = [int(i.strip()) for i in open('/home/statler/achaney/cables/src/event_detect/simulated/dat/f16000/simulated_eoccur.tsv')]
+        #self.events_true = np.loadtxt('/home/statler/achaney/cables/src/event_detect/simulated/dat/f16000/simulated_events_stripped.tsv')
+        #self.entity_true = np.loadtxt('/home/statler/achaney/cables/src/event_detect/simulated/dat/f16000/simulated_entities_stripped.tsv')
+        #print self.l_eoccur.shape
+        self.l_eoccur = (iSP(np.maximum(np.array(self.eoc_true),0.0001)) * np.ones((1,1))).T
+        self.eoccur = SP(self.l_eoccur)
+        #true_set = [1,8]#[13,20,31,48,70,71,78,84]
+        true_set = [13,20,31,48,70,71,78,84]
+        #self.events[true_set] = np.maximum(self.events_true, 0.001)
+        self.entity = self.entity_true
 
         iteration = 0
-        eoc_iter = 0
-        self.ee_converged = False
+        ee_iter = 0
+        oc_iter = 0
         days_seen = np.zeros((self.data.day_count(),1))
 
         self.save('%04d' % iteration) #TODO: rm; this is just for visualization
@@ -460,33 +558,49 @@ class Model:
         MS_m_events = np.zeros((self.data.day_count(), self.data.dimension))
 
         print "starting..."
+        self.focus = 'init'
         while not self.converged(iteration):
-            print "*************************************"
+            #print "*************************************"
             iteration += 1
-            if self.ee_converged:
-                eoc_iter += 1
-            print "iteration", iteration
+            #print "iteration", iteration
+            if 'ee' in self.focus:
+                ee_iter += 1
+            if 'oc' in self.focus:
+                oc_iter += 1
 
-            print "sampling latent parameters"
+            #print "sampling latent parameters"
             # sample latent parameters
-            if not self.ee_converged:
+            if 'ee' in self.focus:
                 entity = draw_gamma(self.a_entity, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
             else:
                 entity = SP(self.m_entity) * np.ones((self.params.num_samples, self.data.entity_count(), self.data.dimension))
+                #entity = draw_gamma(50.0, self.m_entity, (self.params.num_samples, self.data.entity_count(), self.data.dimension))
 
-            if not self.ee_converged:
-                eoccur = np.ones((self.params.num_samples, self.data.day_count(), 1))
-            elif self.params.event_dist == "Poisson":
-                eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+            if 'oc' in self.focus:
+                if self.params.event_dist == "Poisson":
+                    eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+                else:
+                    eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
             else:
-                eoccur = np.random.binomial(1, S(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+                if oc_iter == 0:
+                    #eoccur = np.ones((self.params.num_samples, self.data.day_count(), 1))
 
-            if not self.ee_converged:
+                    #tinkering
+                    #eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+                    eoccur = SP(self.l_eoccur).astype(int) * np.ones((self.params.num_samples, self.data.day_count(), 1))
+                else:
+                    #eoccur = np.random.poisson(SP(self.l_eoccur) * np.ones((self.params.num_samples, self.data.day_count(), 1)))
+                    eoccur = (SP(self.l_eoccur)+0.5).astype(int) * np.ones((self.params.num_samples, self.data.day_count(), 1))
+
+            if 'ee' in self.focus == 'ee':
                 events = draw_gamma(self.a_events, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
+                #print "events draw for t=13"
+                #print events[:,13,[0,4,7]]
             else:
                 events = SP(self.m_events) * np.ones((self.params.num_samples, self.data.day_count(), self.data.dimension))
+                #events = draw_gamma(50.0, self.m_events, (self.params.num_samples, self.data.day_count(), self.data.dimension))
 
-            print "computing p, q, and g for latent parameters"
+            #print "computing p, q, and g for latent parameters"
             ## p, q, and g for latent parameters
             # entity topics
             p_entity = Gamma(entity, self.params.a_entity, self.params.m_entity)
@@ -510,14 +624,20 @@ class Model:
 
             self.doc_contributions(p_entity, p_eoccur, p_events, entity, eoccur, events)
 
-            print "cv"
+            #print "cv"
             # control variates to decrease variance of gradient; one for each variational parameter
             cv_a_entity = cv(g_entity_a, p_entity - q_entity)
             cv_m_entity = cv(g_entity_m, p_entity - q_entity)
             cv_eoccur = cv(g_eoccur, p_eoccur - q_eoccur)
 
-            cv_a_events = cv(g_events_a[eoccur!=0], (p_events - q_events)[eoccur!=0])
-            cv_m_events = cv(g_events_m[eoccur!=0], (p_events - q_events)[eoccur!=0])
+            cv_a_events = np.zeros((self.data.day_count(), self.data.dimension))
+            cv_m_events = np.zeros((self.data.day_count(), self.data.dimension))
+            for day in range(self.data.day_count()):
+                f = (p_events - q_events)[:,day,][eoccur[:,day].flatten()!=0]
+                cv_a_events[day] = cv(g_events_a[:,day,][eoccur[:,day].flatten()!=0], f)
+                cv_m_events[day] = cv(g_events_m[:,day,][eoccur[:,day].flatten()!=0], f)
+            #print "g events", g_events_m
+            #print "p events", p_events
             g_events_a[np.isinf(g_events_a)] = 0
             g_events_a[np.isnan(g_events_a)] = 0
             g_events_m[np.isinf(g_events_m)] = 0
@@ -527,10 +647,10 @@ class Model:
             q_events[np.isinf(q_events)] = 0
             q_events[np.isnan(q_events)] = 0
 
-            print "RMSprop"
+            #print "RMSprop"
             # RMSprop: keep running average of gradient magnitudes
             # (the gradient will be divided by sqrt of this later)
-            if not self.ee_converged:
+            if 'ee' in self.focus:
                 if MS_a_entity.all() == 0:
                     MS_a_entity = (g_entity_a**2).sum(0)
                     MS_m_entity = (g_entity_m**2).sum(0)
@@ -541,59 +661,89 @@ class Model:
                     MS_m_entity = 0.9 * MS_m_entity + 0.1 * (g_entity_m**2).sum(0)
                     MS_a_events = 0.9 * MS_a_events + 0.1 * (g_events_a**2).sum(0)
                     MS_m_events = 0.9 * MS_m_events + 0.1 * (g_events_m**2).sum(0)
-            else:
+            if 'oc' in self.focus:
                 if MS_eoccur.all() == 0:
                     MS_eoccur = (g_eoccur**2).sum(0)
                 else:
                     MS_eoccur = 0.9 * MS_eoccur + 0.1 * (g_eoccur**2).sum(0)
+            #if iteration < 4:
+            #    continue
 
             # only set this once (not in below two)
-            if self.ee_converged:
-                rho = (eoc_iter + self.params.tau) ** (-1.0 * self.params.kappa)
-            else:
-                rho = (iteration + self.params.tau) ** (-1.0 * self.params.kappa)
+            if ee_iter != 0:
+                rho_ee = (ee_iter + self.params.tau) ** (-1.0 * self.params.kappa) - 0.9 * self.params.tau ** (-1.0 * self.params.kappa) * ee_iter ** -2.
+            if oc_iter != 0:
+                rho_oc = (oc_iter + self.params.tau) ** (-1.0 * self.params.kappa) - 0.9 * self.params.tau ** (-1.0 * self.params.kappa) * oc_iter ** -2.
 
-            print "update variational parameters"
+            #print "update variational parameters"
             # update each variational parameter with average over samples
 
-            if self.ee_converged:
-                self.l_eoccur += rho * (1. / self.params.num_samples) * \
+            if 'oc' in self.focus:
+                self.l_eoccur += rho_oc * (1. / self.params.num_samples) * \
                     (g_eoccur / np.sqrt(MS_eoccur) * \
                     (p_eoccur - q_eoccur - cv_eoccur)).sum(0)
 
                 # truncate variational parameters
-                self.l_eoccur[self.l_eoccur > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
-                self.l_eoccur[self.l_eoccur < iSP(1e-6)] = iSP(1e-6)
+                self.l_eoccur[self.l_eoccur > iSP(5)] = iSP(5)
+                # np.log(sys.float_info.max))
+                self.l_eoccur[self.l_eoccur < iSP(5e-2)] = iSP(5e-2)
 
                 # set params with expectation
                 if self.params.event_dist == "Poisson":
-                    self.eoccur = np.minimum(SP(self.l_eoccur), self.eoccur+1)
+                    #self.eoccur = np.minimum(SP(self.l_eoccur), self.eoccur+1)
+                    self.eoccur = SP(self.l_eoccur)
                 else:
                     self.eoccur = S(self.l_eoccur)
 
-                print "events", self.eoccur.T
-            else:
-                self.a_entity += rho * (1. / self.params.num_samples) * \
-                    (g_entity_a / np.sqrt(MS_a_entity) * \
-                    (p_entity - q_entity - cv_a_entity)).sum(0)
-                self.m_entity += rho * (1. / self.params.num_samples) * \
-                    (g_entity_m / np.sqrt(MS_m_entity) * \
-                    (p_entity - q_entity - cv_m_entity)).sum(0)
+                #print "events", self.eoccur.T
+            if 'ee' in self.focus:
+                #self.a_entity += rho_ee * (1. / self.params.num_samples) * \
+                #    (g_entity_a / np.sqrt(MS_a_entity) * \
+                #    (p_entity - q_entity - cv_a_entity)).sum(0)
+                #self.m_entity += rho_ee * (1. / self.params.num_samples) * \
+                #    (g_entity_m / np.sqrt(MS_m_entity) * \
+                #    (p_entity - q_entity - cv_m_entity)).sum(0)
 
-                adv = rho * (1. / eoccur.sum(0)) * \
-                    (g_events_a / np.sqrt(MS_a_events) * \
-                    (p_events - q_events - cv_a_events)).sum(0)
+                if iteration > 0:#TODO: rm thresh here?
+                    adv = rho_ee * (1. / eoccur.sum(0)) * \
+                        (g_events_a / np.sqrt(MS_a_events) * \
+                        (p_events - q_events - cv_a_events)).sum(0)
 
-                adv[np.isinf(adv)] = 0
-                adv[np.isnan(adv)] = 0
-                self.a_events += adv
+                    adv[np.isinf(adv)] = 0
+                    adv[np.isnan(adv)] = 0
+                    self.a_events += adv
 
-                adv = rho * (1. / eoccur.sum(0)) * \
+                adv = rho_ee * (1. / eoccur.sum(0)) * \
                     (g_events_m / np.sqrt(MS_m_events) * \
                     (p_events - q_events - cv_m_events)).sum(0)
+                #print "g m t=0", g_events_m[:,0,:]
+                L = [0,4,7]
+                '''
+                print "g m t=13", g_events_m[:,13,L]
+                #print "sqrt(MS) t=0", np.sqrt(MS_m_events[0])
+                print "sqrt(MS) t=13", np.sqrt(MS_m_events[13,L])
+                #print "p events t=0", p_events[:,0,:]
+                print "p events t=13", p_events[:,13,L]
+                #print "q events t=0", q_events[:,0,:]
+                print "q events t=13", q_events[:,13,L]
+                #print "cv t=0", cv_m_events[0]
+                print "cv t=13", cv_m_events[13,L]'''
+                #print "final @t=0", adv[0]
+                #print ((g_events_m / np.sqrt(MS_m_events) * \
+                #    (p_events - q_events - cv_m_events)))[:, 12, L]
+                #print "final @t=13", adv[13,[0,4,7]]
+                #print "final @t=13", adv[13]
+
+                #print "adv", adv
                 adv[np.isinf(adv)] = 0
                 adv[np.isnan(adv)] = 0
+                #print SP(self.m_events[13])
+                #self.m_events += np.maximum(np.minimum(adv, 1.), -1.)
                 self.m_events += adv
+                #print SP(self.m_events[13])
+                #print self.events_true[0]
+                #print SP(self.m_events[13,[0,4,7]])
+                #print self.events_true[0,[0,4,7]]
 
                 # truncate variational parameters
                 self.a_entity[self.a_entity < 0.1] = 0.1
@@ -605,15 +755,19 @@ class Model:
                 self.m_events[self.m_events < iSP(1e-5)] = iSP(1e-5)
                 self.m_events[self.m_events > iSP(np.log(sys.float_info.max))] = iSP(np.log(sys.float_info.max))
 
-                self.a_events = np.minimum(self.a_events, self.m_events*0.1)
-                self.a_entity = np.minimum(self.a_entity, self.m_entity*0.1)
+                #self.a_events = np.minimum(self.a_events, self.m_events*0.1)
+                #self.a_entity = np.minimum(self.a_entity, self.m_entity*0.1)
 
                 # set params with expectation
-                self.entity = SP(self.m_entity)
+                #self.entity = SP(self.m_entity)
                 self.events = SP(self.m_events)
+                #print SP(self.a_events[true_set])
+                #print SP(self.m_events[true_set])
+                #print self.events[true_set]
+                #print self.events_true
 
-                print "entity", self.entity
-            print "*************************************"
+                #print "entity", self.entity
+            #print "*************************************"
 
             if iteration % params.save_freq == 0:
                 self.save('%04d' % iteration)
@@ -648,7 +802,7 @@ if __name__ == '__main__':
     parser.add_argument('--convergence_thresh', dest='convergence_thresh', type=float, \
         default=1e-3, help = 'likelihood threshold for convergence, default 1e-3')
     parser.add_argument('--min_iter', dest='min_iter', type=int, \
-        default=10, help = 'minimum number of iterations, default 10')
+        default=40, help = 'minimum number of iterations, default 40')
     parser.add_argument('--max_iter', dest='max_iter', type=int, \
         default=1000, help = 'maximum number of iterations, default 1000')
     parser.add_argument('--seed', dest='seed', type=int, \
@@ -676,8 +830,8 @@ if __name__ == '__main__':
         default="Bernoulli", help = 'what distribution used to model event occurance: \"Poisson\" or \"Bernoulli\" (default)')
 
     # start a profile of program
-    pr = cProfile.Profile()
-    pr.enable()
+    #pr = cProfile.Profile()
+    #pr.enable()
 
     # parse the arguments
     args = parser.parse_args()
@@ -708,9 +862,9 @@ if __name__ == '__main__':
     model.fit()
 
     #print out profile data
-    pr.disable()
+    '''pr.disable()
     s = StringIO.StringIO()
     sortby = 'cumulative'
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
-    print s.getvalue()
+    print s.getvalue()'''
