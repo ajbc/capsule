@@ -85,6 +85,7 @@ void Capsule::learn() {
 
             entities.insert(data->get_entity(doc));
             date = data->get_date(doc);
+            //printf("doc %d has date %d and entity %d\n", doc, date, data->get_entity(doc));
             for (int d = max(0, date - settings->event_dur); d <= date; d++)
                 dates.insert(d);
             // look at all the document's terms
@@ -107,6 +108,10 @@ void Capsule::learn() {
                 iter_count_term[term]++;
                 update_theta(term);
             }
+            for (int k = 0; k < settings->k; k++) {
+                logtheta.row(k) -= log(accu(theta.row(k)));
+                theta.row(k) /= accu(theta.row(k));
+            }
 
             b_phi.each_col() += sum(theta, 1);
             for (it = entities.begin(); it != entities.end(); it++) {
@@ -121,15 +126,18 @@ void Capsule::learn() {
                 date = *it;
                 iter_count_date[date]++;
                 for (int d = date; d < min(date + settings->event_dur, data->date_count()); d++) {
-                    b_epsilon[date] = b_epsilon[date] * f(d, date) * accu(pi.col(d)) * data->doc_count(d);
+                    b_epsilon[date] = b_epsilon[date] + f(d, date) * accu(pi.col(d)) * data->doc_count(d);
                 }
                 update_epsilon(date);
+                //epsilon(55) = 0.8;
+                //logepsilon(55) = log(0.8);
             }
             
             for (it = dates.begin(); it != dates.end(); it++) {
                 date = *it;
                 for (int d = date; d < min(date + settings->event_dur, data->date_count()); d++) {
-                    b_pi[date] += f(d, date) * epsilon(date) * data->doc_count(d); // or [date,1]?
+                    b_pi.row(date) += f(d, date) * epsilon(date) * data->doc_count(d);
+                    //printf("d %d, date %d, f %f\n", d, date, f(d, date));
                 }
                 update_pi(date);
             }
@@ -270,25 +278,42 @@ void Capsule::initialize_parameters() {
     if (!settings->event_only) {
         // entity concerns
         phi.fill(settings->a_phi / settings->b_phi);
-        logphi.fill(gsl_sf_psi(settings->a_phi) - 
-            log(settings->b_phi));
+        //logphi.fill(gsl_sf_psi(settings->a_phi) - 
+        //    log(settings->b_phi));
+        logphi.fill(log(settings->a_phi / settings->b_phi));
         
         // topics
-        theta.fill(settings->a_theta / settings->b_theta);
-        logtheta.fill(gsl_sf_psi(settings->a_theta) - 
-            log(settings->b_theta));
+        //theta.fill(settings->a_theta / settings->b_theta);
+        //logtheta.fill(gsl_sf_psi(settings->a_theta) - 
+        //    log(settings->b_theta));
+        for (int k = 0; k < settings->k; k++) {
+            for (int v = 0; v < data->term_count(); v++) {
+                theta(k, v) = (settings->a_theta +
+                    gsl_rng_uniform_pos(rand_gen))
+                    / (settings->b_theta);
+                logtheta(k, v) = log(theta(k, v));
+            }
+            logtheta.row(k) -= log(accu(theta.row(k)));
+            theta.row(k) /= accu(theta.row(k));
+        }
     }   
-    
+   
+    //printf("init?\n"); 
     if (!settings->entity_only) {
         // event occurrences
         epsilon.fill(settings->a_epsilon / settings->b_epsilon);
-        logepsilon.fill(gsl_sf_psi(settings->a_epsilon) - 
-            log(settings->b_epsilon));
+        //printf("init epsilon %f\n", settings->a_epsilon / settings->b_epsilon);
+        //logepsilon.fill(gsl_sf_psi(settings->a_epsilon) - 
+        //    log(settings->b_epsilon));
+        logepsilon.fill(log(settings->a_epsilon / settings->b_epsilon));
+        //printf("init log epsilon %f\n", gsl_sf_psi(settings->a_epsilon) - 
+        //            log(settings->b_epsilon));
         
         // event descriptions
         pi.fill(settings->a_pi / settings->b_pi);
-        logpi.fill(gsl_sf_psi(settings->a_pi) - 
-            log(settings->b_pi));
+        //logpi.fill(gsl_sf_psi(settings->a_pi) - 
+        //    log(settings->b_pi));
+        logpi.fill(log(settings->a_pi / settings->b_pi));
 
         // log f function
         for (int i = 0; i < data->date_count(); i++) {
@@ -362,7 +387,6 @@ void Capsule::save_parameters(string label) {
 }
 
 void Capsule::update_shape(int doc, int term, int count) {
-    //printf("in update_shape\n");
     int entity = data->get_entity(doc);
     int date = data->get_date(doc);
     //printf("\tauthor %d and date %d\n", entity, date);
@@ -378,11 +402,12 @@ void Capsule::update_shape(int doc, int term, int count) {
     //printf("entity stuff part 1 done\n");
     if (!settings->entity_only) {
         omega_event = fvec(data->date_count());
-        for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+        for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             //printf("f(%d,%d)\n", date, d);
             //printf("logdecay:   %f\n",logdecay(date,d));
             //printf("logpi:      %f\n",logpi(d,term));
             //printf("logepsilon: %f\n",logepsilon(d));
+            //printf("d: %d\teps %f pi %f decay %f\n", d, logepsilon(d), logpi(d,term), logdecay(date,d));
             omega_event(d) = exp(logepsilon(d) + logpi(d,term) + logdecay(date,d));
             omega_sum += omega_event(d);
         }
@@ -402,10 +427,12 @@ void Capsule::update_shape(int doc, int term, int count) {
     //printf("entity stuff part 2 done\n");
     
     if (!settings->entity_only) {
+        //printf("doc %d\n", doc);
         omega_event /= omega_sum * count;
-        for (int d = max(0,date - settings->event_dur); d <= date; d++) {
-            a_epsilon.row(d) += accu(omega_event[d]) * scale;
-            a_pi.col(d) += omega_event * scale;
+        for (int d = max(0,date - settings->event_dur + 1); d <= date; d++) {
+            a_epsilon[d] += accu(omega_event[d]) * scale;
+            //printf("date:%d, accu:%f, doc %d (date %d, author %d) term %d count %d\n", d, accu(omega_event[d]), doc, date, entity, term, count);
+            a_pi.col(term) += omega_event[d] * scale;
         }
     }
     //printf("event stuff part 2 done\n");
@@ -422,26 +449,33 @@ void Capsule::update_phi(int entity) {
     if (settings->svi) {
         double rho = pow(iter_count_entity[entity] + settings->delay, 
             -1 * settings->forget);
-        a_phi(entity) = (1 - rho) * a_phi_old(entity) + rho * a_phi(entity);
-        a_phi_old(entity) = a_phi(entity);
+        a_phi.col(entity) = (1 - rho) * a_phi_old.col(entity) + rho * a_phi.col(entity);
+        a_phi_old.col(entity) = a_phi.col(entity);
     }
-    phi(entity)  = a_phi(entity) / b_phi(entity);
+    phi.col(entity)  = a_phi.col(entity) / b_phi.col(entity);
     for (int k = 0; k < settings->k; k++)
         logphi(k, entity) = gsl_sf_psi(a_phi(k, entity));
-    logphi(entity) = logphi(entity) - log(b_phi(entity));
+    logphi.col(entity) = logphi.col(entity) - log(b_phi.col(entity));
+    
+    logphi.col(entity) -= log(accu(phi.col(entity)));
+    phi.col(entity) /= accu(phi.col(entity));
 }
 
 void Capsule::update_theta(int term) {
     if (settings->svi) {
         double rho = pow(iter_count_term[term] + settings->delay, 
             -1 * settings->forget);
-        a_theta(term) = (1 - rho) * a_theta_old(term) + rho * a_theta(term);
-        a_theta_old(term) = a_theta(term);
+        a_theta.col(term) = (1 - rho) * a_theta_old.col(term) + rho * a_theta.col(term);
+        a_theta_old.col(term) = a_theta.col(term);
     }
-    theta(term)  = a_theta(term) / b_theta(term);
+    theta.col(term)  = a_theta.col(term) / b_theta.col(term);
+    //if (term == 3) {
+    //    for (int k = 0; k < settings->k; k++)
+    //        printf("term %d, k %d\ta: %f, b: %f => %f = %f\n", term, k, a_theta(k,term), b_theta(k,term), a_theta(k, term) / b_theta(k, term), theta(k, term));
+    //}
     for (int k = 0; k < settings->k; k++)
         logtheta(k, term) = gsl_sf_psi(a_theta(k, term));
-    logtheta(term) = logtheta(term) - log(b_theta(term));
+    logtheta.col(term) = logtheta.col(term) - log(b_theta.col(term));
 }
 
 void Capsule::update_epsilon(int date) {
@@ -451,6 +485,7 @@ void Capsule::update_epsilon(int date) {
         a_epsilon(date) = (1 - rho) * a_epsilon_old(date) + rho * a_epsilon(date);
         a_epsilon_old(date) = a_epsilon(date);
     }
+    //printf("%d:\t%f / %f = %f\n", date, a_epsilon(date), b_epsilon(date), a_epsilon(date) / b_epsilon(date));
     epsilon(date)  = a_epsilon(date) / b_epsilon(date);
     logepsilon(date) = gsl_sf_psi(a_epsilon(date)) - log(b_epsilon(date));
 }
@@ -459,13 +494,21 @@ void Capsule::update_pi(int date) {
     if (settings->svi) {
         double rho = pow(iter_count_date[date] + settings->delay, 
             -1 * settings->forget);
-        a_pi(date) = (1 - rho) * a_pi_old(date) + rho * a_pi(date);
-        a_pi_old(date) = a_pi(date);
+        a_pi.row(date) = (1 - rho) * a_pi_old.row(date) + rho * a_pi.row(date);
+        a_pi_old.row(date) = a_pi.row(date);
     }
-    pi(date)  = a_pi(date) / b_pi(date);
+    pi.row(date) = a_pi.row(date) / b_pi.row(date);
+    //if (date == 55) {
+    //    for (int v = 0; v < data->term_count(); v++) 
+    //        printf("date %d, term %d\ta: %f, b: %f => %f = %f\n", date, v, a_pi(date,v), b_pi(date,v), a_pi(date,v)/ b_pi(date,v), pi(date,v));
+    //}
     for (int v = 0; v < data->term_count(); v++)
         logpi(date, v) = gsl_sf_psi(a_pi(date, v));
-    logpi(date) = logpi(date) - log(b_pi(date));
+    logpi.row(date) = logpi.row(date) - log(b_pi.row(date));
+}
+
+double Capsule::point_likelihood(double pred, int truth) {
+    return log(pred) * truth - log(factorial(truth)) - pred;
 }
 
 double Capsule::get_ave_log_likelihood() {
@@ -478,8 +521,7 @@ double Capsule::get_ave_log_likelihood() {
 
         prediction = predict(doc, term);
         
-        likelihood +=
-            log(prediction) * count - log(factorial(count)) - prediction;
+        likelihood += point_likelihood(prediction, count);
     }
 
     return likelihood / data->num_validation();
@@ -507,5 +549,5 @@ double Capsule::f(int doc_date, int event_date) {
     // this can be confusing: the document of int    
     if (event_date > doc_date || event_date <= (doc_date - settings->event_dur))
         return 0;
-    return (1-(doc_date-event_date)/settings->event_dur);
+    return (1.0-(0.0+doc_date-event_date)/settings->event_dur);
 }

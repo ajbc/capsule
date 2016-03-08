@@ -46,7 +46,6 @@ class Data {
         set<DocTerm> train_set; 
         map<int, int> test_num_terms;
         map<int, int> test_num_docs;
-        map<DocTerm,int> test_dat; 
         // typedef set<Point> List;
         //map<int,int> test_count;
         //map<int,int> test_count_item;
@@ -98,6 +97,7 @@ class Data {
         vector<int> test_terms;
         vector<int> test_counts;
         
+        map<DocTerm,int> test_dat; 
         int num_test();
         int num_test(int doc);
         int get_test_count(int doc, int term);

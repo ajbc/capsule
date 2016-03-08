@@ -226,6 +226,7 @@ class Capsule: protected Model {
     public:
         Capsule(model_settings* model_set, Data* dataset);
         void learn();
+        double point_likelihood(double pred, int truth);
         double predict(int user, int item);
         void evaluate();
         double f(int doc_date, int event_date);

@@ -47,6 +47,27 @@ void eval(Model* model, double (Model::*prediction)(int,int), string outdir, Dat
     // test the final model fit
     printf("evaluating model on held-out data\n");
     
+    FILE* file = fopen((outdir+"/predictions_" + label + ".tsv").c_str(), "w");
+    fprintf(file, "doc.id\tterm.id\tpred\ttruth\tlog.likelihood\n");
+    
+    int doc, term, count;
+    double pred, prob;
+    for (map<DocTerm,int>::iterator iter = data->test_dat.begin(); 
+        iter != data->test_dat.end(); iter++){
+
+        doc = iter->first.first;
+        term = iter->first.second;
+        count = iter->second;
+
+        pred = (model->*prediction)(doc, term);
+        prob = model->point_likelihood(pred, count);
+        
+        fprintf(file, "%d\t%d\t%f\t%d\t%f\n", doc, term, pred, count, prob);
+    }
+    
+    fclose(file);
+    
+    /*
     FILE* file = fopen((outdir+"/rankings_" + label + ".tsv").c_str(), "w");
     if (write_rankings)
         fprintf(file, "doc.id\tterm.id\tpred\trank\tcount\n");
@@ -314,5 +335,5 @@ void eval(Model* model, double (Model::*prediction)(int,int), string outdir, Dat
     fprintf(file, "CRR\t%f\t%f\n", doc_sum_crr/doc_count, crr/heldout_count);
     fprintf(file, "NCRR\t%f\t---\n", doc_sum_ncrr/doc_count);
     fprintf(file, "NDCG\t%f\t---\n", doc_sum_ndcg/doc_count);
-    fclose(file);
+    fclose(file);*/
 }

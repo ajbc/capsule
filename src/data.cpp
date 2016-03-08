@@ -40,7 +40,7 @@ void Data::read_training(string counts_filename, string meta_filename) {
     }
 
     fileptr = fopen(meta_filename.c_str(), "r");
-    while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &author, &date) != EOF)) {
+    while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &date, &author) != EOF)) {
         authors[doc] = author;
         dates[doc] = date;
         
