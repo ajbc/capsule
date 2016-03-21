@@ -45,13 +45,39 @@ void eval(Model* model, double (Model::*prediction)(int,int), string outdir, Dat
     gsl_rng_set(rand_gen, seed);
     
     // test the final model fit
+    list<pair<double, int> > events;
+    printf("evaluating events detected\n");
+    FILE* file = fopen((outdir+"/events_" + label + ".tsv").c_str(), "w");
+    printf((outdir+"/events_" + label + ".tsv\n").c_str());
+    fprintf(file, "rank\tday\tevent.strength\n");
+    for (int d = 0; d < data->date_count(); d++)
+        events.push_back(make_pair(model->get_event_strength(d), d));   
+    events.sort();
+    events.reverse();
+   
+    double strength;
+    int day, rank = 0;
+    while (!events.empty()) {
+        pair<double, int> pred_set = events.front();
+        strength = pred_set.first;
+        day = pred_set.second;
+        rank++;
+        fprintf(file, "%d\t%d\t%f\n", rank, day, strength);
+        events.pop_front();
+    }
+
+    fclose(file);
+
+    
     printf("evaluating model on held-out data\n");
     
-    FILE* file = fopen((outdir+"/predictions_" + label + ".tsv").c_str(), "w");
+    file = fopen((outdir+"/predictions_" + label + ".tsv").c_str(), "w");
     fprintf(file, "doc.id\tterm.id\tpred\ttruth\tlog.likelihood\n");
     
     int doc, term, count;
     double pred, prob;
+    int dc = 0;
+    double rmse=0, ll=0;
     for (map<DocTerm,int>::iterator iter = data->test_dat.begin(); 
         iter != data->test_dat.end(); iter++){
 
@@ -63,8 +89,20 @@ void eval(Model* model, double (Model::*prediction)(int,int), string outdir, Dat
         prob = model->point_likelihood(pred, count);
         
         fprintf(file, "%d\t%d\t%f\t%d\t%f\n", doc, term, pred, count, prob);
+        
+        dc++;
+        rmse += pow(pred-count, 2);
+        ll += prob;
     }
+    printf("RMSE:\t%f\n", sqrt(rmse/dc));
+    printf("logL:\t%f\n", ll);
     
+    fclose(file);
+    
+    file = fopen((outdir+"/summary_" + label + ".tsv").c_str(), "w");
+    fprintf(file, "metric\tvalue\n");
+    fprintf(file, "ave RMSE\t%f\n", sqrt(rmse/dc));
+    fprintf(file, "log likelihood\t%f\n", ll);
     fclose(file);
     
     /*

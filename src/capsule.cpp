@@ -83,11 +83,17 @@ void Capsule::learn() {
                 doc = i;
             }
 
+            //printf("entity %d\t(samples)\n", data->get_entity(doc));
             entities.insert(data->get_entity(doc));
             date = data->get_date(doc);
-            //printf("doc %d has date %d and entity %d\n", doc, date, data->get_entity(doc));
-            for (int d = max(0, date - settings->event_dur); d <= date; d++)
+            //printf("processing doc with date %d\n", date);
+            //printf("doc %d\n", doc);
+            if (doc==1183)
+                printf("doc %d has date %d and entity %d\n", doc, date, data->get_entity(doc));
+            for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+                //printf("\tadding date %d\n", d);
                 dates.insert(d);
+            }
             // look at all the document's terms
             for (int j = 0; j < data->term_count(doc); j++) {
                 term = data->get_term(doc, j);
@@ -139,6 +145,7 @@ void Capsule::learn() {
                     b_pi.row(date) += f(d, date) * epsilon(date) * data->doc_count(d);
                     //printf("d %d, date %d, f %f\n", d, date, f(d, date));
                 }
+                printf("updating event description %d\n", date);
                 update_pi(date);
             }
         }
@@ -456,6 +463,7 @@ void Capsule::update_phi(int entity) {
     for (int k = 0; k < settings->k; k++)
         logphi(k, entity) = gsl_sf_psi(a_phi(k, entity));
     logphi.col(entity) = logphi.col(entity) - log(b_phi.col(entity));
+    //printf("entity %d\n", entity);
     
     logphi.col(entity) -= log(accu(phi.col(entity)));
     phi.col(entity) /= accu(phi.col(entity));
@@ -485,6 +493,7 @@ void Capsule::update_epsilon(int date) {
         a_epsilon(date) = (1 - rho) * a_epsilon_old(date) + rho * a_epsilon(date);
         a_epsilon_old(date) = a_epsilon(date);
     }
+    printf("updating event occurance %d\n", date);
     //printf("%d:\t%f / %f = %f\n", date, a_epsilon(date), b_epsilon(date), a_epsilon(date) / b_epsilon(date));
     epsilon(date)  = a_epsilon(date) / b_epsilon(date);
     logepsilon(date) = gsl_sf_psi(a_epsilon(date)) - log(b_epsilon(date));
@@ -550,4 +559,8 @@ double Capsule::f(int doc_date, int event_date) {
     if (event_date > doc_date || event_date <= (doc_date - settings->event_dur))
         return 0;
     return (1.0-(0.0+doc_date-event_date)/settings->event_dur);
+}
+
+double Capsule::get_event_strength(int date) {
+    return epsilon[date];
 }

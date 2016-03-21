@@ -230,5 +230,6 @@ class Capsule: protected Model {
         double predict(int user, int item);
         void evaluate();
         double f(int doc_date, int event_date);
+        double get_event_strength(int date);
 
 };

@@ -8,11 +8,36 @@ Data::Data() {
 }
 
 void Data::read_training(string counts_filename, string meta_filename) {
-    // read in training data
     //printf("%s\n", counts_filename.c_str());
     int doc, term, count, author, date;
+
+    // read in metadata
+    FILE* fileptr = fopen(meta_filename.c_str(), "r");
+    while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &author, &date) != EOF)) {
+        //printf("reading meta: doc %d, date %d, author %d\n", doc, date, author);
+        authors[doc] = author;
+        dates[doc] = date;
+            
+        if (doc > max_doc)
+            max_doc = doc;
+        if (author > max_entity)
+            max_entity = author;
+        if (date > max_date)
+            max_date = date;
+        doc_counts[date]++;
+    }
+    fclose(fileptr);
+
+    // set up baseline strunctures
+    map<int, double> overall_mean;
+    map<int, map<int, double> > entity_mean;
+    set<int> docset;
+    map<int, set<int> > entity_docset;
+    map<int, set<int> > day_docset;
+    map<int, map<int, set<int> > > entity_day_docset;
     
-    FILE* fileptr = fopen(counts_filename.c_str(), "r");
+    // read in training data
+    fileptr = fopen(counts_filename.c_str(), "r");
     while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &term, &count) != EOF)) {
         //printf("%d\t%d\t%d\n", doc,term,count);
         if (count != 0) {
@@ -24,12 +49,28 @@ void Data::read_training(string counts_filename, string meta_filename) {
                 max_doc = doc;
             if (term > max_term)
                 max_term = term;
+            if (doc > max_train_doc)
+                max_train_doc = doc;
+
+            overall_mean[term] += 1;
+            entity_mean[authors[doc]][term] += 1;
+            docset.insert(doc);
+            entity_docset[authors[doc]].insert(doc);
+            day_docset[dates[doc]].insert(doc);
+            entity_day_docset[authors[doc]][dates[doc]].insert(doc);
         }
     }
-    max_train_doc = max_doc;
     fclose(fileptr);
-    doc_terms = new vector<int>[doc_count()];
-    doc_term_counts = new vector<int>[doc_count()];
+
+    // for term in terms
+    // overall_mean[term] /= docset.size()
+
+    // for each entity
+    // for terms used by that entity
+    // entity_mean[entity][term] /= entity_docset[entity].size()
+
+    doc_terms = new vector<int>[max_train_doc+1];
+    doc_term_counts = new vector<int>[max_train_doc+1];
     for (int i = 0; i < num_training(); i++) {
         doc = train_docs[i];
         term = train_terms[i];
@@ -39,20 +80,27 @@ void Data::read_training(string counts_filename, string meta_filename) {
         doc_term_counts[doc].push_back(count);
     }
 
-    fileptr = fopen(meta_filename.c_str(), "r");
-    while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &date, &author) != EOF)) {
-        authors[doc] = author;
-        dates[doc] = date;
-        
-        if (doc > max_doc)
-            max_doc = doc;
-        if (author > max_entity)
-            max_entity = author;
-        if (date > max_date)
-            max_date = date;
-        doc_counts[date]++;
+    for (doc = 0; doc < train_doc_count(); doc++) {
+        double dev = 0;
+        double ent_dev = 0;
+        // look at all the document's terms and caslculate ave deviation form mean
+        for (int j = 0; j < term_count(doc); j++) {
+            term = get_term(doc, j);
+            count = get_term_count(doc, j);
+            dev += abs(count - overall_mean[term]/docset.size());
+            ent_dev += abs(count - entity_mean[authors[doc]][term]/entity_docset[authors[doc]].size());
+        }
+        dev /= term_count(doc);
+        ent_dev /= term_count(doc);
+
+        if (dev > overall_doc_dist[dates[doc]])
+            overall_doc_dist[dates[doc]] = dev;
+        if (ent_dev > entity_doc_dist[authors[doc]][dates[doc]])
+            entity_doc_dist[authors[doc]][dates[doc]] = ent_dev;
+        overall_day_dist[dates[doc]] += dev / day_docset[dates[doc]].size();
+        entity_day_dist[authors[doc]][dates[doc]] += ent_dev / entity_day_docset[authors[doc]][dates[doc]].size();
     }
-    fclose(fileptr);
+
 
     /*umat locations = umat(2, num_training());
     fcolvec values = fcolvec(num_training());
@@ -224,4 +272,20 @@ int Data::num_test_term(int term) {
 
 bool Data::in_training(int doc, int term) {
     return train_set.count(DocTerm(doc, term)) != 0;
+}
+
+double Data::overall_doc_outlier_dist(int day) {
+    return overall_doc_dist[day];
+}
+
+double Data::overall_day_ave_dist(int day) {
+    return overall_day_dist[day];
+}
+
+double Data::entity_doc_outlier_dist(int entity, int day) {
+    return entity_doc_dist[entity][day];
+}
+
+double Data::entity_day_ave_dist(int entity, int day) {
+    return entity_day_dist[entity][day];
 }

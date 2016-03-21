@@ -53,7 +53,13 @@ class Data {
         // simple summaries
         //map<int,float> item_ave_ratings;
         //map<int,float> user_ave_ratings;
-
+        
+        // summaires used fror baselines
+        map<int, double> overall_doc_dist;
+        map<int, double> overall_day_dist;
+        map<int, map<int, double> > entity_doc_dist;
+        map<int, map<int, double> > entity_day_dist;
+    
     public:
         //sp_fmat ratings;
         //sp_fmat network_spmat;
@@ -107,6 +113,12 @@ class Data {
         sp_umat test_ratings;
         int num_test_item(int item);*/
         bool in_training(int doc, int term);
+
+        // outlier distances
+        double overall_doc_outlier_dist(int day);
+        double overall_day_ave_dist(int day);
+        double entity_doc_outlier_dist(int entity, int day);
+        double entity_day_ave_dist(int entity, int day);
 };
 
 #endif

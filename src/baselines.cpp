@@ -27,32 +27,86 @@ void print_usage_and_exit() {
 }
 
 // helper function to write out per-user info
-void log_user(FILE* file, Data *data, int user, int heldout, double rmse, double mae,
-    double rank, int first, double crr, double ncrr, double ndcg) {
-    fprintf(file, "%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f\t%f\t%d\t%f\t%f\t%f\n", user, 
-        data->user_id(user), heldout, data->item_count(user), 
-        data->neighbor_count(user), data->connectivity(user), 
-        rmse, mae, rank, first, crr, ncrr, ndcg);
-    return;
-}
-
-void log_item(FILE* file, Data *data, int item, int heldout, double rmse, double mae,
+/*void log_item(FILE* file, Data *data, int item, int heldout, double rmse, double mae,
     double rank, int first, double crr, double ncrr, double ndcg) {
     fprintf(file, "%d\t%d\t%d\t%d\t%f\t%f\t%f\t%d\t%f\t%f\t%f\n", item, 
         data->item_id(item), data->popularity(item), heldout,
         rmse, mae, rank, first, crr, ncrr, ndcg);
     return;
-}
+}*/
 
-class Popularity: protected Model {
+class DocOutlier: protected Model {
     public:
-        double predict(int user, int item) {
-            return data->popularity(item) * 5 / data->item_count();
+        double predict(int doc, int term) {
+            return 0;//data->overall_doc_outlier_dist();
         }
 
         void evaluate(Data* d, string outdir, bool verbose, long seed) {
             data = d;
-            eval(this, &Model::predict, outdir, data, true, seed, verbose, "final", true, false);
+            eval(this, &Model::predict, outdir, data, true, seed, verbose, "final", true);
+        }
+        
+        double get_event_strength(int day) {
+            //printf("\t\tday %d\n", day);
+            return data->overall_doc_outlier_dist(day);
+        }
+};
+
+class DayOutlier: protected Model {
+    public:
+        double predict(int doc, int term) {
+            return 0;//data->overall_doc_outlier_dist();
+        }
+
+        void evaluate(Data* d, string outdir, bool verbose, long seed) {
+            data = d;
+            eval(this, &Model::predict, outdir, data, true, seed, verbose, "final", true);
+        }
+        
+        double get_event_strength(int day) {
+            return data->overall_day_ave_dist(day);
+        }
+};
+
+class EntityDocOutlier: protected Model {
+    public:
+        double predict(int doc, int term) {
+            return 0;//data->overall_doc_outlier_dist();
+        }
+
+        void evaluate(Data* d, string outdir, bool verbose, long seed) {
+            data = d;
+            eval(this, &Model::predict, outdir, data, true, seed, verbose, "final", true);
+        }
+        
+        double get_event_strength(int day) {
+            double rv = 0;
+            for (int entity = 0; entity < data->entity_count(); entity++) {
+                if (data->entity_doc_outlier_dist(entity, day) > rv)
+                    rv = data->entity_doc_outlier_dist(entity, day);
+            }
+            return rv;
+        }
+};
+
+class EntityDayOutlier: protected Model {
+    public:
+        double predict(int doc, int term) {
+            return 0;//data->overall_doc_outlier_dist();
+        }
+
+        void evaluate(Data* d, string outdir, bool verbose, long seed) {
+            data = d;
+            eval(this, &Model::predict, outdir, data, true, seed, verbose, "final", true);
+        }
+        
+        double get_event_strength(int day) {
+            double rv = 0;
+            for (int entity = 0; entity < data->entity_count(); entity++) {
+                if (data->entity_day_ave_dist(entity, day) > rv)
+                    rv = data->entity_day_ave_dist(entity, day);
+            }
+            return rv;
         }
 };
 
@@ -147,18 +201,13 @@ int main(int argc, char* argv[]) {
     // read in the data
     printf("********************************************************************************\n");
     printf("reading data\n");
-    Data *data = new Data(true, false);
+    Data *dataset = new Data();
     printf("\treading training data\t\t...\t");
-    data->read_ratings(datadir + "/train.tsv");
-    printf("done\n");
-
-    // read in the network for data stats only
-    printf("\treading network data\t\t...\t");
-    data->read_network(datadir + "/network.tsv");
+    dataset->read_training(datadir + "/train.tsv", datadir + "/meta.tsv");
     printf("done\n");
 
     printf("\treading validation data\t\t...\t");
-    data->read_validation(datadir + "/validation.tsv");
+    dataset->read_validation(datadir + "/validation.tsv");
     printf("done\n");
     
     if (!file_exists(datadir + "/test.tsv")) {
@@ -166,21 +215,35 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
     printf("\treading testing data\t\t...\t");
-    data->read_test(datadir + "/test.tsv");
+    dataset->read_test(datadir + "/test.tsv");
     printf("done\n");
     
-    printf("\tsaving data stats\t\t...\t");
-    data->save_summary(outdir + "/data_stats.txt");
-    printf("done\n");
+    //printf("\tsaving data stats\t\t...\t");
+    //data->save_summary(outdir + "/data_stats.txt");
+    //printf("done\n");
     
     printf("********************************************************************************\n");
     printf("commencing model evaluation\n");
     
     // test the final model fit
-    Popularity pop = Popularity();
-    pop.evaluate(data, outdir, verbose, seed);
+    EntityDayOutlier model1 = EntityDayOutlier();
+    EntityDocOutlier model2 = EntityDocOutlier();
+    DayOutlier model3 = DayOutlier();
+    DocOutlier model4 = DocOutlier();
+    printf("\ttotal doc\n");
+    make_directory(outdir+ "/totaldoc");
+    model4.evaluate(dataset, outdir + "/totaldoc", verbose, seed);
+    printf("\ttotal day\n");
+    make_directory(outdir+ "/totalday");
+    model3.evaluate(dataset, outdir + "/totalday", verbose, seed);
+    printf("\tentity doc\n");
+    make_directory(outdir+ "/entitydoc");
+    model2.evaluate(dataset, outdir + "/entitydoc", verbose, seed);
+    printf("\tentity day\n");
+    make_directory(outdir+ "/entityday");
+    model1.evaluate(dataset, outdir + "/entityday", verbose, seed);
 
-    delete data;
+    delete dataset;
     
     return 0;
 }

@@ -387,10 +387,10 @@ int main(int argc, char* argv[]) {
             printf("using batch VI (based on dataset size)\n");
         }
     }
-    //printf("user count %d\n", dataset->user_count());
-    //if (!settings.svi)
-    //    settings.set_sample_size(dataset->user_count());
-    //printf("sample size %d\n", settings.sample_size);
+    printf("doc count %d\n", dataset->doc_count());
+    if (!settings.svi)
+        settings.set_sample_size(dataset->doc_count());
+    printf("sample size %d\n", settings.sample_size);
     
     settings.save(out + "/settings.txt");
 
