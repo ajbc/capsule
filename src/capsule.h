@@ -204,6 +204,11 @@ class Capsule: protected Model {
         void update_pi(int date);
 
         double get_ave_log_likelihood();
+        double p_gamma(fmat x, fmat a, fmat b);
+        double p_gamma(fmat x, double a, double b);
+        double p_gamma(fvec x, fvec a, fvec b);
+        double p_gamma(fvec x, double a, double b);
+        double elbo_extra();
         void log_convergence(int iteration, double ave_ll, double delta_ll);
         void log_time(int iteration, double duration);
         void log_params(int iteration, double tau_change, double theta_change);

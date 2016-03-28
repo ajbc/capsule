@@ -83,15 +83,9 @@ void Capsule::learn() {
                 doc = i;
             }
 
-            //printf("entity %d\t(samples)\n", data->get_entity(doc));
             entities.insert(data->get_entity(doc));
             date = data->get_date(doc);
-            //printf("processing doc with date %d\n", date);
-            //printf("doc %d\n", doc);
-            if (doc==1183)
-                printf("doc %d has date %d and entity %d\n", doc, date, data->get_entity(doc));
             for (int d = max(0, date - settings->event_dur); d <= date; d++) {
-                //printf("\tadding date %d\n", d);
                 dates.insert(d);
             }
             // look at all the document's terms
@@ -114,10 +108,10 @@ void Capsule::learn() {
                 iter_count_term[term]++;
                 update_theta(term);
             }
-            for (int k = 0; k < settings->k; k++) {
-                logtheta.row(k) -= log(accu(theta.row(k)));
-                theta.row(k) /= accu(theta.row(k));
-            }
+            //for (int k = 0; k < settings->k; k++) {
+            //    logtheta.row(k) -= log(accu(theta.row(k)));
+            //    theta.row(k) /= accu(theta.row(k));
+            //}
 
             b_phi.each_col() += sum(theta, 1);
             for (it = entities.begin(); it != entities.end(); it++) {
@@ -145,7 +139,7 @@ void Capsule::learn() {
                     b_pi.row(date) += f(d, date) * epsilon(date) * data->doc_count(d);
                     //printf("d %d, date %d, f %f\n", d, date, f(d, date));
                 }
-                printf("updating event description %d\n", date);
+                //printf("updating event description %d\n", date);
                 update_pi(date);
             }
         }
@@ -263,7 +257,8 @@ void Capsule::evaluate() {
 }
 
 void Capsule::evaluate(string label) {
-    evaluate(label, false);
+    //evaluate(label, false);
+    evaluate(label, true);
 }
 
 void Capsule::evaluate(string label, bool write_rankings) {
@@ -381,7 +376,7 @@ void Capsule::save_parameters(string label) {
         }
         fclose(file);
 
-        // write out theta
+        // write out pi
         file = fopen((settings->outdir+"/pi-"+label+".dat").c_str(), "w");
         for (int date = 0; date < data->date_count(); date++) {
             fprintf(file, "%d\t", date);
@@ -465,8 +460,8 @@ void Capsule::update_phi(int entity) {
     logphi.col(entity) = logphi.col(entity) - log(b_phi.col(entity));
     //printf("entity %d\n", entity);
     
-    logphi.col(entity) -= log(accu(phi.col(entity)));
-    phi.col(entity) /= accu(phi.col(entity));
+    //logphi.col(entity) -= log(accu(phi.col(entity)));
+    //phi.col(entity) /= accu(phi.col(entity));
 }
 
 void Capsule::update_theta(int term) {
@@ -493,7 +488,7 @@ void Capsule::update_epsilon(int date) {
         a_epsilon(date) = (1 - rho) * a_epsilon_old(date) + rho * a_epsilon(date);
         a_epsilon_old(date) = a_epsilon(date);
     }
-    printf("updating event occurance %d\n", date);
+    //printf("updating event occurance %d\n", date);
     //printf("%d:\t%f / %f = %f\n", date, a_epsilon(date), b_epsilon(date), a_epsilon(date) / b_epsilon(date));
     epsilon(date)  = a_epsilon(date) / b_epsilon(date);
     logepsilon(date) = gsl_sf_psi(a_epsilon(date)) - log(b_epsilon(date));
@@ -514,10 +509,14 @@ void Capsule::update_pi(int date) {
     for (int v = 0; v < data->term_count(); v++)
         logpi(date, v) = gsl_sf_psi(a_pi(date, v));
     logpi.row(date) = logpi.row(date) - log(b_pi.row(date));
+    
+    //logpi.row(date) -= log(accu(pi.row(date)));
+    //pi.row(date) /= accu(pi.row(date));
 }
 
 double Capsule::point_likelihood(double pred, int truth) {
-    return log(pred) * truth - log(factorial(truth)) - pred;
+    //return log(pred) * truth - log(factorial(truth)) - pred; (est)
+    return log(pred) * truth - pred;
 }
 
 double Capsule::get_ave_log_likelihood() {
@@ -531,14 +530,109 @@ double Capsule::get_ave_log_likelihood() {
         prediction = predict(doc, term);
         
         likelihood += point_likelihood(prediction, count);
+        //double ll = point_likelihood(prediction, count);
+        //likelihood += ll;
+        //printf("\t%f\t[%d]\t=> + %f\n", prediction, count, ll);
     }
 
-    return likelihood / data->num_validation();
+    printf("likelihood %f\n", likelihood);
+
+    return likelihood;// / data->num_validation();
+}
+
+double Capsule::p_gamma(fmat x, fmat a, fmat b) {
+    mat lga = zeros<mat>(a.n_rows, a.n_cols);
+    for (uint r =0; r < a.n_rows; r++) {
+        for (uint c=0; c < a.n_cols; c++) {
+            lga(r,c) = lgamma(a(r,c));
+        }
+    }
+    return accu((a-ones(a.n_rows, a.n_cols)) % log(x) - b % x - a % log(b) - lga);
+}
+
+double Capsule::p_gamma(fmat x, double a, double b) {
+    return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
+}
+
+double Capsule::p_gamma(fvec x, fvec a, fvec b) {
+    vec lga = zeros<vec>(a.n_elem);
+    for (uint i = 0; i < a.n_elem; i++){
+        lga(i) = lgamma(a(i));
+    }
+    return accu((a-ones(a.n_elem)) % log(x) - b % x - a % log(b) - lga);
+}
+
+double Capsule::p_gamma(fvec x, double a, double b) {
+    return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
+}
+
+double Capsule::elbo_extra() {//TODO: this needs to be differnet depending on "only" settings
+    double rv, rvtotal = 0;
+    
+    if (!settings->entity_only) {
+        rv = p_gamma(pi, a_pi, b_pi);
+        //printf("q pi (event descr): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+
+        rv = p_gamma(epsilon, a_epsilon, b_epsilon);
+        //printf("q epsilon (eoccur): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+    }
+
+    if (!settings->event_only) {
+        rv = p_gamma(phi, a_phi, b_phi);
+        //printf("q phi (entity con): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+        
+        rv = p_gamma(theta, a_theta, b_theta);
+        //printf("q theta (topics):   %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+    }
+
+    if (!settings->entity_only) {
+        rv = p_gamma(pi, settings->a_pi, settings->b_pi);
+        //printf("p pi (event descr): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+        
+        rv = p_gamma(epsilon, a_epsilon, b_epsilon);
+        //printf("p epsilon (eoccur): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+    }
+
+    if (!settings->event_only) {
+        rv = p_gamma(phi, settings->a_phi, settings->b_phi);
+        //printf("p phi (entity con): %f\n", rv);
+        printf("%f\t", rv);
+        rvtotal += rv;
+        
+        rv = p_gamma(theta, settings->a_theta, settings->b_theta);
+        //printf("p theta (topics):   %f\n", rv);
+        printf("%f\n", rv);
+        rvtotal += rv;
+    }
+
+    return rvtotal;
+    //return p_gamma(pi, a_pi, b_pi) + p_gamma(epsilon, a_epsilon, b_epsilon) + 
+    //    p_gamma(phi, a_phi, b_phi) + p_gamma(theta, a_theta, b_theta) +
+    //    p_gamma(pi, settings->a_pi, settings->b_pi) + p_gamma(epsilon, settings->a_epsilon, settings->b_epsilon) + 
+    //    p_gamma(phi, settings->a_phi, settings->b_phi) + p_gamma(theta, settings->a_theta, settings->b_theta);
 }
 
 void Capsule::log_convergence(int iteration, double ave_ll, double delta_ll) {
     FILE* file = fopen((settings->outdir+"/log_likelihood.dat").c_str(), "a");
-    fprintf(file, "%d\t%f\t%f\n", iteration, ave_ll, delta_ll);
+    printf("q evt desc\t\tq eocc\t\tq entity\tq topics\tp evt desc\tp eocc\t\tp entity\tp topics\n");
+    double ee = elbo_extra();
+    fprintf(file, "%d\t%f\t%f\t%f\n", iteration, ave_ll+ee, ave_ll, delta_ll);
+    printf("ll: %f\n", ave_ll);
+    printf("total: %f\n", ee + ave_ll);
+
+    //fprintf(file, "%d\t%f\t%f\t%f\n", iteration, ave_ll+elbo_extra(), ave_ll, delta_ll);
     fclose(file);
 }
 
