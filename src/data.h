@@ -29,7 +29,7 @@ class Data {
         
         map<int,int> authors;
         map<int,int> dates;
-        map<int,int> doc_counts;
+        map<pair<int, int>,int> doc_counts;
 
         // training data
         vector<int> train_docs;
@@ -72,7 +72,7 @@ class Data {
         void save_summary(string filename);
 
         int doc_count();
-        int doc_count(int date);
+        int doc_count(int entity, int date);
         int train_doc_count();
         int term_count();
         int entity_count();

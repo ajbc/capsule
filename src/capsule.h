@@ -23,8 +23,6 @@ struct model_settings {
     double b_phi;
     double a_theta;
     double b_theta;
-    double a_epsilon;
-    double b_epsilon;
     double a_pi;
     double b_pi;
 
@@ -52,7 +50,7 @@ struct model_settings {
     
     void set(bool print, string out, string data, bool use_svi,
              double aphi, double bphi, double athe, double bthe, 
-             double aeps, double beps, double api, double bpi,
+             double api, double bpi,
              bool entity, bool event, int dur,
              long rand, int savef, int evalf, int convf, 
              int iter_max, int iter_min, double delta,
@@ -70,8 +68,6 @@ struct model_settings {
         b_phi     = bphi;
         a_theta   = athe;
         b_theta   = bthe;
-        a_epsilon = aeps;
-        b_epsilon = beps;
         a_pi      = api;
         b_pi      = bpi;
 
@@ -130,7 +126,6 @@ struct model_settings {
             fprintf(file, "\ttheta    (%.2f, %.2f)\n", a_theta, b_theta);
         }
         if (!entity_only) {
-            fprintf(file, "\tepsilon  (%.2f, %.2f)\n", a_epsilon, b_epsilon);
             fprintf(file, "\tpi       (%.2f, %.2f)\n", a_pi, b_pi);
         }
         
@@ -164,29 +159,29 @@ class Capsule: protected Model {
         Data* data;
        
         // model parameters
-        fmat phi;     // entity concerns
+        fmat phi_k;     // entity concerns (topics/general)
+        fmat phi_d;     // entity concerns (date)
         fmat theta;   // topics
-        fvec epsilon; // event occurrences
         fmat pi;      // event descriptions
-        fmat logphi;  // log variants of above
+        fmat logphi_k;  // log variants of above
+        fmat logphi_d;
         fmat logtheta;
-        fvec logepsilon;
         fmat logpi;
 
         // helper parameters
         fmat decay;
         fmat logdecay;
-        fmat a_phi;
-        fmat b_phi;
+        fmat a_phi_k;
+        fmat b_phi_k;
+        fmat a_phi_d;
+        fmat b_phi_d;
         fmat a_theta;
         fmat b_theta;
-        fvec a_epsilon;
-        fvec b_epsilon;
         fmat a_pi;
         fmat b_pi;
-        fmat a_phi_old;
+        fmat a_phi_k_old;
+        fmat a_phi_d_old;
         fmat a_theta_old;
-        fvec a_epsilon_old;
         fmat a_pi_old;
     
         // random number generator
@@ -200,7 +195,6 @@ class Capsule: protected Model {
         void update_shape(int doc, int term, int count);
         void update_phi(int entity);
         void update_theta(int term);
-        void update_epsilon(int date);
         void update_pi(int date);
 
         double get_ave_log_likelihood();

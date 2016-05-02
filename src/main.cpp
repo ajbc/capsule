@@ -12,7 +12,7 @@ void print_usage_and_exit() {
     printf("********************** Capsule Event Detection Model **********************\n");
     printf("(c) Copyright 2016 Allison J.B. Chaney  ( achaney@cs.princeton.edu )\n");
     printf("Distributed under MIT License; see LICENSE file for details.\n");
-    
+
     printf("\nusage:\n");
     printf(" capsule [options]\n");
     printf("  --help            print help information\n");
@@ -21,30 +21,28 @@ void print_usage_and_exit() {
     printf("\n");
     printf("  --out {dir}       save directory, required\n");
     printf("  --data {dir}      data directory, required\n");
-    
+
     printf("\n");
     printf("  --svi             use stochastic VI (instead of batch VI)\n");
     printf("                    default off for < 10M doc-term counts in training\n");
     printf("  --batch           use batch VI (instead of SVI)\n");
     printf("                    default on for < 10M doc-term counts in training\n");
-    
+
     printf("\n");
     printf("  --a_phi {a}       shape hyperparamter to phi (entity concerns); default 0.3\n");
     printf("  --b_phi {b}       rate hyperparamter to phi (entity concerns); default 0.3\n");
     printf("  --a_theta {a}     shape hyperparamter to theta (topics); default 0.3\n");
     printf("  --b_theta {b}     rate hyperparamter to theta (topics); default 0.3\n");
-    printf("  --a_epsilon {a}   shape hyperparamter to epsilon (event occurrence); default 0.3\n");
-    printf("  --b_epsilon {b}   rate hyperparamter to epsilon (event occurrence); default 0.3\n");
-    printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 0.3\n");
+    printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 1e-6\n");
     printf("  --b_pi {b}        rate hyperparamter to pi (event description); default 0.3\n");
-  
+
     printf("\n");
     printf("  --entity_only     only consider entity concern aspect of factorization\n");
     printf("  --event_only      only consider event aspect of factorization\n");
-    
+
     printf("\n");
     printf("  --event_dur {d}   event duration; default 7\n");
-    
+
     printf("\n");
     printf("  --seed {seed}     the random seed, default from time\n");
     printf("  --save_freq {f}   the saving frequency, default 20.  Negative value means\n");
@@ -86,9 +84,7 @@ int main(int argc, char* argv[]) {
     double b_phi = 0.3;
     double a_theta = 0.3;
     double b_theta = 0.3;
-    double a_epsilon = 0.3;
-    double b_epsilon = 0.3;
-    double a_pi = 0.3;
+    double a_pi = 1e-6;
     double b_pi = 0.3;
 
     // these are really bools, but typed as integers to play nice with getopt
@@ -106,7 +102,7 @@ int main(int argc, char* argv[]) {
     int    max_iter = 300;
     int    min_iter = 30;
     double converge_delta = 1e-6;
-    
+
     int    sample_size = 1000;
     double svi_delay = 1024;
     double svi_forget = 0.75;
@@ -114,7 +110,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:r:s:w:j:g:x:m:c:a:e:f:pk:";
+    const char* const short_options = "hqo:d:vb1:2:3:4:7:8:r:s:w:j:g:x:m:c:a:e:f:pk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -126,8 +122,6 @@ int main(int argc, char* argv[]) {
         {"b_phi",           required_argument, NULL, '2'},
         {"a_theta",         required_argument, NULL, '3'},
         {"b_theta",         required_argument, NULL, '4'},
-        {"a_epsilon",       required_argument, NULL, '5'},
-        {"b_epsilon",       required_argument, NULL, '6'},
         {"a_pi",            required_argument, NULL, '7'},
         {"b_pi",            required_argument, NULL, '8'},
         {"entity_only",     no_argument, &entity_only, 1},
@@ -147,8 +141,8 @@ int main(int argc, char* argv[]) {
         {"K",               required_argument, NULL, 'k'},
         {NULL, 0, NULL, 0}};
 
-  
-    int opt = 0; 
+
+    int opt = 0;
     while(true) {
         opt = getopt_long(argc, argv, short_options, long_options, NULL);
         switch(opt) {
@@ -182,12 +176,6 @@ int main(int argc, char* argv[]) {
             case '4':
                 b_theta = atof(optarg);
                 break;
-            case '5':
-                a_epsilon = atof(optarg);
-                break;
-            case '6':
-                b_epsilon = atof(optarg);
-                break;
             case '7':
                 a_pi = atof(optarg);
                 break;
@@ -211,13 +199,13 @@ int main(int argc, char* argv[]) {
                 break;
             case 'x':
                 max_iter =  atoi(optarg);
-                break;    
+                break;
             case 'm':
                 min_iter =  atoi(optarg);
-                break;    
+                break;
             case 'c':
                 converge_delta =  atoi(optarg);
-                break;    
+                break;
             case 'a':
                 sample_size = atoi(optarg);
                 break;
@@ -252,19 +240,19 @@ int main(int argc, char* argv[]) {
         printf("No output directory specified.  Exiting.\n");
         exit(-1);
     }
-    
+
     if (dir_exists(out)) {
         string rmout = "rm -rf " + out;
         system(rmout.c_str());
     }
     make_directory(out);
     printf("output directory: %s\n", out.c_str());
-    
+
     if (data == "") {
         printf("No data directory specified.  Exiting.\n");
         exit(-1);
     }
-    
+
     if (!dir_exists(data)) {
         printf("data directory %s doesn't exist!  Exiting.\n", data.c_str());
         exit(-1);
@@ -275,29 +263,29 @@ int main(int argc, char* argv[]) {
         printf("training data file (train.tsv) doesn't exist!  Exiting.\n");
         exit(-1);
     }
-    
+
     if (!file_exists(data + "/validation.tsv")) {
         printf("validation data file (validation.tsv) doesn't exist!  Exiting.\n");
         exit(-1);
     }
-    
+
     if (entity_only && event_only) {
         printf("Model cannot be both entity only and event only.  Exiting.\n");
         exit(-1);
     }
-    
+
     if (svi && batchvi) {
         printf("Inference method cannot be both stochatic (SVI) and batch.  Exiting.\n");
         exit(-1);
     }
-    
+
     if (batchvi && final_pass) {
         printf("Batch VI doesn't allow for a \"final pass.\" Ignoring this argument.\n");
         final_pass = false;
     }
-    
+
     printf("\nmodel specification:\n");
-    
+
     if (entity_only) {
         printf("\tentity factors only\n");
     } else if (event_only) {
@@ -314,15 +302,14 @@ int main(int argc, char* argv[]) {
         printf("\nevent duration: %d\n", event_dur);
 
     printf("\nshape and rate hyperparameters:\n");
+    printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
     if (!event_only) {
-        printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
         printf("\ttheta    (%.2f, %.2f)\n", a_theta, b_theta);
     }
     if (!entity_only) {
-        printf("\tepsilon  (%.2f, %.2f)\n", a_epsilon, b_epsilon);
         printf("\tpi       (%.2f, %.2f)\n", a_pi, b_pi);
     }
-    
+
     printf("\ninference parameters:\n");
     printf("\tseed:                                     %d\n", (int)seed);
     printf("\tsave frequency:                           %d\n", save_freq);
@@ -332,7 +319,7 @@ int main(int argc, char* argv[]) {
     printf("\tminimum number of iterations:             %d\n", min_iter);
     printf("\tchange in log likelihood for convergence: %f\n", converge_delta);
     printf("\tfinal pass after convergence:             %s\n", final_pass ? "yes" : "no");
-   
+
     if (!batchvi) {
         printf("\nStochastic variational inference parameters\n");
         if (!svi)
@@ -343,16 +330,15 @@ int main(int argc, char* argv[]) {
     } else {
         printf("\nusing batch variational inference\n");
     }
-    
 
-    model_settings settings; 
-    settings.set(verbose, out, data, svi, a_phi, b_phi, a_theta, b_theta, 
-        a_epsilon, b_epsilon, a_pi, b_pi,
+
+    model_settings settings;
+    settings.set(verbose, out, data, svi, a_phi, b_phi, a_theta, b_theta, a_pi, b_pi,
         (bool) entity_only, (bool) event_only,
         event_dur,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,
         final_pass, sample_size, svi_delay, svi_forget, k);
-    
+
     // read in the data
     printf("********************************************************************************\n");
     printf("reading data\n");
@@ -364,7 +350,7 @@ int main(int argc, char* argv[]) {
     printf("\treading validation data\t\t...\t");
     dataset->read_validation(settings.datadir + "/validation.tsv");
     printf("done\n");
-    
+
     if (!file_exists(data + "/test.tsv")) {
         printf("testing data file (test.tsv) doesn't exist!  Exiting.\n");
         exit(-1);
@@ -372,11 +358,11 @@ int main(int argc, char* argv[]) {
     printf("\treading testing data\t\t...\t");
     dataset->read_test(settings.datadir + "/test.tsv");
     printf("done\n");
-    
-    //printf("\tsaving data stats\t\t...\t");
-    //dataset->save_summary(out + "/data_stats.txt");
-    //printf("done\n");
-    
+
+    printf("\tsaving data stats\t\t...\t");
+    dataset->save_summary(out + "/data_stats.txt");
+    printf("done\n");
+
     // save the run settings
     printf("Saving settings\n");
     if (!svi && !batchvi) {
@@ -391,13 +377,13 @@ int main(int argc, char* argv[]) {
     if (!settings.svi)
         settings.set_sample_size(dataset->doc_count());
     printf("sample size %d\n", settings.sample_size);
-    
+
     settings.save(out + "/settings.txt");
 
     // TODO: make this/evaluate below optional (--test_only, --no_test)
     printf("********************************************************************************\n");
     printf("commencing model evaluation\n");
-    
+
     // create model instance; learn!
     printf("\ncreating model instance\n");
     Capsule *model = new Capsule(&settings, dataset);
@@ -407,7 +393,7 @@ int main(int argc, char* argv[]) {
     // test the final model fit
     printf("evaluating model on held-out data (TODO)\n");
     model->evaluate();
-    
+
     delete model;
     delete dataset;
 

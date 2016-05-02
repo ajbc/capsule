@@ -17,14 +17,14 @@ void Data::read_training(string counts_filename, string meta_filename) {
         //printf("reading meta: doc %d, date %d, author %d\n", doc, date, author);
         authors[doc] = author;
         dates[doc] = date;
-            
+
         if (doc > max_doc)
             max_doc = doc;
         if (author > max_entity)
             max_entity = author;
         if (date > max_date)
             max_date = date;
-        doc_counts[date]++;
+        doc_counts[make_pair(author, date)]++;
     }
     fclose(fileptr);
 
@@ -35,7 +35,7 @@ void Data::read_training(string counts_filename, string meta_filename) {
     map<int, set<int> > entity_docset;
     map<int, set<int> > day_docset;
     map<int, map<int, set<int> > > entity_day_docset;
-    
+
     // read in training data
     fileptr = fopen(counts_filename.c_str(), "r");
     while ((fscanf(fileptr, "%d\t%d\t%d\n", &doc, &term, &count) != EOF)) {
@@ -135,7 +135,7 @@ void Data::read_validation(string filename) {
         }
     }
     fclose(fileptr);
-            
+
     /*umat locations = umat(2, num_validation());
     fcolvec values = fcolvec(num_validation());
     for (int i = 0; i < num_validation(); i++) {
@@ -166,7 +166,7 @@ void Data::read_test(string filename) {
 
 void Data::save_summary(string filename) {
     FILE* file = fopen(filename.c_str(), "w");
-    
+
     fprintf(file, "num documents:\t%d\n", doc_count());
     fprintf(file, "num terms:    \t%d\n", term_count());
     fprintf(file, "num entities: \t%d\n", entity_count());
@@ -178,8 +178,8 @@ int Data::doc_count() {
     return max_doc+1;
 }
 
-int Data::doc_count(int date) {
-    return doc_counts[date];
+int Data::doc_count(int entity, int date) {
+    return doc_counts[make_pair(entity, date)];
 }
 
 int Data::train_doc_count() {
