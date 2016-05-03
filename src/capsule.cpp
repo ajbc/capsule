@@ -121,7 +121,7 @@ void Capsule::learn() {
             }
 
             b_theta.col(doc) += phi.col(entity);
-            b_epsilon.col(doc) += psi.col(date);
+            b_epsilon.col(doc) += psi(date);
             if (!settings->svi)
                 b_theta.col(doc) += sum(beta, 1);
             update_theta(doc);
@@ -475,8 +475,8 @@ void Capsule::update_psi(int date) {
     if (settings->svi) {
         double rho = pow(iter_count_date[date] + settings->delay,
             -1 * settings->forget);
-        a_psi.col(date) = (1 - rho) * a_psi_old.col(date) + rho * a_psi.col(date);
-        a_psi_old.col(date) = a_psi.col(date);
+        a_psi(date) = (1 - rho) * a_psi_old(date) + rho * a_psi(date);
+        a_psi_old.col(date) = a_psi(date);
     }
 
     psi(date) = a_psi(date) / b_psi(date);
@@ -581,6 +581,17 @@ double Capsule::p_gamma(fmat x, double a, fmat b) {
     for (uint r =0; r < x.n_rows; r++) {
         for (uint c=0; c < x.n_cols; c++) {
             rv += (a - 1.0) * log(x(r,c)) - b(r,c) * x(r,c) - a * log(b(r,c)) - lga;
+        }
+    }
+    return rv;
+}
+
+double Capsule::p_gamma(fmat x, double a, fvec b) {
+    double rv = 0.0;
+    double lga = lgamma(a);
+    for (uint r =0; r < x.n_rows; r++) {
+        for (uint c=0; c < x.n_cols; c++) {
+            rv += (a - 1.0) * log(x(r,c)) - b(r) * x(r,c) - a * log(b(r)) - lga;
         }
     }
     return rv;

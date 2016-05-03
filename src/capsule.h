@@ -225,6 +225,7 @@ class Capsule: protected Model {
         double get_ave_log_likelihood();
         double p_gamma(fmat x, fmat a, fmat b);
         double p_gamma(fmat x, double a, fmat b);
+        double p_gamma(fmat x, double a, fvec b);
         double p_gamma(fmat x, double a, double b);
         double p_gamma(fvec x, fvec a, fvec b);
         double p_gamma(fvec x, double a, fvec b);
