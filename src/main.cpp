@@ -31,10 +31,14 @@ void print_usage_and_exit() {
     printf("\n");
     printf("  --a_phi {a}       shape hyperparamter to phi (entity concerns); default 0.3\n");
     printf("  --b_phi {b}       rate hyperparamter to phi (entity concerns); default 0.3\n");
-    printf("  --a_theta {a}     shape hyperparamter to theta (topics); default 0.3\n");
-    printf("  --b_theta {b}     rate hyperparamter to theta (topics); default 0.3\n");
-    printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 1e-6\n");
-    printf("  --b_pi {b}        rate hyperparamter to pi (event description); default 0.3\n");
+    printf("  --a_psi {a}       shape hyperparamter to psi (event strength); default 0.3\n");
+    printf("  --b_psi {b}       rate hyperparamter to psi (event strength); default 0.3\n");
+    printf("  --a_theta {a}     shape hyperparamter to theta (doc topics); default 0.3\n");
+    printf("  --b_theta {b}     rate hyperparamter to theta (doc topics); default 0.3\n");
+    printf("  --a_epsilon {a}   shape hyperparamter to epsilon (doc events); default 0.3\n");
+    printf("  --b_epsilon {b}   rate hyperparamter to epsilon (doc events); default 0.3\n");
+    printf("  --a_beta {a}      shape hyperparamter to beta (topics); default 0.3\n");
+    printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 0.3\n");
 
     printf("\n");
     printf("  --entity_only     only consider entity concern aspect of factorization\n");
@@ -82,10 +86,14 @@ int main(int argc, char* argv[]) {
 
     double a_phi = 0.3;
     double b_phi = 0.3;
+    double a_psi = 0.3;
+    double b_psi = 0.3;
     double a_theta = 0.3;
     double b_theta = 0.3;
-    double a_pi = 1e-6;
-    double b_pi = 0.3;
+    double a_epsilon = 0.3;
+    double b_epsilon = 0.3;
+    double a_beta = 0.3;
+    double a_pi = 0.3;
 
     // these are really bools, but typed as integers to play nice with getopt
     int entity_only = 0;
@@ -110,7 +118,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:7:8:r:s:w:j:g:x:m:c:a:e:f:pk:";
+    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:r:s:w:j:g:x:m:c:a:e:f:pk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -120,10 +128,14 @@ int main(int argc, char* argv[]) {
         {"batch",           no_argument, NULL, 'b'},
         {"a_phi",           required_argument, NULL, '1'},
         {"b_phi",           required_argument, NULL, '2'},
-        {"a_theta",         required_argument, NULL, '3'},
-        {"b_theta",         required_argument, NULL, '4'},
-        {"a_pi",            required_argument, NULL, '7'},
-        {"b_pi",            required_argument, NULL, '8'},
+        {"a_psi",           required_argument, NULL, '3'},
+        {"b_psi",           required_argument, NULL, '4'},
+        {"a_theta",         required_argument, NULL, '5'},
+        {"b_theta",         required_argument, NULL, '6'},
+        {"a_epsilon",       required_argument, NULL, '7'},
+        {"b_epsilon",       required_argument, NULL, '8'},
+        {"a_beta",          required_argument, NULL, '9'},
+        {"a_pi",            required_argument, NULL, '0'},
         {"entity_only",     no_argument, &entity_only, 1},
         {"event_only",      no_argument, &event_only, 1},
         {"event_dur",       required_argument, NULL, 'r'},
@@ -171,16 +183,28 @@ int main(int argc, char* argv[]) {
                 b_phi = atof(optarg);
                 break;
             case '3':
-                a_theta = atof(optarg);
+                a_psi = atof(optarg);
                 break;
             case '4':
+                b_psi = atof(optarg);
+                break;
+            case '5':
+                a_theta = atof(optarg);
+                break;
+            case '6':
                 b_theta = atof(optarg);
                 break;
             case '7':
-                a_pi = atof(optarg);
+                a_epsilon = atof(optarg);
                 break;
             case '8':
-                b_pi = atof(optarg);
+                b_epsilon = atof(optarg);
+                break;
+            case '9':
+                a_beta = atof(optarg);
+                break;
+            case '0':
+                a_pi = atof(optarg);
                 break;
             case 'r':
                 event_dur = atoi(optarg);
@@ -302,12 +326,15 @@ int main(int argc, char* argv[]) {
         printf("\nevent duration: %d\n", event_dur);
 
     printf("\nshape and rate hyperparameters:\n");
-    printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
     if (!event_only) {
+        printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
         printf("\ttheta    (%.2f, %.2f)\n", a_theta, b_theta);
+        printf("\tbeta     (%.2f, 1.0)\n", a_beta);
     }
     if (!entity_only) {
-        printf("\tpi       (%.2f, %.2f)\n", a_pi, b_pi);
+        printf("\tpsi      (%.2f, %.2f)\n", a_psi, b_psi);
+        printf("\tepsilon  (%.2f, %.2f)\n", a_epsilon, b_epsilon);
+        printf("\tpi       (%.2f, 1.0)\n", a_pi);
     }
 
     printf("\ninference parameters:\n");
@@ -333,7 +360,8 @@ int main(int argc, char* argv[]) {
 
 
     model_settings settings;
-    settings.set(verbose, out, data, svi, a_phi, b_phi, a_theta, b_theta, a_pi, b_pi,
+    settings.set(verbose, out, data, svi, a_phi, b_phi, a_psi, b_psi, a_theta, b_theta,
+        a_epsilon, b_epsilon, a_pi, a_beta,
         (bool) entity_only, (bool) event_only,
         event_dur,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,

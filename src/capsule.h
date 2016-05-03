@@ -21,16 +21,20 @@ struct model_settings {
 
     double a_phi;
     double b_phi;
+    double a_psi;
+    double b_psi;
     double a_theta;
     double b_theta;
+    double a_epsilon;
+    double b_epsilon;
     double a_pi;
-    double b_pi;
+    double a_beta;
 
     bool entity_only;
     bool event_only;
 
     int event_dur;
-    
+
     long   seed;
     int    save_freq;
     int    eval_freq;
@@ -46,13 +50,14 @@ struct model_settings {
     double forget;
 
     int k;
-  
-    
+
+
     void set(bool print, string out, string data, bool use_svi,
-             double aphi, double bphi, double athe, double bthe, 
-             double api, double bpi,
+             double aphi, double bphi, double apsi, double bpsi,
+             double athe, double bthe, double aeps, double beps,
+             double api, double abet,
              bool entity, bool event, int dur,
-             long rand, int savef, int evalf, int convf, 
+             long rand, int savef, int evalf, int convf,
              int iter_max, int iter_min, double delta,
              bool finalpass,
              int sample, double svi_delay, double svi_forget,
@@ -63,17 +68,21 @@ struct model_settings {
         datadir = data;
 
         svi = use_svi;
-        
+
         a_phi     = aphi;
         b_phi     = bphi;
+        a_psi     = apsi;
+        b_psi     = bpsi;
         a_theta   = athe;
         b_theta   = bthe;
+        a_epsilon = aeps;
+        b_epsilon = beps;
         a_pi      = api;
-        b_pi      = bpi;
+        a_beta      = abet;
 
         entity_only = entity;
         event_only = event;
-        
+
         event_dur = dur;
 
         seed = rand;
@@ -91,18 +100,18 @@ struct model_settings {
 
         k = num_factors;
     }
-    
+
     void set_stochastic_inference(bool setting) {
         svi = setting;
     }
-    
+
     void set_sample_size(int setting) {
         sample_size = setting;
     }
 
     void save(string filename) {
         FILE* file = fopen(filename.c_str(), "w");
-        
+
         fprintf(file, "data directory: %s\n", datadir.c_str());
 
         fprintf(file, "\nmodel specification:\n");
@@ -124,11 +133,14 @@ struct model_settings {
         if (!event_only) {
             fprintf(file, "\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
             fprintf(file, "\ttheta    (%.2f, %.2f)\n", a_theta, b_theta);
+            fprintf(file, "\tbeta     (%.2f, 1.0)\n", a_beta);
         }
         if (!entity_only) {
-            fprintf(file, "\tpi       (%.2f, %.2f)\n", a_pi, b_pi);
+            fprintf(file, "\tpsi      (%.2f, %.2f)\n", a_psi, b_psi);
+            fprintf(file, "\tepsilon  (%.2f, %.2f)\n", a_epsilon, b_epsilon);
+            fprintf(file, "\tpi       (%.2f, 1.0)\n", a_pi);
         }
-        
+
         fprintf(file, "\ninference parameters:\n");
         fprintf(file, "\tseed:                                     %d\n", (int)seed);
         fprintf(file, "\tsave frequency:                           %d\n", save_freq);
@@ -138,7 +150,7 @@ struct model_settings {
         fprintf(file, "\tminimum number of iterations:             %d\n", min_iter);
         fprintf(file, "\tchange in log likelihood for convergence: %f\n", likelihood_delta);
         fprintf(file, "\tfinal pass after convergence:             %s\n", final_pass ? "yes" : "no");
-       
+
         if (svi) {
             fprintf(file, "\nStochastic variational inference parameters\n");
             fprintf(file, "\tsample size:                              %d\n", sample_size);
@@ -147,7 +159,7 @@ struct model_settings {
         } else {
             fprintf(file, "\nusing batch variational inference\n");
         }
-        
+
         fclose(file);
     }
 };
@@ -157,62 +169,77 @@ class Capsule: protected Model {
     private:
         model_settings* settings;
         Data* data;
-       
+
         // model parameters
-        fmat phi_k;     // entity concerns (topics/general)
-        fmat phi_d;     // entity concerns (date)
-        fmat theta;   // topics
+        fmat phi;     // entity concerns (topics/general)
+        fvec psi;     // event strengths
+        fmat theta;   // doc topics
+        fmat epsilon; // doc events
+        fmat beta;    // topics
         fmat pi;      // event descriptions
-        fmat logphi_k;  // log variants of above
-        fmat logphi_d;
+        fmat logphi;  // log variants of above
+        fvec logpsi;
         fmat logtheta;
+        fmat logepsilon;
+        fmat logbeta;
         fmat logpi;
 
         // helper parameters
         fmat decay;
         fmat logdecay;
-        fmat a_phi_k;
-        fmat b_phi_k;
-        fmat a_phi_d;
-        fmat b_phi_d;
+        fmat a_phi;
+        fmat b_phi;
+        fvec a_psi;
+        fvec b_psi;
         fmat a_theta;
         fmat b_theta;
+        fmat a_epsilon;
+        fmat b_epsilon;
+        fmat a_beta;
+        fmat b_beta;
         fmat a_pi;
         fmat b_pi;
-        fmat a_phi_k_old;
-        fmat a_phi_d_old;
+        fmat a_phi_old;
+        fvec a_psi_old;
         fmat a_theta_old;
+        fmat a_epsilon_old;
+        fmat a_beta_old;
         fmat a_pi_old;
-    
+
         // random number generator
         gsl_rng* rand_gen;
 
         void initialize_parameters();
         void reset_helper_params();
         void save_parameters(string label);
-    
+
         // parameter updates
         void update_shape(int doc, int term, int count);
         void update_phi(int entity);
-        void update_theta(int term);
+        void update_psi(int date);
+        void update_theta(int doc);
+        void update_epsilon(int doc, int date);
+        void update_beta(int iteration);
         void update_pi(int date);
 
         double get_ave_log_likelihood();
         double p_gamma(fmat x, fmat a, fmat b);
+        double p_gamma(fmat x, double a, fmat b);
         double p_gamma(fmat x, double a, double b);
         double p_gamma(fvec x, fvec a, fvec b);
+        double p_gamma(fvec x, double a, fvec b);
         double p_gamma(fvec x, double a, double b);
         double elbo_extra();
         void log_convergence(int iteration, double ave_ll, double delta_ll);
         void log_time(int iteration, double duration);
         void log_params(int iteration, double tau_change, double theta_change);
-        void log_user(FILE* file, int user, int heldout, double rmse, 
+        void log_user(FILE* file, int user, int heldout, double rmse,
             double mae, double rank, int first, double crr, double ncrr,
             double ndcg);
-    
+
         // define how to scale updates (training / sample size) (for SVI)
-        double scale; 
-        
+        double scale;
+
         // counts of number of times an item has been seen in a sample (for SVI)
         map<int,int> iter_count_term;
         map<int,int> iter_count_entity;
@@ -221,7 +248,7 @@ class Capsule: protected Model {
         void evaluate(string label);
         void evaluate(string label, bool write_rankings);
 
-        
+
     public:
         Capsule(model_settings* model_set, Data* dataset);
         void learn();
