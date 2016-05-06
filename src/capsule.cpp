@@ -96,11 +96,20 @@ void Capsule::learn() {
         if (settings->svi)
             b_theta.each_col() += sum(beta, 1);
 
+        time_t sst, st, et;
+        time(&sst);
+        time(&st);
         for (int i = 0; i < settings->sample_size; i++) {
             if (settings->svi) {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
             } else {
                 doc = i;
+                if (doc % 10000 == 0) {
+                    time(&et);
+                    double rmt = (difftime(et, sst) / doc) * (data->doc_count() - doc);
+                    printf("\t doc %d / %d\t%fs (est. %f 'til end of iter)\n", doc, data->doc_count(), difftime(et, st), rmt);
+                    time(&st);
+                }
             }
 
             int entity = data->get_entity(doc);
@@ -408,7 +417,7 @@ void Capsule::save_parameters(string label) {
         fclose(file);
 
         // write out epsilon
-        file = fopen((settings->outdir+"/theta-"+label+".dat").c_str(), "w");
+        file = fopen((settings->outdir+"/epsilon-"+label+".dat").c_str(), "w");
         for (int doc = 0; doc < data->doc_count(); doc++) {
             int date = data->get_date(doc);
             for (int d = max(0, date - settings->event_dur); d <= date; d++)
@@ -578,9 +587,10 @@ double Capsule::p_gamma(fmat x, fmat a, fmat b) {
 double Capsule::p_gamma(fmat x, double a, fmat b) {
     double rv = 0.0;
     double lga = lgamma(a);
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
-            rv += (a - 1.0) * log(x(r,c)) - b(r,c) * x(r,c) - a * log(b(r,c)) - lga;
+    for (uint c = 0; c < x.n_cols; c++) {
+        int e = data->get_entity(c);
+        for (uint r = 0; r < x.n_rows; r++) {
+            rv += (a - 1.0) * log(x(r,c)) - b(r,e) * x(r,c) - a * log(b(r,e)) - lga;
         }
     }
     return rv;
@@ -627,28 +637,34 @@ double Capsule::elbo_extra() {
 
     // subtract q
     if (!settings->entity_only) {
+        printf("p pi\n");
         rv = p_gamma(pi, a_pi, b_pi);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p epsilon\n");
         rv = p_gamma(epsilon, a_epsilon, b_epsilon);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p psi\n");
         rv = p_gamma(psi, a_psi, b_psi);
         //printf("%f\t", rv);
         rvtotal -= rv;
     }
 
     if (!settings->event_only) {
+        printf("p beta\n");
         rv = p_gamma(beta, a_beta, b_beta);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p theta\n");
         rv = p_gamma(theta, a_theta, b_theta);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p phi\n");
         rv = p_gamma(phi, a_phi, b_phi);
         //printf("%f\t", rv);
         rvtotal -= rv;
@@ -656,28 +672,34 @@ double Capsule::elbo_extra() {
 
     // add p
     if (!settings->entity_only) {
+        printf("q pi\n");
         rv = p_gamma(pi, settings->a_pi, 1.0);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q epsilon\n");
         rv = p_gamma(epsilon, settings->a_epsilon, psi);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q psi\n");
         rv = p_gamma(psi, settings->a_psi, settings->b_psi);
         //printf("%f\t", rv);
         rvtotal += rv;
     }
 
     if (!settings->event_only) {
+        printf("q beta\n");
         rv = p_gamma(beta, settings->a_beta, 1.0);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q theta\n");
         rv = p_gamma(theta, settings->a_theta, phi);
         //printf("%f\n", rv);
         rvtotal += rv;
 
+        printf("q phi\n");
         rv = p_gamma(phi, settings->a_phi, settings->b_phi);
         //printf("%f\t", rv);
         rvtotal += rv;
@@ -718,7 +740,7 @@ void Capsule::log_user(FILE* file, int user, int heldout, double rmse, double ma
 
 double Capsule::f(int doc_date, int event_date) {
     // this can be confusing: the document of int
-    if (event_date > doc_date || event_date <= (doc_date - settings->event_dur))
+    if (event_date > doc_date || event_date < (doc_date - settings->event_dur))
         return 0;
     return (1.0-(0.0+doc_date-event_date)/settings->event_dur);
 }
