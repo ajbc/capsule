@@ -12,31 +12,91 @@ Now imagine that at a particular time, an event occurs, such as the capture of S
 Thus we imagine that an entity's stream of messages is controlled by what it usually talks about as well as the higher level stream of unobserved events.
 
 \parhead{Model Specification.}
-We formally describe Capsule. The observed data are documents represented in topic space; each document has an author (or entity) and a time (or date) associated with it.  The document content for each document $d$ is represented as $\theta_d$, a $K$-dimensional vector, where $K$ is the number of topics.  The author and time associated with document $d$ are represented as $n_d$ and $m_d$, respectively.
+% We formally describe Capsule. The observed data are documents represented in topic space; each document has an author (or entity) and a time (or date) associated with it.  The document content for each document $d$ is represented as $\theta_d$, a $K$-dimensional vector, where $K$ is the number of topics.  The author and time associated with document $d$ are represented as $n_d$ and $m_d$, respectively.
 
-The hidden variables of this model are the authors' typical concerns, event occurrences, and event descriptions.  We represent the concerns of author $n$ as $\phi_n$, also a $K$-dimensional topic vector.  For each time $t$ we represent whether or not an event occurs with $\epsilon_t$; when an event does occur we represent its content as $\pi_t$, another $K$-dimensional topic vector.
+% The hidden variables of this model are the authors' typical concerns, event occurrences, and event descriptions.  We represent the concerns of author $n$ as $\phi_n$, also a $K$-dimensional topic vector.  For each time $t$ we represent whether or not an event occurs with $\epsilon_t$; when an event does occur we represent its content as $\pi_t$, another $K$-dimensional topic vector.
 
-Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document topics $\theta_d$ came to be; we generate the topics for each document
-\begin{equation}
-\theta_{d,k} \sim \mbox{Gamma}\left(\phi_{n_d,k} + \sum_{t=1}^T f(t, m_d) \epsilon_t \pi_{t,k}\right),\footnotemark
-\end{equation}
-% \footnotetext{Throughout this work, we use a non-traditional parameterization of the gamma distribution.  Recall the shape $a$ and scale $b$ parameterization of the gamma, or \[\mbox{Gamma}^*(x \g a, b) = \frac{1}{\Gamma(a) b^a} x^{(a-1)}e^{- x / b}.\] In our alternative parameterization, we use a single mean parameter $\mu$ and a fixed sparsity hyperparameter $\alpha$, or \[\mbox{Gamma}(x \g \mu, \alpha) = \mbox{Gamma}^*(x \g \alpha, \mu / \alpha);\] when a gamma distribution is only specified by a single parameter, it is the mean $\mu$ and the sparsity hyperparamter $\alpha$ is hidden for simplicity.
-% }
-where we define the event decay function $f$ to be a simple linear decrease: \[f(t, m) =
-\begin{cases}
-  1 - \frac{m-t}{\delta}, & \mbox{if } t \le m < t+\delta \\
-  0, & \mbox{otherwise,}
-\end{cases} \] with $\delta$ being the time duration after the event at time $t$ is no longer relevant.  Figure~\ref{fig:graphicalmodel} shows the dependencies between the hidden and observed variables as a graphical model.
+% Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document topics $\theta_d$ came to be; we generate the topics for each document
+% \begin{equation}
+% \theta_{d,k} \sim \mbox{Gamma}\left(\phi_{n_d,k} + \sum_{t=1}^T f(t, m_d) \epsilon_t \pi_{t,k}\right),\footnotemark
+% \end{equation}
+% % \footnotetext{Throughout this work, we use a non-traditional parameterization of the gamma distribution.  Recall the shape $a$ and scale $b$ parameterization of the gamma, or \[\mbox{Gamma}^*(x \g a, b) = \frac{1}{\Gamma(a) b^a} x^{(a-1)}e^{- x / b}.\] In our alternative parameterization, we use a single mean parameter $\mu$ and a fixed sparsity hyperparameter $\alpha$, or \[\mbox{Gamma}(x \g \mu, \alpha) = \mbox{Gamma}^*(x \g \alpha, \mu / \alpha);\] when a gamma distribution is only specified by a single parameter, it is the mean $\mu$ and the sparsity hyperparamter $\alpha$ is hidden for simplicity.
+% % }
+% where we define the event decay function $f$ to be a simple linear decrease: \[f(t, m) =
+% \begin{cases}
+%   1 - \frac{m-t}{\delta}, & \mbox{if } t \le m < t+\delta \\
+%   0, & \mbox{otherwise,}
+% \end{cases} \] with $\delta$ being the time duration after the event at time $t$ is no longer relevant.  Figure~\ref{fig:graphicalmodel} shows the dependencies between the hidden and observed variables as a graphical model.
 
-To complete the specification of all the variables, we place priors on all of the hidden variables.  Author concerns $\phi_{n,k}$ and event content $\pi_t$ are specified with Gamma priors.  Event occurrence $\epsilon_t$ has a Poisson prior.
-% TODO: we make a note about the Poisson taking values > 1; what is the intuition?
+% To complete the specification of all the variables, we place priors on all of the hidden variables.  Author concerns $\phi_{n,k}$ and event content $\pi_t$ are specified with Gamma priors.  Event occurrence $\epsilon_t$ has a Poisson prior.
+% % TODO: we make a note about the Poisson taking values > 1; what is the intuition?
 
-\begin{figure}
-\centering
-\includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
-\caption{A directed graphical model of Capsule to show considered dependencies. Shaded document topics nodes $\theta$ are observed. unshaded nodes are hidden variables---these are event occurrences $\epsilon$, event content descriptions $\pi$, and entity typical concerns $\phi$. Plates denote replication: there are $D$ documents, $T$ time steps, $N$ entities, and $K$ topics. Hyperparameters $\eta$, $\mu$, and $\alpha$ are fixed.}
-\label{fig:graphicalmodel}
-\end{figure}
+% \begin{figure}
+% \centering
+% \includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
+% \caption{A directed graphical model of Capsule to show considered dependencies. Shaded document topics nodes $\theta$ are observed. unshaded nodes are hidden variables---these are event occurrences $\epsilon$, event content descriptions $\pi$, and entity typical concerns $\phi$. Plates denote replication: there are $D$ documents, $T$ time steps, $N$ entities, and $K$ topics. Hyperparameters $\eta$, $\mu$, and $\alpha$ are fixed.}
+% \label{fig:graphicalmodel}
+% \end{figure}
+
+Option 1:
+\begin{itemize}
+\item for each topic $k \in \{1,\dots, K\}$:
+	\begin{itemize}
+	\item draw topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
+	\item for each entity $n \in \{1,\dots, N\}$:
+		\begin{itemize}
+		\item draw entity concerns $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+		\end{itemize}
+	\end{itemize}
+\item for each time step $t \in \{1,\dots, T\}$:
+	\begin{itemize}
+	\item draw event description over vocabulary $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw event strength $\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
+	\end{itemize}
+\item for each document $d$ with author $a_d$ at time $i_d$:
+	\begin{itemize}
+	\item draw local entity concerns $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$ (for each topic $k \in \{1,\dots, K\}$)
+	\item draw local event strength $\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ (for each time $t \in \{1,\dots, T\}$)
+	\item draw $w_{d,v} \sim \mbox{Poisson}(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v} )$ (for each vocabulary term $v \in \{1,\dots,V\}$)
+	\end{itemize}
+\end{itemize}
+
++ easier to describe sampling from D documents for inference
++ graphical model will be more intuitive / cleaner
++ easier to tell what parameters are local (document level) or global
+- we need to explicitly state how to map document d to its corresponding author and time
+
+
+
+Option 2:
+\begin{itemize}
+\item for each topic $k \in \{1,\dots, K\}$:
+	\begin{itemize}
+	\item draw topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
+	\item for each entity $n \in \{1,\dots, N\}$:
+		\begin{itemize}
+		\item draw entity concerns $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+		\end{itemize}
+	\end{itemize}
+\item for each time step $t \in \{1,\dots, T\}$:
+	\begin{itemize}
+	\item draw event description over vocabulary $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw event strength $\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
+	\end{itemize}
+\item for each sender/author $i$, recipient $j$ at time $d$:
+	\begin{itemize}
+	\item draw local entity concerns $\theta_{i,j,d,k} \sim \mbox{Gamma}(s_\theta, \phi_{i,k})$ (for each topic $k \in \{1,\dots, K\}$)
+	\item draw local event strength $\epsilon_{i,j,d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{d,t})$ (for each time $t \in \{1,\dots, T\}$)
+	\item draw $w_{i,j,d,v} \sim \mbox{Poisson}(\theta_{i,j,d}^\top\beta_v + \sum_{t=1}^T f(d, t) \epsilon_{i,j,d,t} \pi_{t,v} )$ (for each vocabulary term $v \in \{1,\dots,V\}$)
+	\end{itemize}
+\end{itemize}
+
+
++ it's very clear which authors correspond to what documents
+- the receiver of the message doesn't play into the model, so why are we using it as an index? (corollary: makes it harder to argue that we can apply the model to arxiv abstracts)
+- have to explain what happens if there are multiple documents at the same index (we add yet other index)
+- visually, a variable with four indices is a little intimidating
+
 
 \parhead{Learning the hidden variables.}
 In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed document topics $\theta$, our goals to to compute the posterior values of the hidden parameters---event occurrences $\epsilon$ and descriptions $\pi$, as well as entity concerns $\phi$.
