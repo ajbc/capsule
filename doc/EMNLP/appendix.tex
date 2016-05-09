@@ -79,63 +79,63 @@ Note that the derivatives in Equations~\ref{eq:dgammaMu},~\ref{eq:dgammaAlpha}, 
 \KwOut{estimates of latent parameters event occurrences $\epsilon$, event topics $\pi$, and entity topics $\phi$}
 \textbf{Initialize} $\lambda^\epsilon$, $\lambda^\phi$, and $\lambda^\pi$ to respective priors \;
 \textbf{Initialize} iteration count $i = 0$ and $\sigma^\pi = 0$ \;
-\While {change in validation likelihood $< \Delta$}{
-  \For {each sample $s = 1, \dots, S$}{
-    \For {each entity $n$ and component $k$} {
-      draw sample entity topics $\phi_{n,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\phi_{n,k}))$ \;
-      \BlankLine
-      set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
-      $p^\phi_{n,k}[s] = \log p(\phi_{n,k}[s] \g \mu_\phi, \alpha_\phi)$ \;
-      $q^\phi_{n,k}[s] = \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
-      $g^\phi_{n,k}[s] = \nabla_{\lambda^\phi_{n,k}} \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
-    }
-    \For {each time step $t$} {
-      draw sample event occurrence $\epsilon_t[s] \sim \mbox{Poisson}(\mathcal{P}(\lambda^\epsilon_t))$ \;
-      \BlankLine
-      set $p$, $q$, and $g$ using Equations~\ref{eq:poisson}--\ref{eq:chain}: \;
-      $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \;
-      $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \mathcal{P}(\lambda^\epsilon_i))$ \;
-      $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \mathcal{P}(\lambda^\epsilon_{i}))$ \;
-      \BlankLine
-      \If {$\epsilon_i[s] \neq 0$} {
-        \For {each component $k$} {
-          draw sample event topics $\pi_{t,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\pi_{t,k}))$ \;
-          \BlankLine
-          set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
-          $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \;
-          $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
-          $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
-        }
-      }
-    }
-  }
+% \While {change in validation likelihood $< \Delta$}{
+%   \For {each sample $s = 1, \dots, S$}{
+%     \For {each entity $n$ and component $k$} {
+%       draw sample entity topics $\phi_{n,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\phi_{n,k}))$ \;
+%       \BlankLine
+%       set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
+%       $p^\phi_{n,k}[s] = \log p(\phi_{n,k}[s] \g \mu_\phi, \alpha_\phi)$ \;
+%       $q^\phi_{n,k}[s] = \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
+%       $g^\phi_{n,k}[s] = \nabla_{\lambda^\phi_{n,k}} \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
+%     }
+%     \For {each time step $t$} {
+%       draw sample event occurrence $\epsilon_t[s] \sim \mbox{Poisson}(\mathcal{P}(\lambda^\epsilon_t))$ \;
+%       \BlankLine
+%       set $p$, $q$, and $g$ using Equations~\ref{eq:poisson}--\ref{eq:chain}: \;
+%       $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \;
+%       $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \mathcal{P}(\lambda^\epsilon_i))$ \;
+%       $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \mathcal{P}(\lambda^\epsilon_{i}))$ \;
+%       \BlankLine
+%       \If {$\epsilon_i[s] \neq 0$} {
+%         \For {each component $k$} {
+%           draw sample event topics $\pi_{t,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\pi_{t,k}))$ \;
+%           \BlankLine
+%           set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
+%           $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \;
+%           $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
+%           $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
+%         }
+%       }
+%     }
+%   }
   
-  \For {each document $d$, sample $s$ and component $k$}{
-    set $\mu_{d,k}[s] = \phi_{n_d,k}[s] + \sum_t f(t, m_d) \epsilon_t[s] \pi_{t,k}[s]$ \;
-    set $p^\theta_{d,k}[s] = \log p(\theta_{d,k} \g \mu_{d,k}[s], \alpha_\theta)$ (Eqn.~\ref{eq:gamma})
-    \BlankLine
-    $p^\phi_{n,k}[s] \pluseq p^\theta_{n,k}[s]$ \;
-    \For {each timestep $t$ where $t \le m_d < t + \delta$}{
-      $p^\epsilon_{t}[s] \pluseq \sum_k p^\theta_{d,k}[s]$ \;
-      \If {$\epsilon_t[s] \neq 0$} {
-        $p^\pi_{t,k}[s] \pluseq p^\theta_{t,k}[s]$ \;
-        update $\sigma^\pi_t \pluseq 1$ \;
-      }
-    }
-  }
+%   \For {each document $d$, sample $s$ and component $k$}{
+%     set $\mu_{d,k}[s] = \phi_{n_d,k}[s] + \sum_t f(t, m_d) \epsilon_t[s] \pi_{t,k}[s]$ \;
+%     set $p^\theta_{d,k}[s] = \log p(\theta_{d,k} \g \mu_{d,k}[s], \alpha_\theta)$ (Eqn.~\ref{eq:gamma})
+%     \BlankLine
+%     $p^\phi_{n,k}[s] \pluseq p^\theta_{n,k}[s]$ \;
+%     \For {each timestep $t$ where $t \le m_d < t + \delta$}{
+%       $p^\epsilon_{t}[s] \pluseq \sum_k p^\theta_{d,k}[s]$ \;
+%       \If {$\epsilon_t[s] \neq 0$} {
+%         $p^\pi_{t,k}[s] \pluseq p^\theta_{t,k}[s]$ \;
+%         update $\sigma^\pi_t \pluseq 1$ \;
+%       }
+%     }
+%   }
 
   
-  set $\hat\nabla_{\lambda^{\phi} }\mathcal{L} \triangleq \frac{1}{S} \sum_s g^\phi[s] ( p^\phi[s] -  q^\phi[s] )$ \;
-  set $\hat\nabla_{\lambda^{\epsilon}} \mathcal{L} \triangleq \frac{1}{S} \sum_s g^\epsilon[s] ( p^\epsilon[s] -  q^\epsilon[s] )$ \;
-  set $\hat\nabla_{\lambda^{\pi}} \mathcal{L} \triangleq \frac{1}{\sigma_\pi} \sum_s g^\pi[s] ( p^\pi[s] -  q^\pi[s] )$ \;
+%   set $\hat\nabla_{\lambda^{\phi} }\mathcal{L} \triangleq \frac{1}{S} \sum_s g^\phi[s] ( p^\phi[s] -  q^\phi[s] )$ \;
+%   set $\hat\nabla_{\lambda^{\epsilon}} \mathcal{L} \triangleq \frac{1}{S} \sum_s g^\epsilon[s] ( p^\epsilon[s] -  q^\epsilon[s] )$ \;
+%   set $\hat\nabla_{\lambda^{\pi}} \mathcal{L} \triangleq \frac{1}{\sigma_\pi} \sum_s g^\pi[s] ( p^\pi[s] -  q^\pi[s] )$ \;
 
-  \BlankLine
-  set $\rho= (t +\tau)^\kappa$ \;
-  % update event content for each event $i$ and topic $k$: 
-  set $\lambda^{\pi} \pluseq \rho \hat\nabla_{\lambda^{\pi}} \mathcal{L}$ \;
-  set $\lambda^{\epsilon} \pluseq \rho \hat\nabla_{\lambda^{\epsilon}} \mathcal{L}$ \;
-  set $\lambda^{\phi} \pluseq \rho \hat\nabla_{\lambda^{\phi}} \mathcal{L}$ \;
-}
+%   \BlankLine
+%   set $\rho= (t +\tau)^\kappa$ \;
+%   % update event content for each event $i$ and topic $k$: 
+%   set $\lambda^{\pi} \pluseq \rho \hat\nabla_{\lambda^{\pi}} \mathcal{L}$ \;
+%   set $\lambda^{\epsilon} \pluseq \rho \hat\nabla_{\lambda^{\epsilon}} \mathcal{L}$ \;
+%   set $\lambda^{\phi} \pluseq \rho \hat\nabla_{\lambda^{\phi}} \mathcal{L}$ \;
+% }
 
 set $\E[\pi] = \lambda^{\pi,a}$ \;
 set $\E[\phi] = \lambda^{\phi,a}$ \;

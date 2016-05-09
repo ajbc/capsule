@@ -20,8 +20,8 @@ Conditional on the hidden variables and the author and time metadata, Capsule is
 \begin{equation}
 \theta_{d,k} \sim \mbox{Gamma}\left(\phi_{n_d,k} + \sum_{t=1}^T f(t, m_d) \epsilon_t \pi_{t,k}\right),\footnotemark
 \end{equation}
-\footnotetext{Throughout this work, we use a non-traditional parameterization of the gamma distribution.  Recall the shape $a$ and scale $b$ parameterization of the gamma, or \[\mbox{Gamma}^*(x \g a, b) = \frac{1}{\Gamma(a) b^a} x^{(a-1)}e^{- x / b}.\] In our alternative parameterization, we use a single mean parameter $\mu$ and a fixed sparsity hyperparameter $\alpha$, or \[\mbox{Gamma}(x \g \mu, \alpha) = \mbox{Gamma}^*(x \g \alpha, \mu / \alpha);\] when a gamma distribution is only specified by a single parameter, it is the mean $\mu$ and the sparsity hyperparamter $\alpha$ is hidden for simplicity.
-}
+% \footnotetext{Throughout this work, we use a non-traditional parameterization of the gamma distribution.  Recall the shape $a$ and scale $b$ parameterization of the gamma, or \[\mbox{Gamma}^*(x \g a, b) = \frac{1}{\Gamma(a) b^a} x^{(a-1)}e^{- x / b}.\] In our alternative parameterization, we use a single mean parameter $\mu$ and a fixed sparsity hyperparameter $\alpha$, or \[\mbox{Gamma}(x \g \mu, \alpha) = \mbox{Gamma}^*(x \g \alpha, \mu / \alpha);\] when a gamma distribution is only specified by a single parameter, it is the mean $\mu$ and the sparsity hyperparamter $\alpha$ is hidden for simplicity.
+% }
 where we define the event decay function $f$ to be a simple linear decrease: \[f(t, m) =
 \begin{cases}
   1 - \frac{m-t}{\delta}, & \mbox{if } t \le m < t+\delta \\
@@ -34,9 +34,8 @@ To complete the specification of all the variables, we place priors on all of th
 \begin{figure}
 \centering
 \includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
-\label{fig:graphicalmodel}
-\vskip -6pt
 \caption{A directed graphical model of Capsule to show considered dependencies. Shaded document topics nodes $\theta$ are observed. unshaded nodes are hidden variables---these are event occurrences $\epsilon$, event content descriptions $\pi$, and entity typical concerns $\phi$. Plates denote replication: there are $D$ documents, $T$ time steps, $N$ entities, and $K$ topics. Hyperparameters $\eta$, $\mu$, and $\alpha$ are fixed.}
+\label{fig:graphicalmodel}
 \end{figure}
 
 \parhead{Learning the hidden variables.}
@@ -67,7 +66,6 @@ To make Capsule more accessible, we developed an open source tool for visualizin
 \begin{figure}
 \centering
 \includegraphics[width=\linewidth]{fig/viz.png}
-\label{fig:viz}
-\vskip -12pt
 \caption{Screenshots of Capsule visualization of US State Department cables.  Left: top words in a topic (manually labeled topic title).  Center-top: events over time (height is volume of messages sent, color is probability of an event occurring).  Center-bottom: topics for an event on <date TODO: cyprus coup?>.  Right-top: cyprus entity topics? TODO.  Right-bottom: entities shown on a map.}
+\label{fig:viz}
 \end{figure}
