@@ -1,3 +1,5 @@
+%!TEX root = emnlp2016.tex
+
 In this appendix, we describe the details of the variational inference algorithm for Capsule. This algorithm fits the parameters of the variational distribution $q$ in Eq.~\ref{eq:q} so that it is close in KL divergence to the posterior.
 
 Recall that the variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Each parameter $\lambda$ has two components: sparsity $\alpha$ and mean $\mu$, which parameterize a shape-rate gamma as $\mbox{Gamma}(\alpha,\mu/\alpha)$, as noted previously. Because these parameters are free, we use the softplus function $\mathcal{P}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.

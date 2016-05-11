@@ -1,3 +1,4 @@
+%!TEX root = emnlp2016.tex
 
 In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies events that cause deviations from these patterns among many entities.  The model relies on rich entity behavior data over time, such as messages being sent between entities; text data can summarized (making the model more tractable) with a topic model~\cite{Blei:2012}.  We first review topic models at a high level and give the intuition on Capsule.  Then, we formally specify our model and discuss how we learn the hidden variables.
 
@@ -38,64 +39,45 @@ Thus we imagine that an entity's stream of messages is controlled by what it usu
 % \label{fig:graphicalmodel}
 % \end{figure}
 
-Option 1:
-\begin{itemize}
-\item for each topic $k \in \{1,\dots, K\}$:
-	\begin{itemize}
-	\item draw topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
-	\item for each entity $n \in \{1,\dots, N\}$:
-		\begin{itemize}
-		\item draw entity concerns $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+\begin{figure}
+
+\begin{mdframed}
+\small
+\begin{itemize}[leftmargin=*]
+\item for each topic $k=$~1:$K$,
+	\begin{itemize}[leftmargin=*]
+	\item draw topic distribution over vocabulary \\$\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
+	\item for each entity $n=$~1:$N$,
+		\begin{itemize}[leftmargin=*]
+		\item draw entity concern \\$\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
 		\end{itemize}
 	\end{itemize}
-\item for each time step $t \in \{1,\dots, T\}$:
-	\begin{itemize}
-	\item draw event description over vocabulary $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
-	\item draw event strength $\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
+\item for each time step $t=$~1:$T$,
+	\begin{itemize}[leftmargin=*]
+	\item draw event description over vocabulary \\$\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw event strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
-\item for each document $d$ with author $a_d$ at time $i_d$:
-	\begin{itemize}
-	\item draw local entity concerns $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$ (for each topic $k \in \{1,\dots, K\}$)
-	\item draw local event strength $\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ (for each time $t \in \{1,\dots, T\}$)
-	\item draw $w_{d,v} \sim \mbox{Poisson}(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v} )$ (for each vocabulary term $v \in \{1,\dots,V\}$)
-	\end{itemize}
-\end{itemize}
-
-+ easier to describe sampling from D documents for inference
-+ graphical model will be more intuitive / cleaner
-+ easier to tell what parameters are local (document level) or global
-- we need to explicitly state how to map document d to its corresponding author and time
-
-
-
-Option 2:
-\begin{itemize}
-\item for each topic $k \in \{1,\dots, K\}$:
-	\begin{itemize}
-	\item draw topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
-	\item for each entity $n \in \{1,\dots, N\}$:
-		\begin{itemize}
-		\item draw entity concerns $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+\item for each document $d=$~1:$D$ sent at time $i_d$ by author $a_d$,
+	\begin{itemize}[leftmargin=*]
+		\item for each topic $k=$~1:$K$,
+		\begin{itemize}[leftmargin=*]
+			\item draw local entity concern \\$\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$
+		\end{itemize}
+	\item for each time $t=$~1:$T$,
+		\begin{itemize}[leftmargin=*]
+			\item draw local event strength \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ 
+		\end{itemize}
+	\item for each vocabulary term $v=$~1:$V$,
+		\begin{itemize}[leftmargin=*]
+			\item draw word counts $w_{d,v} \sim\\ \mbox{Poisson}\left(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right)$
 		\end{itemize}
 	\end{itemize}
-\item for each time step $t \in \{1,\dots, T\}$:
-	\begin{itemize}
-	\item draw event description over vocabulary $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
-	\item draw event strength $\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
-	\end{itemize}
-\item for each sender/author $i$, recipient $j$ at time $d$:
-	\begin{itemize}
-	\item draw local entity concerns $\theta_{i,j,d,k} \sim \mbox{Gamma}(s_\theta, \phi_{i,k})$ (for each topic $k \in \{1,\dots, K\}$)
-	\item draw local event strength $\epsilon_{i,j,d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{d,t})$ (for each time $t \in \{1,\dots, T\}$)
-	\item draw $w_{i,j,d,v} \sim \mbox{Poisson}(\theta_{i,j,d}^\top\beta_v + \sum_{t=1}^T f(d, t) \epsilon_{i,j,d,t} \pi_{t,v} )$ (for each vocabulary term $v \in \{1,\dots,V\}$)
-	\end{itemize}
 \end{itemize}
+\end{mdframed}
 
-
-+ it's very clear which authors correspond to what documents
-- the receiver of the message doesn't play into the model, so why are we using it as an index? (corollary: makes it harder to argue that we can apply the model to arxiv abstracts)
-- have to explain what happens if there are multiple documents at the same index (we add yet other index)
-- visually, a variable with four indices is a little intimidating
+\caption{The generative process for Capsule.}
+\label{fig:generative-model}
+\end{figure}
 
 
 \parhead{Learning the hidden variables.}

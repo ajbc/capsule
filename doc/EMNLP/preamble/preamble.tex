@@ -40,9 +40,12 @@
 \DeclareRobustCommand{\PP}{\textcolor{Plum}{\P} }
 
 % % COUNTERS
+\usepackage{enumitem}
 \renewcommand{\labelenumi}{\color{black!67}{\arabic{enumi}.}}
 \renewcommand{\labelenumii}{{\color{black!67}(\alph{enumii})}}
-\renewcommand{\labelitemi}{{\color{black!67}\textbullet}}
+\renewcommand{\labelitemi}{{\color{black!67}\tiny$\blacksquare$}}
+\renewcommand{\labelitemii}{{\color{black!67}\textbullet}}
+\renewcommand{\labelitemiii}{{\color{black!67}\scriptsize$\blacktriangleright$}}
 
 % FIGURES
 \usepackage{graphicx}
@@ -99,5 +102,8 @@
 }
 \lstset{style=mystyle}
 
-% ALGOZRITHM
+% ALGORITHMS
 \usepackage[algoruled]{algorithm2e}
+
+% FRAMES
+\usepackage[linewidth=1pt]{mdframed}
