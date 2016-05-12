@@ -1,0 +1,103 @@
+% \RequirePackage[l2tabu, orthodox]{nag}
+% \documentclass{article}
+
+% % FONTS
+\usepackage[T1]{fontenc}
+
+% Replace default Latin Modern typewriter with its proportional counterpart
+% http://www.tug.dk/FontCatalogue/lmoderntypewriterprop/
+\renewcommand*\ttdefault{lmvtt}
+
+\usepackage{amsmath}
+\usepackage[subscriptcorrection,
+            amssymbols,
+            mtpbb,
+            mtpcal,
+            nofontinfo  % suppresses all warnings
+           ]{mtpro2}
+\usepackage{scalefnt,letltxmacro}
+\LetLtxMacro{\oldtextsc}{\textsc}
+\renewcommand{\textsc}[1]{\oldtextsc{\scalefont{1.10}#1}}
+\usepackage[scaled=0.92]{PTSans}
+
+
+% % COLOR
+\usepackage[usenames,dvipsnames]{xcolor}
+\definecolor{Green}{HTML}{156946}
+
+% % SPACING and TEXT
+\usepackage[final,expansion=alltext]{microtype}
+\usepackage[english]{babel}
+\usepackage{afterpage}
+\usepackage{framed}
+
+
+% define a paragraph header function
+\DeclareRobustCommand{\parhead}[1]{\textbf{#1}~}
+
+% % EDITING
+% paragraph helper
+\DeclareRobustCommand{\PP}{\textcolor{Plum}{\P} }
+
+% % COUNTERS
+\renewcommand{\labelenumi}{\color{black!67}{\arabic{enumi}.}}
+\renewcommand{\labelenumii}{{\color{black!67}(\alph{enumii})}}
+\renewcommand{\labelitemi}{{\color{black!67}\textbullet}}
+
+% FIGURES
+\usepackage{graphicx}
+
+% TABLES
+\usepackage{booktabs}
+
+% ALGORITHMS
+\usepackage[algoruled]{algorithm2e}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\fvset{fontsize=\normalsize}
+
+% % HYPERREF
+\usepackage[colorlinks,linktoc=all]{hyperref}
+\usepackage[all]{hypcap}
+\hypersetup{citecolor=Green}
+\hypersetup{linkcolor=Green}
+\hypersetup{urlcolor=Green}
+
+% % CLEVEREF must come after HYPERREF
+\usepackage[nameinlink]{cleveref}
+
+% BIBLIOGRPHY: get rid of reference labels
+\makeatletter
+	\renewcommand\@biblabel[1]{}
+\makeatother
+
+% ACRONYMS
+\usepackage[acronym,smallcaps,nowarn]{glossaries}
+% \makeglossaries
+
+% % COLOR DEFINITIONS
+\newcommand{\green}[1]{\textcolor{Green}{#1}}
+
+
+% LISTINGS DEFINTIONS
+\lstdefinestyle{mystyle}{
+    commentstyle=\color{Green},
+    keywordstyle=\color{Green},
+    numberstyle=\tiny\color{black!60},
+    stringstyle=\color{Green},
+    basicstyle=\ttfamily,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% ALGOZRITHM
+\usepackage[algoruled]{algorithm2e}
