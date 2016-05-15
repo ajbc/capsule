@@ -104,10 +104,12 @@ void Capsule::learn() {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
             } else {
                 doc = i;
-                if (doc % 10000 == 0) {
+                if (doc >= 50000)
+                    break;
+                if (doc > 0 && doc % 10000 == 0) {
                     time(&et);
                     double rmt = (difftime(et, sst) / doc) * (data->doc_count() - doc);
-                    printf("\t doc %d / %d\t%fs (est. %f 'til end of iter)\n", doc, data->doc_count(), difftime(et, st), rmt);
+                    printf("\t doc %d / %d\t%ds (est. %f 'til end of iter)\n", doc, data->doc_count(), int(difftime(et, st)), rmt);
                     time(&st);
                 }
             }
@@ -355,9 +357,9 @@ void Capsule::reset_helper_params() {
     a_epsilon.fill(settings->a_epsilon);
     b_epsilon.fill(0.0);
     a_beta.fill(settings->a_beta);
-    b_beta.fill(1.0);
+    b_beta.fill(0.0);
     a_pi.fill(settings->a_pi);
-    b_pi.fill(1.0);
+    b_pi.fill(0.0);
 }
 
 void Capsule::save_parameters(string label) {
@@ -440,7 +442,7 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event = fvec(data->date_count());
-        for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+        for (int d = max(0, date - settings->event_dur); d <= date; d++) {
             omega_event(d) = exp(logepsilon(d) + logpi(d,term) + logdecay(date,d));
             omega_sum += omega_event(d);
         }
@@ -459,7 +461,7 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event /= omega_sum * count;
-        for (int d = max(0,date - settings->event_dur + 1); d <= date; d++) {
+        for (int d = max(0,date - settings->event_dur); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
             a_pi(d, term) += omega_event[d] * scale;
         }
@@ -742,7 +744,7 @@ double Capsule::f(int doc_date, int event_date) {
     // this can be confusing: the document of int
     if (event_date > doc_date || event_date < (doc_date - settings->event_dur))
         return 0;
-    return (1.0-(0.0+doc_date-event_date)/settings->event_dur);
+    return (1.0-(0.0+doc_date-event_date)/(settings->event_dur+1));
 }
 
 double Capsule::get_event_strength(int date) {
