@@ -36,14 +36,12 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     beta = fmat(settings->k, data->term_count());
     logbeta = fmat(settings->k, data->term_count());
     a_beta = fmat(settings->k, data->term_count());
-    b_beta = fmat(settings->k, data->term_count());
 
     // pi: event descriptions
     printf("\tinitializing event descriptions (pi)\n");
     pi = fmat(data->date_count(), data->term_count());
     logpi = fmat(data->date_count(), data->term_count());
     a_pi = fmat(data->date_count(), data->term_count());
-    b_pi = fmat(data->date_count(), data->term_count());
 
     // decay function, for ease
     decay = fmat(data->date_count(), data->date_count());
@@ -153,7 +151,6 @@ void Capsule::learn() {
                 update_phi(entity);
             }
 
-            b_beta.each_col() += sum(theta, 1);
             update_beta(iteration);
         }
 
@@ -357,9 +354,7 @@ void Capsule::reset_helper_params() {
     a_epsilon.fill(settings->a_epsilon);
     b_epsilon.fill(0.0);
     a_beta.fill(settings->a_beta);
-    b_beta.fill(0.0);
     a_pi.fill(settings->a_pi);
-    b_pi.fill(0.0);
 }
 
 void Capsule::save_parameters(string label) {
@@ -508,8 +503,6 @@ void Capsule::update_epsilon(int doc, int date) {
 
         a_psi(d) += settings->a_epsilon * scale;
         b_psi(d) += epsilon(d, doc) * scale;
-
-        b_pi.row(d) += decay(date, d) * epsilon(d, doc) * scale;
     }
 }
 
@@ -523,11 +516,11 @@ void Capsule::update_beta(int iteration) {
 
     for (int k = 0; k < settings->k; k++) {
         for (int v = 0; v < data->term_count(); v++) {
-            beta(k, v) = a_beta(k, v) / b_beta(k, v);
-            logbeta(k, v) = gsl_sf_psi(a_beta(k, v)) - log(b_beta(k, v));
+            beta(k, v) = a_beta(k, v);
+            logbeta(k, v) = gsl_sf_psi(a_beta(k, v));
         }
 
-        logbeta.row(k) -= log(accu(beta.row(k)));
+        logbeta.row(k) -= gsl_sf_psi(accu(beta.row(k)));
         beta.row(k) /= accu(beta.row(k));
     }
 }
@@ -541,11 +534,11 @@ void Capsule::update_pi(int date) {
     }
 
     for (int v = 0; v < data->term_count(); v++) {
-        pi(date, v)  = a_pi(date, v) / b_pi(date, v);
-        logpi(date, v) = gsl_sf_psi(a_pi(date, v)) - log(b_pi(date, v));
+        pi(date, v)  = a_pi(date, v);
+        logpi(date, v) = gsl_sf_psi(a_pi(date, v));
     }
 
-    logpi.row(date) -= log(accu(pi.row(date)));
+    logpi.row(date) -= gsl_sf_psi(accu(pi.row(date)));
     pi.row(date) /= accu(pi.row(date));
 }
 
@@ -578,8 +571,8 @@ double Capsule::get_ave_log_likelihood() {//TODO: rename (it's not ave)
 
 double Capsule::p_gamma(fmat x, fmat a, fmat b) {
     double rv = 0.0;
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
             rv += (a(r,c) - 1.0) * log(x(r,c)) - b(r,c) * x(r,c) - a(r,c) * log(b(r,c)) - lgamma(a(r,c));
         }
     }
@@ -601,8 +594,8 @@ double Capsule::p_gamma(fmat x, double a, fmat b) {
 double Capsule::p_gamma(fmat x, double a, fvec b) {
     double rv = 0.0;
     double lga = lgamma(a);
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
             rv += (a - 1.0) * log(x(r,c)) - b(r) * x(r,c) - a * log(b(r)) - lga;
         }
     }
@@ -634,13 +627,35 @@ double Capsule::p_gamma(fvec x, double a, double b) {
     return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
 }
 
+double Capsule::p_dir(fmat x, fmat a) {
+    double rv = 0.0;
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
+            rv += (a(r,c) - 1.0) * log(x(r,c)) - gsl_sf_lngamma(a(r,c));
+        }
+        rv += gsl_sf_lngamma(accu(x.row(r)));
+    }
+    return rv;
+}
+
+double Capsule::p_dir(fmat x, double a) {
+   double rv = - gsl_sf_lngamma(a) * x.n_rows * x.n_cols;
+   for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
+            rv += (a - 1.0) * log(x(r,c));
+        }
+        rv += gsl_sf_lngamma(accu(x.row(r)));
+    }
+    return rv;
+}
+
 double Capsule::elbo_extra() {
     double rv, rvtotal = 0;
 
     // subtract q
     if (!settings->entity_only) {
         printf("p pi\n");
-        rv = p_gamma(pi, a_pi, b_pi);
+        rv = p_dir(pi, a_pi);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
@@ -657,7 +672,7 @@ double Capsule::elbo_extra() {
 
     if (!settings->event_only) {
         printf("p beta\n");
-        rv = p_gamma(beta, a_beta, b_beta);
+        rv = p_dir(beta, a_beta);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
@@ -675,7 +690,7 @@ double Capsule::elbo_extra() {
     // add p
     if (!settings->entity_only) {
         printf("q pi\n");
-        rv = p_gamma(pi, settings->a_pi, 1.0);
+        rv = p_dir(pi, settings->a_pi);
         //printf("%f\t", rv);
         rvtotal += rv;
 
@@ -692,7 +707,7 @@ double Capsule::elbo_extra() {
 
     if (!settings->event_only) {
         printf("q beta\n");
-        rv = p_gamma(beta, settings->a_beta, 1.0);
+        rv = p_dir(beta, settings->a_beta);
         //printf("%f\t", rv);
         rvtotal += rv;
 
