@@ -31,39 +31,18 @@ def main():
     """
     vocab = [f.strip() for f in file(sys.argv[1]).readlines()]
     print len(vocab)
-    strength = defaultdict(float)
-    phifile = np.loadtxt(sys.argv[3])
-    for entity in range(len(phifile)):
-        for date in range(len(phifile[entity,1:])):
-            strength[date] += phifile[entity, date]
+    pi = np.loadtxt(sys.argv[2])[:,1:] #pi
+    strength = np.loadtxt(sys.argv[3]) #psi
 
 
 
-    betafile = np.loadtxt(sys.argv[2])
-
-    testlambda = np.zeros((366, 6293))
-    #testlambda = np.zeros((2, 24))
-    for v in range(len(betafile)):
-        #testlambda[:,int(betafile[v,1])] = betafile[v,2:]
-        testlambda[int(betafile[v,0]),:] = betafile[v,1:]
-    '''if len(sys.argv) == 5:
-        k = int(sys.argv[4])
-        lambdak = list(testlambda[k, :])
-        lambdak = lambdak / sum(lambdak)
-        temp = zip(lambdak, range(0, len(lambdak)))
-        temp = sorted(temp, key = lambda x: x[0], reverse=True)
-        print 'topic %d:' % (k)
-        # feel free to change the "53" here to whatever fits your screen nicely.
-        for i in range(0, int(sys.argv[3])):
-            print '%20s  \t---\t  %.4f' % (vocab[temp[i][1]], temp[i][0])
-        return''' # single topic: obsolete
     frequency = {}
     exclusivity = defaultdict(dict)
-    V = testlambda.shape[1]
+    V = pi.shape[1]
     #print V, "vocab size"
 
-    for k in range(0, len(testlambda)):
-        lambdak = testlambda[k, :]
+    for k in range(0, len(pi)):
+        lambdak = pi[k, :]
         lambdak = lambdak / sum(lambdak)
         lambdak = np.array(lambdak)
         lambdak[lambdak==np.inf] = 0
@@ -81,7 +60,7 @@ def main():
 
     Fcdf = {}
     Ecdf = {}
-    for k in range(0, len(testlambda)):
+    for k in range(0, len(pi)):
         temp = zip(list(frequency[k]), range(0, len(lambdak)))
         temp = sorted(temp, key = lambda x: x[0], reverse=True)
         Fcdf[k] = {}
@@ -99,7 +78,7 @@ def main():
             cv += val
             Ecdf[k][idx] = cv
 
-    for k in range(0, len(testlambda)):
+    for k in range(0, len(pi)):
         #temp = sorted(range(V), key = lambda v: 1./((0.01/Ecdf[k][v]) + (0.99/Fcdf[k][v])), reverse=False)
         #temp = sorted(range(V), key = lambda v: Fcdf[k][v], reverse=False)
         #temp = sorted(range(V), key = lambda v: Ecdf[k][v], reverse=False)

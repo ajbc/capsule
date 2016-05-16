@@ -2,7 +2,8 @@
 #define ARMA_64BIT_WORD
 #include <armadillo>
 #include <gsl/gsl_rng.h>
-#include <gsl/gsl_sf_psi.h>
+//#include <gsl/gsl_sf_psi.h>
+#include <gsl/gsl_sf.h>
 #include <list>
 //#include <algorithm>
 
@@ -34,6 +35,7 @@ struct model_settings {
     bool event_only;
 
     int event_dur;
+    string event_decay;
 
     long   seed;
     int    save_freq;
@@ -56,7 +58,7 @@ struct model_settings {
              double aphi, double bphi, double apsi, double bpsi,
              double athe, double bthe, double aeps, double beps,
              double api, double abet,
-             bool entity, bool event, int dur,
+             bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
              int iter_max, int iter_min, double delta,
              bool finalpass,
@@ -84,6 +86,7 @@ struct model_settings {
         event_only = event;
 
         event_dur = dur;
+        event_decay = decay;
 
         seed = rand;
         save_freq = savef;
@@ -123,8 +126,10 @@ struct model_settings {
             fprintf(file, "\tfull Capsule model (entity + event factors)\n");
         }
 
-        if (!entity_only)
+        if (!entity_only) {
             fprintf(file, "\nevent duration:\t%d\n", event_dur);
+            fprintf(file, "\nevent decay:\t%s\n", event_decay.c_str());
+        }
 
         if (!event_only)
             fprintf(file, "\tK = %d   (number of latent factors for general preferences)\n", k);
@@ -196,9 +201,7 @@ class Capsule: protected Model {
         fmat a_epsilon;
         fmat b_epsilon;
         fmat a_beta;
-        fmat b_beta;
         fmat a_pi;
-        fmat b_pi;
         fmat a_phi_old;
         fvec a_psi_old;
         fmat a_theta_old;
@@ -230,6 +233,8 @@ class Capsule: protected Model {
         double p_gamma(fvec x, fvec a, fvec b);
         double p_gamma(fvec x, double a, fvec b);
         double p_gamma(fvec x, double a, double b);
+        double p_dir(fmat x, fmat a);
+        double p_dir(fmat x, double a);
         double elbo_extra();
         void log_convergence(int iteration, double ave_ll, double delta_ll);
         void log_time(int iteration, double duration);

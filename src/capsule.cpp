@@ -36,14 +36,12 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     beta = fmat(settings->k, data->term_count());
     logbeta = fmat(settings->k, data->term_count());
     a_beta = fmat(settings->k, data->term_count());
-    b_beta = fmat(settings->k, data->term_count());
 
     // pi: event descriptions
     printf("\tinitializing event descriptions (pi)\n");
     pi = fmat(data->date_count(), data->term_count());
     logpi = fmat(data->date_count(), data->term_count());
     a_pi = fmat(data->date_count(), data->term_count());
-    b_pi = fmat(data->date_count(), data->term_count());
 
     // decay function, for ease
     decay = fmat(data->date_count(), data->date_count());
@@ -96,17 +94,30 @@ void Capsule::learn() {
         if (settings->svi)
             b_theta.each_col() += sum(beta, 1);
 
+        time_t sst, st, et;
+        time(&sst);
+        time(&st);
         for (int i = 0; i < settings->sample_size; i++) {
             if (settings->svi) {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
             } else {
                 doc = i;
+                if (doc >= 50000)
+                    break;
+                if (doc > 0 && doc % 10000 == 0) {
+                    time(&et);
+                    double rmt = (difftime(et, sst) / doc) * (data->doc_count() - doc);
+                    printf("\t doc %d / %d\t%ds (est. %f 'til end of iter)\n", doc, data->doc_count(), int(difftime(et, st)), rmt);
+                    time(&st);
+                }
             }
 
             int entity = data->get_entity(doc);
             entities.insert(entity);
             date = data->get_date(doc);
-            for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+            for (int d = 0; d <= date; d++) {
+                if (decay(date, d) == 0)
+                    continue;
                 dates.insert(d);
                 b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
             }
@@ -142,7 +153,6 @@ void Capsule::learn() {
                 update_phi(entity);
             }
 
-            b_beta.each_col() += sum(theta, 1);
             update_beta(iteration);
         }
 
@@ -243,7 +253,7 @@ double Capsule::predict(int doc, int term) {
 
     if (!settings->entity_only) {
         int date = data->get_date(doc);
-        for (int d = max(0, date - settings->event_dur); d <= date; d++)
+        for (int d = 0; d <= date; d++)
             prediction += f(date, d) * epsilon(d) * pi(d,term);
     }
 
@@ -346,9 +356,7 @@ void Capsule::reset_helper_params() {
     a_epsilon.fill(settings->a_epsilon);
     b_epsilon.fill(0.0);
     a_beta.fill(settings->a_beta);
-    b_beta.fill(1.0);
     a_pi.fill(settings->a_pi);
-    b_pi.fill(1.0);
 }
 
 void Capsule::save_parameters(string label) {
@@ -408,11 +416,13 @@ void Capsule::save_parameters(string label) {
         fclose(file);
 
         // write out epsilon
-        file = fopen((settings->outdir+"/theta-"+label+".dat").c_str(), "w");
+        file = fopen((settings->outdir+"/epsilon-"+label+".dat").c_str(), "w");
         for (int doc = 0; doc < data->doc_count(); doc++) {
             int date = data->get_date(doc);
-            for (int d = max(0, date - settings->event_dur); d <= date; d++)
-                fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
+            for (int d = 0; d <= date; d++) {
+                if (epsilon(d, doc) != 0)
+                    fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
+            }
         }
         fclose(file);
     }
@@ -431,8 +441,10 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event = fvec(data->date_count());
-        for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
-            omega_event(d) = exp(logepsilon(d) + logpi(d,term) + logdecay(date,d));
+        for (int d = 0; d <= date; d++) {
+            if (decay(date, d) == 0)
+                continue;
+            omega_event(d) = exp(logepsilon(d) + logpi(d, term) + logdecay(date, d));
             omega_sum += omega_event(d);
         }
     }
@@ -450,7 +462,9 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event /= omega_sum * count;
-        for (int d = max(0,date - settings->event_dur + 1); d <= date; d++) {
+        for (int d = 0; d <= date; d++) {
+            if (decay(date, d) == 0)
+                continue;
             a_epsilon(d, doc) += omega_event[d];
             a_pi(d, term) += omega_event[d] * scale;
         }
@@ -491,14 +505,14 @@ void Capsule::update_theta(int doc) {
 }
 
 void Capsule::update_epsilon(int doc, int date) {
-    for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+    for (int d = 0; d <= date; d++) {
+        if (decay(date, d) == 0)
+            continue;
         epsilon(d, doc) = a_epsilon(d, doc) / b_epsilon(d, doc);
         logepsilon(d, doc) = gsl_sf_psi(a_epsilon(d, doc)) - log(b_epsilon(d, doc));
 
         a_psi(d) += settings->a_epsilon * scale;
         b_psi(d) += epsilon(d, doc) * scale;
-
-        b_pi.row(d) += decay(date, d) * epsilon(d, doc) * scale;
     }
 }
 
@@ -512,11 +526,11 @@ void Capsule::update_beta(int iteration) {
 
     for (int k = 0; k < settings->k; k++) {
         for (int v = 0; v < data->term_count(); v++) {
-            beta(k, v) = a_beta(k, v) / b_beta(k, v);
-            logbeta(k, v) = gsl_sf_psi(a_beta(k, v)) - log(b_beta(k, v));
+            beta(k, v) = a_beta(k, v);
+            logbeta(k, v) = gsl_sf_psi(a_beta(k, v));
         }
 
-        logbeta.row(k) -= log(accu(beta.row(k)));
+        logbeta.row(k) -= gsl_sf_psi(accu(beta.row(k)));
         beta.row(k) /= accu(beta.row(k));
     }
 }
@@ -530,11 +544,11 @@ void Capsule::update_pi(int date) {
     }
 
     for (int v = 0; v < data->term_count(); v++) {
-        pi(date, v)  = a_pi(date, v) / b_pi(date, v);
-        logpi(date, v) = gsl_sf_psi(a_pi(date, v)) - log(b_pi(date, v));
+        pi(date, v)  = a_pi(date, v);
+        logpi(date, v) = gsl_sf_psi(a_pi(date, v));
     }
 
-    logpi.row(date) -= log(accu(pi.row(date)));
+    logpi.row(date) -= gsl_sf_psi(accu(pi.row(date)));
     pi.row(date) /= accu(pi.row(date));
 }
 
@@ -567,8 +581,8 @@ double Capsule::get_ave_log_likelihood() {//TODO: rename (it's not ave)
 
 double Capsule::p_gamma(fmat x, fmat a, fmat b) {
     double rv = 0.0;
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
             rv += (a(r,c) - 1.0) * log(x(r,c)) - b(r,c) * x(r,c) - a(r,c) * log(b(r,c)) - lgamma(a(r,c));
         }
     }
@@ -578,9 +592,10 @@ double Capsule::p_gamma(fmat x, fmat a, fmat b) {
 double Capsule::p_gamma(fmat x, double a, fmat b) {
     double rv = 0.0;
     double lga = lgamma(a);
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
-            rv += (a - 1.0) * log(x(r,c)) - b(r,c) * x(r,c) - a * log(b(r,c)) - lga;
+    for (uint c = 0; c < x.n_cols; c++) {
+        int e = data->get_entity(c);
+        for (uint r = 0; r < x.n_rows; r++) {
+            rv += (a - 1.0) * log(x(r,c)) - b(r,e) * x(r,c) - a * log(b(r,e)) - lga;
         }
     }
     return rv;
@@ -589,8 +604,8 @@ double Capsule::p_gamma(fmat x, double a, fmat b) {
 double Capsule::p_gamma(fmat x, double a, fvec b) {
     double rv = 0.0;
     double lga = lgamma(a);
-    for (uint r =0; r < x.n_rows; r++) {
-        for (uint c=0; c < x.n_cols; c++) {
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
             rv += (a - 1.0) * log(x(r,c)) - b(r) * x(r,c) - a * log(b(r)) - lga;
         }
     }
@@ -622,33 +637,61 @@ double Capsule::p_gamma(fvec x, double a, double b) {
     return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
 }
 
+double Capsule::p_dir(fmat x, fmat a) {
+    double rv = 0.0;
+    for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
+            rv += (a(r,c) - 1.0) * log(x(r,c)) - gsl_sf_lngamma(a(r,c));
+        }
+        rv += gsl_sf_lngamma(accu(x.row(r)));
+    }
+    return rv;
+}
+
+double Capsule::p_dir(fmat x, double a) {
+   double rv = - gsl_sf_lngamma(a) * x.n_rows * x.n_cols;
+   for (uint r = 0; r < x.n_rows; r++) {
+        for (uint c = 0; c < x.n_cols; c++) {
+            rv += (a - 1.0) * log(x(r,c));
+        }
+        rv += gsl_sf_lngamma(accu(x.row(r)));
+    }
+    return rv;
+}
+
 double Capsule::elbo_extra() {
     double rv, rvtotal = 0;
 
     // subtract q
     if (!settings->entity_only) {
-        rv = p_gamma(pi, a_pi, b_pi);
+        printf("p pi\n");
+        rv = p_dir(pi, a_pi);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p epsilon\n");
         rv = p_gamma(epsilon, a_epsilon, b_epsilon);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p psi\n");
         rv = p_gamma(psi, a_psi, b_psi);
         //printf("%f\t", rv);
         rvtotal -= rv;
     }
 
     if (!settings->event_only) {
-        rv = p_gamma(beta, a_beta, b_beta);
+        printf("p beta\n");
+        rv = p_dir(beta, a_beta);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p theta\n");
         rv = p_gamma(theta, a_theta, b_theta);
         //printf("%f\t", rv);
         rvtotal -= rv;
 
+        printf("p phi\n");
         rv = p_gamma(phi, a_phi, b_phi);
         //printf("%f\t", rv);
         rvtotal -= rv;
@@ -656,28 +699,34 @@ double Capsule::elbo_extra() {
 
     // add p
     if (!settings->entity_only) {
-        rv = p_gamma(pi, settings->a_pi, 1.0);
+        printf("q pi\n");
+        rv = p_dir(pi, settings->a_pi);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q epsilon\n");
         rv = p_gamma(epsilon, settings->a_epsilon, psi);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q psi\n");
         rv = p_gamma(psi, settings->a_psi, settings->b_psi);
         //printf("%f\t", rv);
         rvtotal += rv;
     }
 
     if (!settings->event_only) {
-        rv = p_gamma(beta, settings->a_beta, 1.0);
+        printf("q beta\n");
+        rv = p_dir(beta, settings->a_beta);
         //printf("%f\t", rv);
         rvtotal += rv;
 
+        printf("q theta\n");
         rv = p_gamma(theta, settings->a_theta, phi);
         //printf("%f\n", rv);
         rvtotal += rv;
 
+        printf("q phi\n");
         rv = p_gamma(phi, settings->a_phi, settings->b_phi);
         //printf("%f\t", rv);
         rvtotal += rv;
@@ -717,10 +766,15 @@ void Capsule::log_user(FILE* file, int user, int heldout, double rmse, double ma
 }
 
 double Capsule::f(int doc_date, int event_date) {
-    // this can be confusing: the document of int
-    if (event_date > doc_date || event_date <= (doc_date - settings->event_dur))
+    if (event_date > doc_date)
         return 0;
-    return (1.0-(0.0+doc_date-event_date)/settings->event_dur);
+    if (settings->event_decay != "exponential" && event_date < (doc_date - settings->event_dur))
+        return 0;
+    if (settings->event_decay == "linear")
+        return (1.0-(0.0+doc_date-event_date)/(settings->event_dur+1));
+    if (settings->event_decay == "exponential")
+        return exp(- (doc_date - event_date) / settings->event_dur);
+    return 1.0; // decay type "none" (square)
 }
 
 double Capsule::get_event_strength(int date) {
