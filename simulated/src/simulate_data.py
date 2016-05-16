@@ -4,7 +4,7 @@ np.random.seed(238956)#13)
 #np.random.seed(int(sys.argv[1]))
 
 D = 100#100 # number of days
-d = int(sys.argv[1]) # duration of event
+dur = int(sys.argv[1]) # duration of event
 N = 10 # number of entities
 alpha = float(100)#sys.argv[1])#10 # controls proportion; bigger means more even, smaller means less even
 n_freq = np.random.dirichlet(alpha=np.ones(N)*alpha) # proportion of messages
@@ -16,7 +16,7 @@ V = 1000
 eventDescr = []
 for d in range(D):
     eventDescr.append(np.random.dirichlet(alpha=np.ones(V)*0.01))
-eventStren = np.random.gamma(0.5, 5.0, D)
+eventStren = np.random.gamma(1.0, 5.0, D)
 
 topics = []
 for k in range(K):
@@ -24,7 +24,7 @@ for k in range(K):
 
 concerns = []
 for n in range(N):
-    concerns.append(np.random.gamma(0.5, 5.0, K))
+    concerns.append(np.random.gamma(1.0, 5.0, K))
 
 cables = np.random.poisson(cable_rate, D)
 senders = []
@@ -49,22 +49,22 @@ fout8.write("doc\tevent\tvalue\n")
 fout5.write("day\tstrength\n")
 fout3.write("day\tterm\tvalue\n")
 for d in range(D):
-    fout5.write("%d\t%f\n" % (d, eventStren[d]))
+    fout5.write("%d\t%e\n" % (d, eventStren[d]))
     for v in range(V):
-        fout3.write('%d\t%d\t%f\n' % (d, v, eventDescr[d][v]))
+        fout3.write('%d\t%d\t%e\n' % (d, v, eventDescr[d][v]))
 fout5.close()
 fout3.close()
 
 fout4.write("entity\ttopic\tvalue\n")
 for n in range(N):
-    for v in range(V):
-        fout4.write('%d\t%d\t%f\n' % (n, v, concerns[n][v]))
+    for k in range(K):
+        fout4.write('%d\t%d\t%e\n' % (n, k, concerns[n][k]))
 fout4.close()
 
 fout6.write("topic\tterm\tvalue\n")
 for k in range(K):
     for v in range(V):
-        fout4.write('%d\t%d\t%f\n' % (k, v, topics[k][v]))
+        fout6.write('%d\t%d\t%e\n' % (k, v, topics[k][v]))
 fout6.close()
 
 doc = 0
@@ -76,22 +76,35 @@ for i in range(D):
         sender = senders[i][cable]
         fout.write("%d\t%d\t%d\n" % (doc, sender, i))
 
-        # draw local event and entity params
-        theta = np.random.gamma(0.1, concerns[sender])
-        epsilon = np.random.gamma(0.1, eventStren[i])
+        notdone = True
+        while notdone:
+            # draw local event and entity params
+            theta = np.random.gamma(0.1, 1.0/concerns[sender])
+            epsilon = np.random.gamma(0.1, 1.0/eventStren)
+
+            #TODO: write out
+
+            mean = np.zeros(V)
+            for j in range(max(i-dur+1,0),i+1):
+                f = 1 - ((0.0+i-j)/dur)
+                #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
+                mean += eventDescr[j] * f * epsilon[j]
+            mean += np.array(np.matrix(theta) * np.matrix(topics))[0]
+            content = np.zeros(V)
+            redo_count = 0
+            while np.count_nonzero(content) < 2:
+                content = np.random.poisson(mean)
+                redo_count += 1
+                if redo_count == 10:
+                    break
+                #print "doc", doc, "words", np.count_nonzero(content)
+            if redo_count < 10:
+                notdone = False
+
         for k in range(K):
-            fout7.write('%d\t%d\t%f\n' % (doc, k, theta[k]))
-
-        #TODO: write out
-
-        mean = np.zeros(V)
-        for j in range(max(i-d+1,0),min(i+1,D)):
-            f = 1 - ((0.0+i-j)/d)
-            print '\tadding in %f x event %d' % (f,j)
-            mean += eventDescr[j] * f * epsilon[j]
-            fout8.write('%d\t%d\t%f\n' % (doc, j, epsilon[j]))
-        mean += np.array(np.matrix(theta) * np.matrix(topics))[0]
-        content = np.random.poisson(mean)
+            fout7.write('%d\t%d\t%e\n' % (doc, k, theta[k]))
+        for j in range(max(i-dur+1,0),i+1):
+            fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
 
         c = np.random.rand()
         if c < 0.01:
