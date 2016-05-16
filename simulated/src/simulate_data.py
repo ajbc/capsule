@@ -8,6 +8,10 @@ dur = int(sys.argv[1]) # duration of event
 N = 10 # number of entities
 alpha = float(100)#sys.argv[1])#10 # controls proportion; bigger means more even, smaller means less even
 n_freq = np.random.dirichlet(alpha=np.ones(N)*alpha) # proportion of messages
+shape = sys.argv[2] # option: step, linear, exp
+if shape not in ["step", "linear", "exp"]:
+    print "bad decay shape"
+    sys.exit(-1)
 
 cable_rate = 100
 K = 10
@@ -85,10 +89,19 @@ for i in range(D):
             #TODO: write out
 
             mean = np.zeros(V)
-            for j in range(max(i-dur+1,0),i+1):
-                f = 1 - ((0.0+i-j)/dur)
-                #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
-                mean += eventDescr[j] * f * epsilon[j]
+            if shape != "exp":
+                for j in range(max(i-dur+1,0),i+1):
+                    if shape == "linear":
+                        f = 1 - ((0.0+i-j)/dur)
+                    else:
+                        f = 1.0
+                    #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
+                    mean += eventDescr[j] * f * epsilon[j]
+            else:
+                for j in range(0,i+1):
+                    f = np.exp(-(0.0+i-j)/dur)
+                    #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
+                    mean += eventDescr[j] * f * epsilon[j]
             mean += np.array(np.matrix(theta) * np.matrix(topics))[0]
             content = np.zeros(V)
             redo_count = 0
@@ -103,8 +116,12 @@ for i in range(D):
 
         for k in range(K):
             fout7.write('%d\t%d\t%e\n' % (doc, k, theta[k]))
-        for j in range(max(i-dur+1,0),i+1):
-            fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
+        if shape == "exp":
+            for j in range(0,i+1):
+                fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
+        else:
+            for j in range(max(i-dur+1,0),i+1):
+                fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
 
         c = np.random.rand()
         if c < 0.01:
