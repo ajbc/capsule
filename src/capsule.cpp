@@ -115,7 +115,9 @@ void Capsule::learn() {
             int entity = data->get_entity(doc);
             entities.insert(entity);
             date = data->get_date(doc);
-            for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+            for (int d = 0; d <= date; d++) {
+                if (decay(date, d) == 0)
+                    continue;
                 dates.insert(d);
                 b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
             }
@@ -251,7 +253,7 @@ double Capsule::predict(int doc, int term) {
 
     if (!settings->entity_only) {
         int date = data->get_date(doc);
-        for (int d = max(0, date - settings->event_dur); d <= date; d++)
+        for (int d = 0; d <= date; d++)
             prediction += f(date, d) * epsilon(d) * pi(d,term);
     }
 
@@ -417,8 +419,10 @@ void Capsule::save_parameters(string label) {
         file = fopen((settings->outdir+"/epsilon-"+label+".dat").c_str(), "w");
         for (int doc = 0; doc < data->doc_count(); doc++) {
             int date = data->get_date(doc);
-            for (int d = max(0, date - settings->event_dur); d <= date; d++)
-                fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
+            for (int d = 0; d <= date; d++) {
+                if (epsilon(d, doc) != 0)
+                    fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
+            }
         }
         fclose(file);
     }
@@ -437,8 +441,10 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event = fvec(data->date_count());
-        for (int d = max(0, date - settings->event_dur); d <= date; d++) {
-            omega_event(d) = exp(logepsilon(d) + logpi(d,term) + logdecay(date,d));
+        for (int d = 0; d <= date; d++) {
+            if (decay(date, d) == 0)
+                continue;
+            omega_event(d) = exp(logepsilon(d) + logpi(d, term) + logdecay(date, d));
             omega_sum += omega_event(d);
         }
     }
@@ -456,7 +462,9 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (!settings->entity_only) {
         omega_event /= omega_sum * count;
-        for (int d = max(0,date - settings->event_dur); d <= date; d++) {
+        for (int d = 0; d <= date; d++) {
+            if (decay(date, d) == 0)
+                continue;
             a_epsilon(d, doc) += omega_event[d];
             a_pi(d, term) += omega_event[d] * scale;
         }
@@ -497,7 +505,9 @@ void Capsule::update_theta(int doc) {
 }
 
 void Capsule::update_epsilon(int doc, int date) {
-    for (int d = max(0, date - settings->event_dur); d <= date; d++) {
+    for (int d = 0; d <= date; d++) {
+        if (decay(date, d) == 0)
+            continue;
         epsilon(d, doc) = a_epsilon(d, doc) / b_epsilon(d, doc);
         logepsilon(d, doc) = gsl_sf_psi(a_epsilon(d, doc)) - log(b_epsilon(d, doc));
 
@@ -756,10 +766,15 @@ void Capsule::log_user(FILE* file, int user, int heldout, double rmse, double ma
 }
 
 double Capsule::f(int doc_date, int event_date) {
-    // this can be confusing: the document of int
-    if (event_date > doc_date || event_date < (doc_date - settings->event_dur))
+    if (event_date > doc_date)
         return 0;
-    return (1.0-(0.0+doc_date-event_date)/(settings->event_dur+1));
+    if (settings->event_decay != "exponential" && event_date < (doc_date - settings->event_dur))
+        return 0;
+    if (settings->event_decay == "linear")
+        return (1.0-(0.0+doc_date-event_date)/(settings->event_dur+1));
+    if (settings->event_decay == "exponential")
+        return exp(- (doc_date - event_date) / settings->event_dur);
+    return 1.0; // decay type "none" (square)
 }
 
 double Capsule::get_event_strength(int date) {

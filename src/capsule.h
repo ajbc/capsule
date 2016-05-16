@@ -35,6 +35,7 @@ struct model_settings {
     bool event_only;
 
     int event_dur;
+    string event_decay;
 
     long   seed;
     int    save_freq;
@@ -57,7 +58,7 @@ struct model_settings {
              double aphi, double bphi, double apsi, double bpsi,
              double athe, double bthe, double aeps, double beps,
              double api, double abet,
-             bool entity, bool event, int dur,
+             bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
              int iter_max, int iter_min, double delta,
              bool finalpass,
@@ -85,6 +86,7 @@ struct model_settings {
         event_only = event;
 
         event_dur = dur;
+        event_decay = decay;
 
         seed = rand;
         save_freq = savef;
@@ -124,8 +126,10 @@ struct model_settings {
             fprintf(file, "\tfull Capsule model (entity + event factors)\n");
         }
 
-        if (!entity_only)
+        if (!entity_only) {
             fprintf(file, "\nevent duration:\t%d\n", event_dur);
+            fprintf(file, "\nevent decay:\t%s\n", event_decay.c_str());
+        }
 
         if (!event_only)
             fprintf(file, "\tK = %d   (number of latent factors for general preferences)\n", k);

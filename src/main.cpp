@@ -46,6 +46,7 @@ void print_usage_and_exit() {
 
     printf("\n");
     printf("  --event_dur {d}   event duration; default 7\n");
+    printf("  --event_decay {d} event decay; options: \"exponential\", \"linear\" (default, triangle), \"none\" (square) \n");
 
     printf("\n");
     printf("  --seed {seed}     the random seed, default from time\n");
@@ -101,6 +102,7 @@ int main(int argc, char* argv[]) {
     bool final_pass = 0;
 
     int event_dur = 3;
+    string event_decay = "linear";
 
     time_t t; time(&t);
     long   seed = (long) t;
@@ -118,7 +120,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:r:s:w:j:g:x:m:c:a:e:f:pk:";
+    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:r:y:s:w:j:g:x:m:c:a:e:f:pk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -139,6 +141,7 @@ int main(int argc, char* argv[]) {
         {"entity_only",     no_argument, &entity_only, 1},
         {"event_only",      no_argument, &event_only, 1},
         {"event_dur",       required_argument, NULL, 'r'},
+        {"event_decay",     required_argument, NULL, 'y'},
         {"seed",            required_argument, NULL, 's'},
         {"save_freq",       required_argument, NULL, 'w'},
         {"eval_freq",       required_argument, NULL, 'j'},
@@ -208,6 +211,9 @@ int main(int argc, char* argv[]) {
                 break;
             case 'r':
                 event_dur = atoi(optarg);
+                break;
+            case 'y':
+                event_decay = optarg;
                 break;
             case 's':
                 seed = atoi(optarg);
@@ -322,8 +328,14 @@ int main(int argc, char* argv[]) {
         printf("\tK = %d   (number of latent factors for general preferences)\n", k);
     }
 
-    if (!entity_only)
+    if (!entity_only) {
         printf("\nevent duration: %d\n", event_dur);
+        printf("\nevent decay: %s\n", event_decay.c_str());
+        if (!(event_decay == "none" || event_decay == "linear" || event_decay == "exponential")) {
+            printf("decay shape \"%s\" unknown (options: linear, exponential, none)", event_decay.c_str());
+            exit(-1);
+        }
+    }
 
     printf("\nshape and rate hyperparameters:\n");
     if (!event_only) {
@@ -363,7 +375,7 @@ int main(int argc, char* argv[]) {
     settings.set(verbose, out, data, svi, a_phi, b_phi, a_psi, b_psi, a_theta, b_theta,
         a_epsilon, b_epsilon, a_pi, a_beta,
         (bool) entity_only, (bool) event_only,
-        event_dur,
+        event_dur, event_decay,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,
         final_pass, sample_size, svi_delay, svi_forget, k);
 
