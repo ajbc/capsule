@@ -291,6 +291,29 @@ p(\beta_k \g w, \theta, z) &\propto  p(w, \theta, \beta, z) \\
 TODO: go through and check that indicies are all the same [(d,k) vs (k,d) on theta, for example]
 
 
+\section{relationship between Dirichlet and Gamma}
+we want to show that $z_i \sim \mbox{Gamma}(\alpha_i, \beta)$
+$w_i = z_i / sum_n z_n$
+$w_i \sim \mbox{Dirichlet}(\alpha_i)$
+
+
+\begin{align}
+p(\sum_i z_i \g \mathbf{\alpha}, \beta) &= \prod_i p(z_i \g \alpha_i, \beta) \\
+\log p(\sum_i z_i \g \mathbf{\alpha}, \beta) &= \sum_i \log p(z_i \g \alpha_i, \beta) \\
+&= \sum_i \left(\alpha_i \log \beta - \log \Gamma(\alpha_i) + (\alpha_i - 1) s_i - \beta z_i \right)\\
+&= \sum_i \left(\alpha_i \log \beta\right) - \sum_i \left( \log \Gamma(\alpha_i)\right) + \sum_i \left((\alpha_i - 1) z_i\right) - \sum_i \left(\beta z_i\right) \\
+&= \sum_i \left(\alpha_i \log\right) \beta - \sum_i \left( \log \Gamma(\alpha_i)\right) + \sum_i \left((\alpha_i - 1) z_i\right) - \beta \sum_i z_i \\
+\end{align}
+
+\begin{equation}
+p(\mathbf{w} \g \mathbf{\alpha}, \beta) = \frac{\prod_i p(z_i \g \alpha_i, \beta)}{p\sum_i \mbox{Gamma}(w_i \g \alpha_i, \beta)}
+\end{equation}
+
+\begin{equation}
+p(\mathbf{w} \g \mathbf{\alpha}, \beta) = \frac{\prod_i\mbox{Gamma}(z_i \g \alpha_i, \beta)}{\sum_i \mbox{Gamma}(w_i \g \alpha_i, \beta)}
+\end{equation}
+
+
 %\bibliography{library.bib}
 %\bibliographystyle{emnlp2016}
 
