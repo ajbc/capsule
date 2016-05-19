@@ -1,34 +1,39 @@
 import numpy as np
 import sys
-np.random.seed(238956)#13)
+##########np.random.seed(238956)#13)
 #np.random.seed(int(sys.argv[1]))
+np.random.seed(int(sys.argv[3]))
 
-D = 100#100 # number of days
-dur = int(sys.argv[1]) # duration of event
+D = int(sys.argv[9]) # number of days
 N = 10 # number of entities
-alpha = float(100)#sys.argv[1])#10 # controls proportion; bigger means more even, smaller means less even
-n_freq = np.random.dirichlet(alpha=np.ones(N)*alpha) # proportion of messages
+cable_rate = 100
+K = int(sys.argv[4]) # latent components
+V = 1000 # vocabulary size
+alpha = float(sys.argv[8]) # controls proportion; bigger means more even topics, smaller means less even
+shp = float(sys.argv[5]) # bigger => bigger mean
+rte = float(sys.argv[6]) # bigger => smaller mean, lower variance
+lcl_shp = float(sys.argv[7]) # was 0.1
+
+dur = int(sys.argv[1]) # duration of event
+n_freq = np.random.dirichlet(alpha=np.ones(N)*50.) # proportion of messages
 shape = sys.argv[2] # option: step, linear, exp
 if shape not in ["step", "linear", "exp"]:
     print "bad decay shape"
     sys.exit(-1)
 
-cable_rate = 100
-K = 10
-V = 1000
 
 eventDescr = []
 for d in range(D):
-    eventDescr.append(np.random.dirichlet(alpha=np.ones(V)*0.01))
-eventStren = np.random.gamma(1.0, 5.0, D)
+    eventDescr.append(np.random.dirichlet(alpha=np.ones(V)*alpha))
+eventStren = np.random.gamma(shp, 1./rte, D)
 
 topics = []
 for k in range(K):
-    topics.append(np.random.dirichlet(alpha=np.ones(V)*0.01))
+    topics.append(np.random.dirichlet(alpha=np.ones(V)*alpha))
 
 concerns = []
 for n in range(N):
-    concerns.append(np.random.gamma(1.0, 5.0, K))
+    concerns.append(np.random.gamma(shp, 1./rte, K))
 
 cables = np.random.poisson(cable_rate, D)
 senders = []
@@ -83,8 +88,8 @@ for i in range(D):
         notdone = True
         while notdone:
             # draw local event and entity params
-            theta = np.random.gamma(0.1, 1.0/concerns[sender])
-            epsilon = np.random.gamma(0.1, 1.0/eventStren)
+            theta = np.random.gamma(lcl_shp, 1.0/concerns[sender])
+            epsilon = np.random.gamma(lcl_shp, 1.0/eventStren)
 
             #TODO: write out
 
@@ -105,7 +110,7 @@ for i in range(D):
             mean += np.array(np.matrix(theta) * np.matrix(topics))[0]
             content = np.zeros(V)
             redo_count = 0
-            while np.count_nonzero(content) < 2:
+            while np.count_nonzero(content) < 3:
                 content = np.random.poisson(mean)
                 redo_count += 1
                 if redo_count == 10:
@@ -123,19 +128,16 @@ for i in range(D):
             for j in range(max(i-dur+1,0),i+1):
                 fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
 
-        c = np.random.rand()
-        if c < 0.01:
-            for t in range(V):
-                if content[t] != 0:
-                    fout2c.write("%d\t%d\t%d\n" % (doc, t, content[t]))
-        elif c < 0.1:
-            for t in range(V):
-                if content[t] != 0:
-                    fout2b.write("%d\t%d\t%d\n" % (doc, t, content[t]))
-        else:
-            for t in range(V):
-                if content[t] != 0:
-                    fout2a.write("%d\t%d\t%d\n" % (doc, t, content[t]))
+        for t in range(V):
+            if content[t] == 0:
+                continue
+            c = np.random.rand()
+            if c < 0.01:
+                fout2c.write("%d\t%d\t%d\n" % (doc, t, content[t]))
+            elif c < 0.1:
+                fout2b.write("%d\t%d\t%d\n" % (doc, t, content[t]))
+            else:
+                fout2a.write("%d\t%d\t%d\n" % (doc, t, content[t]))
 
         doc += 1
 
