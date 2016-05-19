@@ -19,7 +19,7 @@ for doc, author, date in meta:
 
 # read in training data
 training = np.loadtxt(data + "/train.tsv")
-V = max(training[:,1]) + 1
+V = int(max(training[:,1]) + 1)
 N = len(entities)
 ave_wordcounts = np.zeros(V)
 ave_ent_wordcounts = np.zeros((N,V))
@@ -256,7 +256,8 @@ lda_MG_ave = np.zeros(D)
 lda_ent_MG_max = np.zeros(D)
 lda_ent_MG_ave = np.zeros(D)
 for doc in range(len(lda)):
-    ip_lda = 1.0 / multivariate_normal.pdf(lda[doc], mu_lda, sigma_lda)
+    v = multivariate_normal.pdf(lda[doc], mu_lda, sigma_lda)
+    ip_lda = 1.0 / v if v!=0 else float('inf')
     ip_lda_ent = 1.0 / multivariate_normal.pdf(lda[doc], mu_lda_ent[authors[doc]], sigma_lda_ent[authors[doc]])
     if ip_lda > lda_MG_max[senddate[doc]]:
         lda_MG_max[senddate[doc]] = ip_lda

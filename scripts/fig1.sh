@@ -1,22 +1,20 @@
 # read args
-dur=10
-shape="exp" #step, linear, exp
-shapeF="exponential" #none, linear, exponential
+dur=1
+shape="step" #step, linear, exp
+shapeF="step" #none, linear, exponential
 seed=139563874
-M=10
+M=25
 K=10
-shp=1.0 # bigger => bigger mean
-rte=5.0 # bigger => smaller mean, lower variance
-lcl=0.1
-aph=0.01 # controls proportion; bigger means more even topics, smaller means less even
+shp="1.0" # bigger => bigger mean
+rte="5.0" # bigger => smaller mean, lower variance
+lcl="0.1"
+aph="0.01" # controls proportion; bigger means more even topics, smaller means less even
 totalD=100 # total number of days
 
-rm *.out
-rm *.err
-rm -rf sim
-mkdir sim
-rm -rf fit
-mkdir fit
+rm -rf fig1
+mkdir fig1
+mkdir fig1/sim
+mkdir fig1/fit
 
 # set up LDA infrastructure
 #wget http://www.cs.princeton.edu/~blei/lda-c/lda-c-dist.tgz
@@ -29,33 +27,40 @@ for id in `seq 1 $M`
 do
     echo "****** dataset $id ******"
     r=$RANDOM
-    echo " - simualting data with seed $r"
+    echo " - simulating data with seed $r"
     # simualte a dataset
-    mkdir sim/$id
-    cd sim/$id
-    python2.7 ../../simulate_data.py $dur $shape $r $K $shp $rte $lcl $aph $totalD > tmparoo
-    cd ../../
+    mkdir fig1/sim/$id
+    cd fig1/sim/$id
+    python2.7 ../../../simulate_data.py $dur $shape $r $K $shp $rte $lcl $aph $totalD > log.out
+    cd ../../../
 
     echo " - kicking off capsule fits"
+    mkdir fig1/fit/$id
 
-    (../src/capsule --K $K --batch --a_phi $shp --b_phi $rte --a_psi $shp --b_psi $rte --a_theta $lcl --a_epsilon $lcl --a_pi $aph --a_beta $aph --data sim/$id --out fit/$id/capsule --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF > full"$id".out 2> full"$id".err &)
-    (../src/capsule --K $K --batch --a_phi $shp --b_phi $rte --a_psi $shp --b_psi $rte --a_theta $lcl --a_epsilon $lcl --a_pi $aph --a_beta $aph --data sim/$id --out fit/$id/entity_only --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF --entity_only > ent"$id".out 2> ent"$id".err &)
-    (../src/capsule --K $K --batch --a_phi $shp --b_phi $rte --a_psi $shp --b_psi $rte --a_theta $lcl --a_epsilon $lcl --a_pi $aph --a_beta $aph --data sim/$id --out fit/$id/event_only --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF --event_only > evt"$id".out 2> ev"$id".err &)
+    #echo "../src/capsule --K $K --batch --a_phi 0.1 --b_phi 0.1 --a_psi 0.1 --b_psi 0.1 --a_theta 0.1 --a_epsilon 0.1 --a_pi 0.1 --a_beta 0.1 --data fig1/sim/$id --out fig1/fit/$id/capsule --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF"
+    #../src/capsule
+    #echo ../src/capsule --K $K --batch --a_phi 0.1 --b_phi 0.1 --a_psi 0.1 --b_psi 0.1 --a_theta 0.1 --a_epsilon 0.1 --a_pi 0.1 --a_beta 0.1 --data fig1/sim/$id --out fig1/fit/$id/capsule --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF
+    #echo "*******"
+    #ls fig1/sim/$id
+    #pwd
+    #ls fig1/fit/$id
+    (../src/capsule --K $K --batch --a_phi 0.1 --b_phi 0.1 --a_psi 0.1 --b_psi 0.1 --a_theta 0.1 --a_epsilon 0.1 --a_pi 0.1 --a_beta 0.1 --data fig1/sim/$id --out fig1/fit/$id/capsule --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF > fig1/fit/"$id"capsule.out 2>fig1/fit/"$id"capsule.err &)
+    (../src/capsule --K $K --batch --a_phi 0.1 --b_phi 0.1 --a_psi 0.1 --b_psi 0.1 --a_theta 0.1 --a_epsilon 0.1 --a_pi 0.1 --a_beta 0.1 --data fig1/sim/$id --out fig1/fit/$id/entity_only --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF --entity_only > fig1/fit/"$id"entity.out 2> fig1/fit/"$id"entity.err &)
+    (../src/capsule --K $K --batch --a_phi 0.1 --b_phi 0.1 --a_psi 0.1 --b_psi 0.1 --a_theta 0.1 --a_epsilon 0.1 --a_pi 0.1 --a_beta 0.1 --data fig1/sim/$id --out fig1/fit/$id/event_only --event_dur $dur --seed $seed --conv_freq 1 --min_iter 100 --max_iter 100 --event_decay $shapeF --event_only >fig1/fit/"$id"event.out 2>fig1/fit/"$id"event.err &)
 
 
-    mkdir fit/$id
-    mkdir fit/$id/baselines
+    mkdir fig1/fit/$id/baselines
 
     echo " - processing data to mult format"
     # process data to mult format
-    python2.7 process_to_mult.py sim/$id/train.tsv sim/$id/mult.dat > tmparoo
+    python2.7 process_to_mult.py fig1/sim/$id/train.tsv fig1/sim/$id/mult.dat > fig1/sim/$id/log.out
 
     # run LDA
     echo " - fitting LDA"
-    lda-c-dist/lda est 0.1 $K lda-c-dist/settings.txt sim/$id/mult.dat random fit/$id/baselines/lda > tmparoo
+    lda-c-dist/lda est 0.1 $K lda-c-dist/settings.txt fig1/sim/$id/mult.dat random fig1/fit/$id/baselines/lda > fig1/fit/$id/baselines/lda.log
 
     echo " - computing baselines"
-    python2.7 baselines.py sim/$id/ fit/$id/baselines > tmparoo
+    python2.7 baselines.py fig1/sim/$id/ fig1/fit/$id/baselines > fig1/fit/$id/baselines.log
 done
 
 echo "*************************************"
@@ -73,18 +78,18 @@ echo "*************************************"
 #done
 
 echo "***** EVALUATING ALL MODELS *****"
-echo "data,method,value" > results.csv
+echo "data,method,value" > fig1/results.csv
 for id in `seq 1 $M`
 do
-    v=`python eval.py sim/$id/event_strength.tsv fit/$id/capsule/psi-final.dat inv`
-    echo "$id,capsule,$v" >> results.csv
+    v=`python eval.py fig1/sim/$id/event_strength.tsv fig1/fit/$id/capsule/psi-final.dat inv`
+    echo "$id,capsule,$v" >> fig1/results.csv
 
-    v=`python eval.py sim/$id/event_strength.tsv fit/$id/event_only/psi-final.dat inv`
-    echo "$id,event_only,$v" >> results.csv
+    v=`python eval.py fig1/sim/$id/event_strength.tsv fig1/fit/$id/event_only/psi-final.dat inv`
+    echo "$id,event_only,$v" >> fig1/results.csv
 
     for base in ave_deviation total_deviation ave_deviation_entity lda_ent_MG_ave total_deviation_tfidf ave_deviation_entity_tfidf lda_ent_MG_max word_outlier ave_deviation_tfidf lda_MG_ave word_outlier_entity_ave ave_dev_lda lda_MG_max word_outlier_entity_ave_tfidf ave_ent_dev_lda max_deviation_entity word_outlier_entity_max doc_ent_outlier_lda max_deviation_entity_tfidf word_outlier_entity_max_tfidf doc_outlier_lda random word_outlier_tfidf
     do
-        v=`python eval.py sim/$id/event_strength.tsv fit/$id/baselines/$base.dat n`
-        echo "$id,$base,$v" >> results.csv
+        v=`python eval.py fig1/sim/$id/event_strength.tsv fig1/fit/$id/baselines/$base.dat n`
+        echo "$id,$base,$v" >> fig1/results.csv
     done
 done
