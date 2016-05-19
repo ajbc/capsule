@@ -1,147 +1,128 @@
+%!TEX root = emnlp2016.tex
+
 In this appendix, we describe the details of the variational inference algorithm for Capsule. This algorithm fits the parameters of the variational distribution $q$ in Eq.~\ref{eq:q} so that it is close in KL divergence to the posterior.
 
-Recall that the variational distributions $q(\pi)$ and $q(\phi)$ are both gamma-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\phi$, respectively.  Each parameter $\lambda$ has two components: sparsity $\alpha$ and mean $\mu$, which parameterize a shape-rate gamma as $\mbox{Gamma}(\alpha,\mu/\alpha)$, as noted previously. Because these parameters are free, we use the softplus function $\mathcal{P}(x) = \log(1+\exp(x))$ to constrain them so that they do not violate the requirements of the gamma distribution.
-The variational distribution $q(\epsilon)$ is Poisson-distributed with variational parameter $\lambda^\epsilon$, which is also constrained by the softplus function.
+Recall that the variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, the variational distributions $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
 
-Minimizing the KL divergence between the true posterior $p$ and the variational approximation $q$ is equivalent to maximizing the ELBO (Eq.~\ref{eq:elbo}).  This maximization is often achieved with closed form coordinate updates, but the Capsule model is not specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.  Instead, we rely on ``black box'' variational inference techniques~\cite{Ranganath:2014} to perform this optimization.
+Minimizing the KL divergence between the true posterior $p$ and the variational approximation $q$ is equivalent to maximizing the ELBO (Eq.~\ref{eq:elbo}).  We achieve this with closed form coordinate updates, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
 
-Black box techniques optimize the ELBO directly with stochastic optimization, which maximizes a function using noisy estimates of its gradient~\cite{Robbins:1951}.  In this case, the function is the ELBO, and we take derivatives with respect to each of the variational parameters.  To obtain the noisy estimates, we sample from the variational approximation $q$; these samples then give us the noisy, unbiased gradients used to update our parameters.
+To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count distribution in Eq.~\ref{} and define Poisson variables for each component of the word count:
+\begin{equation*}
+  z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}) \quad
+  z^\mathcal{T}_{d,v,t} \sim \mbox{Poisson}\left(f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right).
+\end{equation*}
+The $\mathcal{K}$ and $\mathcal{T}$ superscripts indicate the contributions from entity concerns and events, respectively.  Given these variables, the total word count is deterministic:
+\[ w_{d,v} = \sum_{k=1}^K z^\mathcal{K}_{d,v,k} + \sum_{t=1}^T z^\mathcal{T}_{d,v,t}. \]
 
-It is essential to employ variance reducing techniques; without them, the algorithm would converge too slowly to be of practical value.  Details on each of these techniques may be found in the original black box variational inference paper~\cite{Ranganath:2014}.
+TODO: text here....
 
-One of these techniques is Rao-Blackwellization~\cite{Casella:1996}: for each variable, we can write the log probability of all terms containing that variable, giving us 
-\[\log p^\epsilon_{t} \triangleq \log p(\epsilon_{t} \g \eta_\epsilon) + \sum_{d\in D_t}\sum_k\log p(\theta_{d,k} \g \cdots),\footnotemark\]
-\footnotetext{Note that we abbreviate \[p^\epsilon_t = p^\epsilon_{t}(\theta, \epsilon, \pi, \phi)\] and 
-\[p(\theta_{d,k} \g \cdots) = p(\theta_{d,k} \g \epsilon_t, \pi_{t,k}, \phi_{n_d,k}, \alpha_\theta),\]
-and define
-\[D_t \triangleq \forall d \in D : f(t, m_d) \neq 0.\]
-}
-\[\log p^\pi_{t,k} \triangleq \log p(\pi_{t,k} \g \mu_\pi, \alpha_\pi) + \mathbf{1}_{\epsilon_t} \sum_{d\in D_t}\log p(\theta_{d,k} \g \cdots),\footnotemark\]
-\footnotetext{We use the indicator shorthand: 
-\[\mathbf{1}_{\epsilon_t}=
-\begin{cases}
-  0, & \mbox{if } \epsilon_t = 0 \\
-  1, & \mbox{otherwise.}
-\end{cases}\]}
-and
-\[\log p^\phi_{n,k} \triangleq \log p(\phi_{n,k} \g \mu_\phi, \alpha_\phi) + \sum_{d\in D} \log p(\theta_{d,k} \g \cdots).\]
-Then we can write the gradients with respect to the variational parameters as:
-\[\nabla_{\lambda^\epsilon_{t}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\epsilon_{t}} \log q^\epsilon_{t} \left( \log p^\epsilon_{t} - \log q^\epsilon_{t} \right)\right],\footnotemark\]
-\footnotetext{We employ yet another abbreviation:\[q^\epsilon_{t} = q(\epsilon_{t} \g \lambda^\epsilon_{t}).\]}
-\[\nabla_{\lambda^\pi_{t,k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\pi_{t,k}} \log q^\pi_{t,k} \left( \log p^\pi_{t,k} - \log q^\pi_{t,k} \right)\right],\]
-and
-\[\nabla_{\lambda^\phi_{n,k}} \mathcal{L} = \E_q \left[ \nabla_{\lambda^\phi_{n,k}} \log q^\phi_{n,k} \left( \log p^\phi_{n,k} - \log q^\phi_{n,k} \right)\right].\]
+\begin{multline}
+\pi_t \g \mathbf{W}, \psi, \phi, \beta, \theta, \epsilon, z \sim \\
+	\mbox{Dirichlet}_V\left(\alpha_\pi + \sum_{d=1}^D \langle
+		z^\mathcal{T}_{d,1,t}, \cdots, z^\mathcal{T}_{d,V,t}\rangle
+	\right)
+\label{eq:pi}
+\end{multline}
 
-Using these gradients, we construct our black box algorithm below in Algorithm 1.  As shown, the algorithm does not subsample documents, but for large corpora, we subsample $B$ documents at each iteration and scale the contribution of these samples by $D/B$.
+\begin{multline}
+\beta_k \g \mathbf{W}, \psi, \pi, \phi, \theta, \epsilon, z \sim \\
+	\mbox{Dirichlet}_V\left(\alpha_\beta + \sum_{d=1}^D \langle
+		z^\mathcal{K}_{d,1,k}, \cdots, z^\mathcal{K}_{d,V,k}\rangle
+	\right)
+\label{eq:beta}
+\end{multline}
 
-While not shown explicitly in Algorithm 1, we also use control variates and RMSProp~\cite{Dauphin:2015} to reduce variance.\footnote{In a conversation with Ranganath, he suggested replacing AdaGrad with RMSprop in setting the learning rate.}
-Additionally, we truncate in two instances: sampled gamma variables are given a lower bound to avoid sampling too close to zero, and free parameters are given both lower and upper bounds---the latter is to avoid overflow.
+\begin{multline}
+\psi_t \g \mathbf{W}, \pi, \phi, \beta, \theta, \epsilon, z \sim \\
+	\mbox{Gamma}\left(
+		s_\psi + |D(t)| s_\epsilon,
+		r_\psi + \sum_{d\in D(t)} \epsilon_{d,t}
+	\right)
+\label{eq:psi}
+\end{multline}
 
-\parhead{For Reference}
-The gamma distribution and derivatives:
-\begin{align}
-\log\mbox{Gamma}(x \g \mu, \alpha) = & 
-\alpha\log\alpha - \alpha\log\mu - \log\Gamma \left(\alpha\right)\nonumber \\
-& + (\alpha-1)\log x - \frac{\alpha x}{\mu}, \label{eq:gamma} \\
-\nabla_\mu \log\mbox{Gamma}(x \g \mu, \alpha) =&
--\frac{\alpha}{\mu} + \frac{\alpha x}{\mu^2},\label{eq:dgammaMu} \\
-\nabla_\alpha \log\mbox{Gamma}(x \g \mu, \alpha) =& 
-\log\alpha + 1 - \log\mu - \Psi \left(\alpha\right) \nonumber \\
-& + \log x - \frac{x}{\mu}. \label{eq:dgammaAlpha}%was dgammaA
-\end{align}
+\begin{multline}
+\phi_{i,k} \g \mathbf{W}, \psi, \pi, \beta, \theta, \epsilon, z \sim \\
+	\mbox{Gamma}\left(
+		s_\phi + |D(i)| s_\theta,
+		r_\phi + \sum_{d\in D(i)} \theta_{d,k}
+	\right)
+\label{eq:phi}
+\end{multline}
 
-The Poisson distribution and derivative:
-\begin{align}
-\log\mbox{Poisson}(x~\vert~\lambda) &= x\log\lambda - \log(x!) - \lambda, \label{eq:poisson} \\
-%\log\mbox{Poisson}(x~\vert~\mathcal{P}(\lambda)) &= x\log\mathcal{P}(\lambda) - \log(x!) -\mathcal{P}(\lambda) \\
-\nabla_\lambda \log\mbox{Poisson}(x~\vert~\lambda) &= \frac{x}{\lambda} -1.\label{eq:dpoisson}
-\end{align}
+\begin{multline}
+\theta_{d,k} \g \mathbf{W}, \psi, \pi, \phi \beta, \epsilon, z \sim \\
+	\mbox{Gamma}\left(
+		s_\theta + \sum_{v=1}^V z^\mathcal{K}_{d,v,k},
+		\phi_{a_d,k} + \sum_{v=1}^V \beta_{k,v}
+	\right)
+\label{eq:theta}
+\end{multline}
 
-The softplus function and derivative:
-\[\mathcal{P}(x) = \log(1+e^x),\]
-\begin{equation}
-\mathcal{P}'(x) = \frac{e^x}{1+e^x}.
-\label{eq:dsoftplus}
-\end{equation}
+\begin{multline}
+\epsilon_{d,t} \g \mathbf{W}, \psi, \pi, \phi, \beta, \theta, z \sim \\
+	\mbox{Gamma}\left(
+		s_\epsilon + \sum_{v=1}^V z^\mathcal{T}_{d,v,t},
+		\psi_t + f(i_d, t) \sum_{v=1}^V \pi_{t,v}
+	\right)
+\label{eq:epsilon}
+\end{multline}
 
-Note that the derivatives in Equations~\ref{eq:dgammaMu},~\ref{eq:dgammaAlpha}, and~\ref{eq:dpoisson} will always be used in conjunction with Equation~\ref{eq:dsoftplus}, as part of the chain rule:
-\begin{equation}
-\frac{d}{dx} f(\mathcal{P}(x)) = \mathcal{P}'(x)f'(\mathcal{P}(x)).
-\label{eq:chain}
-\end{equation}
+Where $D(i)$ is the set of documents sent by entity $i$ and $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
 
+$z_{d,v} \g \psi, \pi, \phi, \beta, \theta, \epsilon \sim \mbox{Mult}(w_{d,v}, \omega_{d,v})$ where
+\begin{multline}
+\omega_{d,v} \propto \langle 
+\theta_{d,1} \beta_{1,v}, \cdots, \theta_{d,K} \beta_{K,v}, \\
+f(i_d, 1) \epsilon_{d,1} \pi_{1,v}, \cdots, f(i_d, T) \epsilon_{d,T} \pi_{T,v}\rangle.
+\label{eq:omega}
+\end{multline}
+
+TODO: check for consistent indexing of variables (e.g., beta_{v,k} vs beta_{k,v})
 
 
 \begin{algorithm}
 \small
 \DontPrintSemicolon
-\KwIn{document topics $\theta$}
-\KwOut{estimates of latent parameters event occurrences $\epsilon$, event topics $\pi$, and entity topics $\phi$}
-\textbf{Initialize} $\lambda^\epsilon$, $\lambda^\phi$, and $\lambda^\pi$ to respective priors \;
-\textbf{Initialize} iteration count $i = 0$ and $\sigma^\pi = 0$ \;
-% \While {change in validation likelihood $< \Delta$}{
-%   \For {each sample $s = 1, \dots, S$}{
-%     \For {each entity $n$ and component $k$} {
-%       draw sample entity topics $\phi_{n,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\phi_{n,k}))$ \;
-%       \BlankLine
-%       set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
-%       $p^\phi_{n,k}[s] = \log p(\phi_{n,k}[s] \g \mu_\phi, \alpha_\phi)$ \;
-%       $q^\phi_{n,k}[s] = \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
-%       $g^\phi_{n,k}[s] = \nabla_{\lambda^\phi_{n,k}} \log q(\phi_{n,k}[s] \g \mathcal{P}(\lambda^\phi_{n,k}))$ \;
-%     }
-%     \For {each time step $t$} {
-%       draw sample event occurrence $\epsilon_t[s] \sim \mbox{Poisson}(\mathcal{P}(\lambda^\epsilon_t))$ \;
-%       \BlankLine
-%       set $p$, $q$, and $g$ using Equations~\ref{eq:poisson}--\ref{eq:chain}: \;
-%       $p^\epsilon_i[s] = \log p(\epsilon_{i}[s] \g \eta)$ \;
-%       $q^\epsilon_i[s] = \log q(\epsilon_i[s] \g \mathcal{P}(\lambda^\epsilon_i))$ \;
-%       $g^\pi_{i}[s] = \nabla_{\lambda^\epsilon_{i}} \log q(\epsilon_{i}[s] \g \mathcal{P}(\lambda^\epsilon_{i}))$ \;
-%       \BlankLine
-%       \If {$\epsilon_i[s] \neq 0$} {
-%         \For {each component $k$} {
-%           draw sample event topics $\pi_{t,k}[s] \sim \mbox{Gamma}(\mathcal{P}(\lambda^\pi_{t,k}))$ \;
-%           \BlankLine
-%           set $p$, $q$, and $g$ using Equations~\ref{eq:gamma}--\ref{eq:dgammaAlpha},~\ref{eq:dsoftplus}, and~\ref{eq:chain}: \;
-%           $p^\pi_{ik}[s] = \log p(\pi_{ik}[s] \g \alpha_0, \beta_0)$ \;
-%           $q^\pi_{ik}[s] = \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
-%           $g^\pi_{ik}[s] = \nabla_{\lambda^\pi_{ik}} \log q(\pi_{ik}[s] \g \lambda^\pi_{ik})$ \;
-%         }
-%       }
-%     }
-%   }
-  
-%   \For {each document $d$, sample $s$ and component $k$}{
-%     set $\mu_{d,k}[s] = \phi_{n_d,k}[s] + \sum_t f(t, m_d) \epsilon_t[s] \pi_{t,k}[s]$ \;
-%     set $p^\theta_{d,k}[s] = \log p(\theta_{d,k} \g \mu_{d,k}[s], \alpha_\theta)$ (Eqn.~\ref{eq:gamma})
-%     \BlankLine
-%     $p^\phi_{n,k}[s] \pluseq p^\theta_{n,k}[s]$ \;
-%     \For {each timestep $t$ where $t \le m_d < t + \delta$}{
-%       $p^\epsilon_{t}[s] \pluseq \sum_k p^\theta_{d,k}[s]$ \;
-%       \If {$\epsilon_t[s] \neq 0$} {
-%         $p^\pi_{t,k}[s] \pluseq p^\theta_{t,k}[s]$ \;
-%         update $\sigma^\pi_t \pluseq 1$ \;
-%       }
-%     }
-%   }
+\KwIn{word counts $w$}
+\KwOut{approximate posterior of latent parameters ($\psi$, $\pi$, $\phi$, $\beta$, $\theta$, $\epsilon$) in terms of variational parameters $\lambda$ = $\{\lambda^\psi$, $\lambda^\pi$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\epsilon\}$}
+\textbf{Initialize} $\E[\beta]$ to slightly random around uniform \;
+\textbf{Initialize} $\E[\psi]$, $\E[\pi]$, $\E[\psi]$, $\E[\theta]$, $\E[\epsilon]$ to uniform \;
+\For {iteration $m=1:M$}{
+	\textbf{set} $\lambda^\psi$, $\lambda^\pi$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\epsilon$ to respective priors, excluding $\lambda^{\theta,rate}$ and $\lambda^{\epsilon,rate}$, which are set to 0 \;
+	\textbf{update} $\lambda^{\theta,rate} \pluseq \sum_V \E[\beta_v]$ \;
+	\For {each document $d=1:D$}{
+		\For {each term $v\in V(d)$\footnotemark}{
+			\textbf{set} $(K+T)$-vector $\omega_{d,v}$ using $\E[\pi]$, $\E[\theta]$, and $\E[\epsilon]$, as shown in Eq.~\ref{eq:omega} \;
+			\textbf{set} $(K+T)$-vector $\E[z_{d,v}] = w_{d,v} * \omega_{d,v}$ \;
+			\textbf{update} $\lambda^{\theta,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:theta})\;
+			\textbf{update} $\lambda^{\epsilon,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:epsilon})\;
+			\textbf{update} $\lambda^{\beta}_v \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:beta})\;
+			\textbf{update} $\lambda^{\pi}_v \pluseq \E[z^\mathcal{T}_{d,v}]$ (Eq.~\ref{eq:pi})\;
+		}
+		\textbf{update} $\lambda^{\theta,rate}_{d} \pluseq \E[\phi_{a_d}]$ (Eq.~\ref{eq:theta})\;
+		\textbf{update} $\lambda^{\epsilon,rate}_{d} \pluseq \E[\psi]$ (Eq.~\ref{eq:epsilon})\;
+		\BlankLine
+		\textbf{set} $\E[\theta_d] = \lambda^{\theta,shape}_d / \lambda^{\theta,rate}_d$ \;
+		\textbf{set} $\E[\epsilon_d] = \lambda^{\epsilon,shape}_d / \lambda^{\epsilon,rate}_d$ \;
+		\BlankLine
+		\textbf{update} $\lambda^{\phi,shape}_{a_d} \pluseq s_\theta$ (Eq.~\ref{eq:phi}) \;
+		\textbf{update} $\lambda^{\psi,shape}_{t} \pluseq s_\epsilon \forall t : f(i_d, t) \neq 0$ (Eq.~\ref{eq:psi}) \;
+		\textbf{update} $\lambda^{\phi,rate}_{a_d} \pluseq \theta_d$ (Eq.~\ref{eq:phi}) \;
+		\textbf{update} $\lambda^{\psi,rate} \pluseq \epsilon_d$ (Eq.~\ref{eq:psi}) \;
 
-  
-%   set $\hat\nabla_{\lambda^{\phi} }\mathcal{L} \triangleq \frac{1}{S} \sum_s g^\phi[s] ( p^\phi[s] -  q^\phi[s] )$ \;
-%   set $\hat\nabla_{\lambda^{\epsilon}} \mathcal{L} \triangleq \frac{1}{S} \sum_s g^\epsilon[s] ( p^\epsilon[s] -  q^\epsilon[s] )$ \;
-%   set $\hat\nabla_{\lambda^{\pi}} \mathcal{L} \triangleq \frac{1}{\sigma_\pi} \sum_s g^\pi[s] ( p^\pi[s] -  q^\pi[s] )$ \;
+	}
 
-%   \BlankLine
-%   set $\rho= (t +\tau)^\kappa$ \;
-%   % update event content for each event $i$ and topic $k$: 
-%   set $\lambda^{\pi} \pluseq \rho \hat\nabla_{\lambda^{\pi}} \mathcal{L}$ \;
-%   set $\lambda^{\epsilon} \pluseq \rho \hat\nabla_{\lambda^{\epsilon}} \mathcal{L}$ \;
-%   set $\lambda^{\phi} \pluseq \rho \hat\nabla_{\lambda^{\phi}} \mathcal{L}$ \;
-% }
-
-set $\E[\pi] = \lambda^{\pi,a}$ \;
-set $\E[\phi] = \lambda^{\phi,a}$ \;
-set $\E[\epsilon] = \lambda^{\epsilon}$ \;
-\BlankLine
-\Return{$\E[\pi]$, $\E[\phi]$, $\E[\epsilon]$} \;
-\caption{Inference for Cables Model}
-\label{alg:cables}
+	\textbf{set} $\E[\phi] = \lambda^{\phi,shape} / \lambda^{\phi,rate}$ \;
+	\textbf{set} $\E[\beta_k] = \lambda^{\beta_{k,v}} / \sum_v \lambda^{\beta_k} \forall k$ \;
+	\textbf{set} $\E[\psi] = \lambda^{\psi,shape} / \lambda^{\psi,rate}$ \;
+	\textbf{set} $\E[\pi_t] = \lambda^{\pi_{t,v}} / \sum_v \lambda^{\pi_t} \forall t$ \;
+}
+\Return{$\lambda$} \;
+\caption{Variational Inference for Capsule}
+\label{alg:capsule}
 \end{algorithm}
+\footnotetext{$V(d)$ is the set of vocabulary indices for the collection of words in document $d$.  We could also iterate over all $V$, but as zero word counts give $\E[z_{d,v}] = 0~\forall v \not\in V(d)$, the two are equivalent.}
+
+
+
