@@ -25,9 +25,7 @@ struct model_settings {
     double a_psi;
     double b_psi;
     double a_theta;
-    double b_theta;
     double a_epsilon;
-    double b_epsilon;
     double a_pi;
     double a_beta;
 
@@ -56,7 +54,7 @@ struct model_settings {
 
     void set(bool print, string out, string data, bool use_svi,
              double aphi, double bphi, double apsi, double bpsi,
-             double athe, double bthe, double aeps, double beps,
+             double athe, double aeps,
              double api, double abet,
              bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
@@ -76,9 +74,7 @@ struct model_settings {
         a_psi     = apsi;
         b_psi     = bpsi;
         a_theta   = athe;
-        b_theta   = bthe;
         a_epsilon = aeps;
-        b_epsilon = beps;
         a_pi      = api;
         a_beta      = abet;
 
@@ -137,12 +133,12 @@ struct model_settings {
         fprintf(file, "\nshape and rate hyperparameters:\n");
         if (!event_only) {
             fprintf(file, "\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
-            fprintf(file, "\ttheta    (%.2f, %.2f)\n", a_theta, b_theta);
+            fprintf(file, "\ttheta    (%.2f, ---)\n", a_theta);
             fprintf(file, "\tbeta     (%.2f, 1.0)\n", a_beta);
         }
         if (!entity_only) {
             fprintf(file, "\tpsi      (%.2f, %.2f)\n", a_psi, b_psi);
-            fprintf(file, "\tepsilon  (%.2f, %.2f)\n", a_epsilon, b_epsilon);
+            fprintf(file, "\tepsilon  (%.2f, ---)\n", a_epsilon);
             fprintf(file, "\tpi       (%.2f, 1.0)\n", a_pi);
         }
 

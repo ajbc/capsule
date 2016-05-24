@@ -83,7 +83,7 @@ void Data::read_training(string counts_filename, string meta_filename) {
     for (doc = 0; doc < train_doc_count(); doc++) {
         double dev = 0;
         double ent_dev = 0;
-        // look at all the document's terms and caslculate ave deviation form mean
+        // look at all the document's terms and calculate ave deviation from mean
         for (int j = 0; j < term_count(doc); j++) {
             term = get_term(doc, j);
             count = get_term_count(doc, j);
