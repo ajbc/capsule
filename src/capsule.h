@@ -24,13 +24,18 @@ struct model_settings {
     double b_phi;
     double a_psi;
     double b_psi;
+    double a_xi;
+    double b_xi;
     double a_theta;
     double a_epsilon;
+    double a_zeta;
     double a_pi;
     double a_beta;
+    double a_eta;
 
-    bool entity_only;
-    bool event_only;
+    bool incl_topics;
+    bool incl_entity;
+    bool incl_events;
 
     int event_dur;
     string event_decay;
@@ -53,10 +58,10 @@ struct model_settings {
 
 
     void set(bool print, string out, string data, bool use_svi,
-             double aphi, double bphi, double apsi, double bpsi,
-             double athe, double aeps,
-             double api, double abet,
-             bool entity, bool event, int dur, string decay,
+             double aphi, double bphi, double apsi, double bpsi, double axi, double bxi,
+             double athe, double aeps, double azet,
+             double api, double abet, double aeta,
+             bool topics, bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
              int iter_max, int iter_min, double delta,
              bool finalpass,
@@ -73,13 +78,18 @@ struct model_settings {
         b_phi     = bphi;
         a_psi     = apsi;
         b_psi     = bpsi;
+        a_xi      = axi;
+        b_xi      = bxi;
         a_theta   = athe;
         a_epsilon = aeps;
+        a_zeta    = azet;
         a_pi      = api;
-        a_beta      = abet;
+        a_beta    = abet;
+        a_eta     = aeta;
 
-        entity_only = entity;
-        event_only = event;
+        incl_topics = topics;
+        incl_entity = entity;
+        incl_events = event;
 
         event_dur = dur;
         event_decay = decay;
@@ -113,30 +123,34 @@ struct model_settings {
 
         fprintf(file, "data directory: %s\n", datadir.c_str());
 
-        fprintf(file, "\nmodel specification:\n");
-        if (entity_only) {
-            fprintf(file, "\tentity factors only\n");
-        } else if (event_only) {
-            fprintf(file, "\tevent factors only\n");
-        } else {
-            fprintf(file, "\tfull Capsule model (entity + event factors)\n");
-        }
+        fprintf(file, "\nmodel specification includes:\n");
+        if (incl_topics)
+            fprintf(file, "\ttopic factors\n");
+        if (incl_entity)
+            fprintf(file, "\tentity factors\n");
+        if (incl_events)
+            fprintf(file, "\tevent factors\n");
 
-        if (!entity_only) {
+        if (incl_events) {
             fprintf(file, "\nevent duration:\t%d\n", event_dur);
             fprintf(file, "\nevent decay:\t%s\n", event_decay.c_str());
         }
 
-        if (!event_only)
-            fprintf(file, "\tK = %d   (number of latent factors for general preferences)\n", k);
+        if (incl_topics)
+            fprintf(file, "\tK = %d   (number of latent factors for topic general preferences)\n", k);
 
         fprintf(file, "\nshape and rate hyperparameters:\n");
-        if (!event_only) {
+        if (incl_topics) {
             fprintf(file, "\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
             fprintf(file, "\ttheta    (%.2f, ---)\n", a_theta);
             fprintf(file, "\tbeta     (%.2f, 1.0)\n", a_beta);
         }
-        if (!entity_only) {
+        if (incl_entity) {
+            fprintf(file, "\txi       (%.2f, %.2f)\n", a_xi, b_xi);
+            fprintf(file, "\tzeta     (%.2f, ---)\n", a_zeta);
+            fprintf(file, "\teta      (%.2f, 1.0)\n", a_eta);
+        }
+        if (incl_events) {
             fprintf(file, "\tpsi      (%.2f, %.2f)\n", a_psi, b_psi);
             fprintf(file, "\tepsilon  (%.2f, ---)\n", a_epsilon);
             fprintf(file, "\tpi       (%.2f, 1.0)\n", a_pi);
@@ -174,16 +188,22 @@ class Capsule: protected Model {
         // model parameters
         fmat phi;     // entity concerns (topics/general)
         fvec psi;     // event strengths
+        fvec xi;      // entity strengths
         fmat theta;   // doc topics
         fmat epsilon; // doc events
+        fvec zeta;    // doc entity relevance
         fmat beta;    // topics
         fmat pi;      // event descriptions
+        fmat eta;     // entity descriptions
         fmat logphi;  // log variants of above
         fvec logpsi;
+        fvec logxi;
         fmat logtheta;
         fmat logepsilon;
+        fvec logzeta;
         fmat logbeta;
         fmat logpi;
+        fmat logeta;
 
         // helper parameters
         fmat decay;
@@ -192,18 +212,23 @@ class Capsule: protected Model {
         fmat b_phi;
         fvec a_psi;
         fvec b_psi;
+        fvec a_xi;
+        fvec b_xi;
         fmat a_theta;
         fmat b_theta;
         fmat a_epsilon;
         fmat b_epsilon;
+        fvec a_zeta;
+        fvec b_zeta;
         fmat a_beta;
         fmat a_pi;
+        fmat a_eta;
         fmat a_phi_old;
         fvec a_psi_old;
-        fmat a_theta_old;
-        fmat a_epsilon_old;
+        fvec a_xi_old;
         fmat a_beta_old;
         fmat a_pi_old;
+        fmat a_eta_old;
 
         // random number generator
         gsl_rng* rand_gen;
@@ -216,10 +241,13 @@ class Capsule: protected Model {
         void update_shape(int doc, int term, int count);
         void update_phi(int entity);
         void update_psi(int date);
+        void update_xi(int entity);
         void update_theta(int doc);
         void update_epsilon(int doc, int date);
+        void update_zeta(int doc);
         void update_beta(int iteration);
         void update_pi(int date);
+        void update_eta(int iteration);
 
         double get_ave_log_likelihood();
         double p_gamma(fmat x, fmat a, fmat b);

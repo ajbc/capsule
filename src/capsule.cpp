@@ -4,13 +4,21 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     settings = model_set;
     data = dataset;
 
-    // phi: entity conerns
+    // phi: entity concerns
     printf("\tinitializing entity concerns (phi)\n");
     phi = fmat(settings->k, data->entity_count());
     logphi = fmat(settings->k, data->entity_count());
     a_phi = fmat(settings->k, data->entity_count());
     b_phi = fmat(settings->k, data->entity_count());
 
+    // xi: entity strengths
+    printf("\tinitializing entity strengths (xi)\n");
+    xi = fvec(data->date_count());
+    logxi = fvec(data->entity_count());
+    a_xi = fvec(data->entity_count());
+    b_xi = fvec(data->entity_count());
+
+    // psi: event strengths
     printf("\tinitializing event strengths (psi)\n");
     psi = fvec(data->date_count());
     logpsi = fvec(data->date_count());
@@ -24,6 +32,13 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     a_theta = fmat(settings->k, data->doc_count());
     b_theta = fmat(settings->k, data->doc_count());
 
+    // zeta: doc entity relvance
+    printf("\tinitializing doc entity relevance (zeta)\n");
+    zeta = fvec(data->doc_count());
+    logzeta = fvec(data->doc_count());
+    a_zeta = fvec(data->doc_count());
+    b_zeta = fvec(data->doc_count());
+
     // epsilon: doc events
     printf("\tinitializing doc events (epsilon)\n");
     epsilon = fmat(data->date_count(), data->doc_count());
@@ -36,6 +51,12 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     beta = fmat(settings->k, data->term_count());
     logbeta = fmat(settings->k, data->term_count());
     a_beta = fmat(settings->k, data->term_count());
+
+    // eta: entity descriptions
+    printf("\tinitializing entity descriptions (eta)\n");
+    eta = fmat(data->entity_count(), data->term_count());
+    logeta = fmat(data->entity_count(), data->term_count());
+    a_eta = fmat(data->entity_count(), data->term_count());
 
     // pi: event descriptions
     printf("\tinitializing event descriptions (pi)\n");
@@ -52,14 +73,14 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     a_phi_old.fill(settings->a_phi);
     a_psi_old = fvec(data->date_count());
     a_psi_old.fill(settings->a_psi);
-    a_theta_old = fmat(settings->k, data->doc_count());
-    a_theta_old.fill(settings->a_theta);
-    a_epsilon_old = fmat(data->date_count(), data->doc_count());
-    a_epsilon_old.fill(settings->a_epsilon);
+    a_xi_old = fvec(data->entity_count());
+    a_xi_old.fill(settings->a_xi);
     a_beta_old = fmat(settings->k, data->term_count());
     a_beta_old.fill(settings->a_beta);
     a_pi_old = fmat(data->date_count(), data->term_count());
     a_pi_old.fill(settings->a_pi);
+    a_eta_old = fmat(data->entity_count(), data->term_count());
+    a_eta_old.fill(settings->a_eta);
 
     printf("\tsetting random seed\n");
     rand_gen = gsl_rng_alloc(gsl_rng_taus);
@@ -127,31 +148,49 @@ void Capsule::learn() {
                 update_shape(doc, term, count);
             }
 
-            b_theta.col(doc) += phi.col(entity);
-            b_epsilon.col(doc) += psi(date);
-            b_theta.col(doc) += sum(beta, 1);
-            update_theta(doc);
+            if (settings->incl_topics) {
+                b_theta.col(doc) += phi.col(entity);
+                b_theta.col(doc) += sum(beta, 1);
+                update_theta(doc);
+            }
 
-            update_epsilon(doc, date);
+            if (settings->incl_events) {
+                b_epsilon.col(doc) += psi(date);
+                update_epsilon(doc, date);
+            }
 
-            for (int k = 0; k < settings->k; k++) {
-                a_phi(k, entity) += settings->a_theta * scale;
-                b_phi(k, entity) += theta(k, doc) * scale;
+            if (settings->incl_entity) {
+                b_zeta(doc) = xi(entity) + accu(eta.row(entity));
+                update_zeta(doc);
+                a_xi(entity) += settings->a_zeta * scale;
+                b_xi(entity) += zeta(doc, entity) * scale;
+            }
+
+            if (settings->incl_topics) {
+                for (int k = 0; k < settings->k; k++) {
+                    a_phi(k, entity) += settings->a_theta * scale;
+                    b_phi(k, entity) += theta(k, doc) * scale;
+                }
             }
         }
 
         set<int>::iterator it;
-        if (!settings->event_only) {
-            for (it = entities.begin(); it != entities.end(); it++) {
-                entity = *it;
-                iter_count_entity[entity]++;
+        for (it = entities.begin(); it != entities.end(); it++) {
+            entity = *it;
+            iter_count_entity[entity]++;
+            if (settings->incl_topics)
                 update_phi(entity);
-            }
-
-            update_beta(iteration);
+            if (settings->incl_entity)
+                update_xi(entity);
         }
 
-        if (!settings->entity_only) {
+        if (settings->incl_topics)
+            update_beta(iteration);
+
+        if (settings->incl_entity)
+            update_eta(iteration);
+
+        if (settings->incl_events) {
             for (it = dates.begin(); it != dates.end(); it++) {
                 date = *it;
                 iter_count_date[date]++;
@@ -242,11 +281,13 @@ void Capsule::learn() {
 
 double Capsule::predict(int doc, int term) {
     double prediction = 0;
-    if (!settings->event_only) {
+    if (settings->incl_topics)
         prediction += accu(theta.col(doc) % beta.col(term));
-    }
 
-    if (!settings->entity_only) {
+    if (settings->incl_entity)
+        prediction += zeta(doc) * eta(data->get_entity(doc), term);
+
+    if (settings->incl_events) {
         int date = data->get_date(doc);
         for (int d = 0; d <= date; d++)
             prediction += f(date, d) * epsilon(d) * pi(d,term);
@@ -292,7 +333,7 @@ void Capsule::evaluate(string label, bool write_rankings) {
 /* PRIVATE */
 
 void Capsule::initialize_parameters() {
-    if (!settings->event_only) {
+    if (settings->incl_topics) {
         // entity concerns
         phi.fill(settings->a_phi / settings->b_phi);
         logphi.fill(gsl_sf_psi(settings->a_phi) - log(settings->b_phi));
@@ -313,7 +354,28 @@ void Capsule::initialize_parameters() {
         }
     }
 
-    if (!settings->entity_only) {
+    if (settings->incl_entity) {
+        // entity strength
+        xi.fill(settings->a_xi / settings->b_xi);
+        logxi.fill(gsl_sf_psi(settings->a_xi) - log(settings->b_xi));
+
+        // document specific entity strength
+        zeta.fill(settings->a_zeta / (settings->a_xi / settings->b_xi));
+        logzeta.fill(gsl_sf_psi(settings->a_zeta) - log(settings->a_xi / settings->b_xi));
+
+        // entity descriptions
+        for (int i = 0; i < data->entity_count(); i++) {
+            for (int v = 0; v < data->term_count(); v++) {
+                eta(i, v) = (settings->a_eta +
+                    gsl_rng_uniform_pos(rand_gen));
+                logeta(i, v) = gsl_sf_psi(eta(i, v));
+            }
+            logeta.row(i) -= log(accu(eta.row(i)));
+            eta.row(i) /= accu(eta.row(i));
+        }
+    }
+
+    if (settings->incl_events) {
         // event strength
         psi.fill(settings->a_psi / settings->b_psi);
         logpsi.fill(gsl_sf_psi(settings->a_psi) - log(settings->b_psi));
@@ -346,18 +408,23 @@ void Capsule::reset_helper_params() {
     b_phi.fill(settings->b_phi);
     a_psi.fill(settings->a_psi);
     b_psi.fill(settings->b_psi);
+    a_xi.fill(settings->a_xi);
+    b_xi.fill(settings->b_xi);
     a_theta.fill(settings->a_theta);
     b_theta.fill(0.0);
     a_epsilon.fill(settings->a_epsilon);
     b_epsilon.fill(0.0);
+    a_zeta.fill(settings->a_zeta);
+    b_zeta.fill(0.0);
     a_beta.fill(settings->a_beta);
     a_pi.fill(settings->a_pi);
+    a_eta.fill(settings->a_eta);
 }
 
 void Capsule::save_parameters(string label) {
     FILE* file;
 
-    if (!settings->event_only) {
+    if (settings->incl_topics) {
         int k;
 
         // write out phi
@@ -400,7 +467,43 @@ void Capsule::save_parameters(string label) {
         fclose(file);
     }
 
-    if (!settings->entity_only) {
+    if (settings->incl_entity) {
+        int t;
+
+        // write out xi
+        file = fopen((settings->outdir+"/xi-"+label+".dat").c_str(), "w");
+        for (int entity = 0; entity < data->entity_count(); entity++)
+            fprintf(file, "%e\n", xi(entity));
+        fclose(file);
+
+        // write out eta
+        file = fopen((settings->outdir+"/eta-"+label+".dat").c_str(), "w");
+        for (int entity = 0; entity < data->entity_count(); entity++) {
+            fprintf(file, "%d", entity);
+            for (t = 0; t < data->term_count(); t++)
+                fprintf(file, "\t%e", eta(entity, t));
+            fprintf(file, "\n");
+        }
+        fclose(file);
+
+        file = fopen((settings->outdir+"/a_eta-"+label+".dat").c_str(), "w");
+        for (int entity = 0; entity < data->entity_count(); entity++) {
+            fprintf(file, "%d", entity);
+            for (t = 0; t < data->term_count(); t++)
+                fprintf(file, "\t%e", a_eta(entity, t));
+            fprintf(file, "\n");
+        }
+        fclose(file);
+
+        // write out zeta
+        file = fopen((settings->outdir+"/zeta-"+label+".dat").c_str(), "w");
+        for (int doc = 0; doc < data->doc_count(); doc++) {
+            fprintf(file, "%d\t%e\n", doc, zeta(doc));
+        }
+        fclose(file);
+    }
+
+    if (settings->incl_events) {
         int t;
 
         // write out psi
@@ -443,16 +546,23 @@ void Capsule::save_parameters(string label) {
 
 void Capsule::update_shape(int doc, int term, int count) {
     int date = data->get_date(doc);
+    int entity = data->get_entity(doc);
 
     double omega_sum = 0;
 
-    fvec omega_entity, omega_event;
-    if (!settings->event_only) {
-        omega_entity = exp(logtheta.col(doc) + logbeta.col(term));
-        omega_sum += accu(omega_entity);
+    fvec omega_topics, omega_event;
+    double omega_entity = 0;
+    if (settings->incl_topics) {
+        omega_topics = exp(logtheta.col(doc) + logbeta.col(term));
+        omega_sum += accu(omega_topics);
     }
 
-    if (!settings->entity_only) {
+    if (settings->incl_entity) {
+        omega_entity = exp(logzeta(doc) + logeta(entity, term));
+        omega_sum += omega_entity;
+    }
+
+    if (settings->incl_events) {
         omega_event = fvec(data->date_count());
         for (int d = 0; d <= date; d++) {
             if (decay(date, d) == 0)
@@ -465,15 +575,19 @@ void Capsule::update_shape(int doc, int term, int count) {
     if (omega_sum == 0)
         return;
 
-    if (!settings->event_only) {
-        omega_entity /= omega_sum * count;
-        //for (int k = 0; k < setting->k; k++)
-        //    a_phi(k, entity) += pow(theta(k, doc), scale);
-        a_theta.col(doc) += omega_entity;
-        a_beta.col(term) += omega_entity * scale;
+    if (settings->incl_topics) {
+        omega_topics /= omega_sum * count;
+        a_theta.col(doc) += omega_topics;
+        a_beta.col(term) += omega_topics * scale;
     }
 
-    if (!settings->entity_only) {
+    if (settings->incl_entity) {
+        omega_entity /= omega_sum;
+        a_zeta(doc) += omega_entity;
+        a_eta(entity, term) += omega_entity * scale;
+    }
+
+    if (settings->incl_events) {
         omega_event /= omega_sum * count;
         for (int d = 0; d <= date; d++) {
             if (decay(date, d) == 0)
@@ -510,11 +624,28 @@ void Capsule::update_psi(int date) {
     logpsi(date) = gsl_sf_psi(a_psi(date)) - log(b_psi(date));
 }
 
+void Capsule::update_xi(int entity) {
+    if (settings->svi) {
+        double rho = pow(iter_count_entity[entity] + settings->delay,
+            -1 * settings->forget);
+        a_xi(entity) = (1 - rho) * a_xi_old(entity) + rho * a_xi(entity);
+        a_xi_old(entity) = a_xi(entity);
+    }
+
+    xi(entity) = a_xi(entity) / b_xi(entity);
+    logxi(entity) = gsl_sf_psi(a_xi(entity)) - log(b_xi(entity));
+}
+
 void Capsule::update_theta(int doc) {
     for (int k = 0; k < settings->k; k++) {
         theta(k, doc) = a_theta(k, doc) / b_theta(k, doc);
         logtheta(k, doc) = gsl_sf_psi(a_theta(k, doc)) - log(b_theta(k, doc));
     }
+}
+
+void Capsule::update_zeta(int doc) {
+    zeta(doc) = a_zeta(doc) / b_zeta(doc);
+    logzeta(doc) = gsl_sf_psi(a_zeta(doc)) - log(b_zeta(doc));
 }
 
 void Capsule::update_epsilon(int doc, int date) {
@@ -545,6 +676,25 @@ void Capsule::update_beta(int iteration) {
 
         logbeta.row(k) -= gsl_sf_psi(accu(beta.row(k)));
         beta.row(k) /= accu(beta.row(k));
+    }
+}
+
+void Capsule::update_eta(int iteration) {
+    if (settings->svi) {
+        double rho = pow(iteration + settings->delay,
+            -1 * settings->forget);
+        a_eta = (1 - rho) * a_eta_old + rho * a_eta;
+        a_eta_old = a_eta * 1.0;
+    }
+
+    for (int n = 0; n < data->entity_count(); n++) {
+        for (int v = 0; v < data->term_count(); v++) {
+            eta(n, v) = a_eta(n, v);
+            logeta(n, v) = gsl_sf_psi(a_eta(n, v));
+        }
+
+        logeta.row(n) -= gsl_sf_psi(accu(eta.row(n)));
+        eta.row(n) /= accu(eta.row(n));
     }
 }
 
@@ -673,76 +823,44 @@ double Capsule::p_dir(fmat x, double a) {
 }
 
 double Capsule::elbo_extra() {
-    double rv, rvtotal = 0;
+    double rvtotal = 0;
 
     // subtract q
-    if (!settings->entity_only) {
-        printf("p pi\n");
-        rv = p_dir(pi, a_pi);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
-
-        printf("p epsilon\n");
-        rv = p_gamma(epsilon, a_epsilon, b_epsilon);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
-
-        printf("p psi\n");
-        rv = p_gamma(psi, a_psi, b_psi);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
+    if (settings->incl_events) {
+        rvtotal -= p_dir(pi, a_pi);
+        rvtotal -= p_gamma(epsilon, a_epsilon, b_epsilon);
+        rvtotal -= p_gamma(psi, a_psi, b_psi);
     }
 
-    if (!settings->event_only) {
-        printf("p beta\n");
-        rv = p_dir(beta, a_beta);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
+    if (settings->incl_entity) {
+        rvtotal -= p_dir(eta, a_eta);
+        rvtotal -= p_gamma(zeta, a_zeta, b_zeta);
+        rvtotal -= p_gamma(xi, a_xi, b_xi);
+    }
 
-        printf("p theta\n");
-        rv = p_gamma(theta, a_theta, b_theta);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
-
-        printf("p phi\n");
-        rv = p_gamma(phi, a_phi, b_phi);
-        //printf("%f\t", rv);
-        rvtotal -= rv;
+    if (settings->incl_topics) {
+        rvtotal -= p_dir(beta, a_beta);
+        rvtotal -= p_gamma(theta, a_theta, b_theta);
+        rvtotal -= p_gamma(phi, a_phi, b_phi);
     }
 
     // add p
-    if (!settings->entity_only) {
-        printf("q pi\n");
-        rv = p_dir(pi, settings->a_pi);
-        //printf("%f\t", rv);
-        rvtotal += rv;
-
-        printf("q epsilon\n");
-        rv = p_gamma(epsilon, settings->a_epsilon, psi);
-        //printf("%f\t", rv);
-        rvtotal += rv;
-
-        printf("q psi\n");
-        rv = p_gamma(psi, settings->a_psi, settings->b_psi);
-        //printf("%f\t", rv);
-        rvtotal += rv;
+    if (settings->incl_events) {
+        rvtotal += p_dir(pi, settings->a_pi);
+        rvtotal += p_gamma(epsilon, settings->a_epsilon, psi);
+        rvtotal += p_gamma(psi, settings->a_psi, settings->b_psi);
     }
 
-    if (!settings->event_only) {
-        printf("q beta\n");
-        rv = p_dir(beta, settings->a_beta);
-        //printf("%f\t", rv);
-        rvtotal += rv;
+    if (settings->incl_entity) {
+        rvtotal += p_dir(eta, settings->a_eta);
+        rvtotal += p_gamma(zeta, settings->a_zeta, xi);
+        rvtotal += p_gamma(xi, settings->a_xi, settings->b_xi);
+    }
 
-        printf("q theta\n");
-        rv = p_gamma(theta, settings->a_theta, phi);
-        //printf("%f\n", rv);
-        rvtotal += rv;
-
-        printf("q phi\n");
-        rv = p_gamma(phi, settings->a_phi, settings->b_phi);
-        //printf("%f\t", rv);
-        rvtotal += rv;
+    if (settings->incl_topics) {
+        rvtotal += p_dir(beta, settings->a_beta);
+        rvtotal += p_gamma(theta, settings->a_theta, phi);
+        rvtotal += p_gamma(phi, settings->a_phi, settings->b_phi);
     }
 
     return rvtotal;
