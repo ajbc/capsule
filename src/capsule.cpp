@@ -91,8 +91,6 @@ void Capsule::learn() {
         set<int> entities;
         set<int> dates;
         int doc, term, count, entity, date;
-        if (settings->svi)
-            b_theta.each_col() += sum(beta, 1);
 
         time_t sst, st, et;
         time(&sst);
@@ -102,8 +100,6 @@ void Capsule::learn() {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
             } else {
                 doc = i;
-                if (doc >= 50000)
-                    break;
                 if (doc > 0 && doc % 10000 == 0) {
                     time(&et);
                     double rmt = (difftime(et, sst) / doc) * (data->doc_count() - doc);
@@ -133,8 +129,7 @@ void Capsule::learn() {
 
             b_theta.col(doc) += phi.col(entity);
             b_epsilon.col(doc) += psi(date);
-            if (!settings->svi)
-                b_theta.col(doc) += sum(beta, 1);
+            b_theta.col(doc) += sum(beta, 1);
             update_theta(doc);
 
             update_epsilon(doc, date);
@@ -385,6 +380,15 @@ void Capsule::save_parameters(string label) {
         }
         fclose(file);
 
+        file = fopen((settings->outdir+"/a_beta-"+label+".dat").c_str(), "w");
+        for (int term = 0; term < data->term_count(); term++) {
+            fprintf(file, "%d", term);
+            for (k = 0; k < settings->k; k++)
+                fprintf(file, "\t%e", a_beta(k, term));
+            fprintf(file, "\n");
+        }
+        fclose(file);
+
         // write out theta
         file = fopen((settings->outdir+"/theta-"+label+".dat").c_str(), "w");
         for (int doc = 0; doc < data->doc_count(); doc++) {
@@ -415,12 +419,21 @@ void Capsule::save_parameters(string label) {
         }
         fclose(file);
 
+        file = fopen((settings->outdir+"/a_pi-"+label+".dat").c_str(), "w");
+        for (int date = 0; date < data->date_count(); date++) {
+            fprintf(file, "%d", date);
+            for (t = 0; t < data->term_count(); t++)
+                fprintf(file, "\t%e", a_pi(date, t));
+            fprintf(file, "\n");
+        }
+        fclose(file);
+
         // write out epsilon
         file = fopen((settings->outdir+"/epsilon-"+label+".dat").c_str(), "w");
         for (int doc = 0; doc < data->doc_count(); doc++) {
             int date = data->get_date(doc);
             for (int d = 0; d <= date; d++) {
-                if (epsilon(d, doc) != 0)
+                if (f(date, d) != 0)
                     fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
             }
         }
