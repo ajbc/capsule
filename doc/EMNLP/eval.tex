@@ -1,99 +1,145 @@
-In this section we study the performance of Capsule. Using simulated data, we compare Capsule to deterministic methods of event detection and show that Capsule outperforms them at identifying when events occur.  
-%We also examine how sensitive Capsule is to the attributes of a dataset and model parameters.
-We conclude by exploring three real-world datasets with Capsule.
+%!TEX root = emnlp2016.tex
 
-\subsection{Performance}
+In this section we explore the performance of Capsule on a collection of US State Department cables.
+These cables were sent between 1973 and 1977 and obtained from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives. In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  To test our model, we considered only cables from 1976 Using a vocabulary of size 6293, we omitted cables with fewer than three terms, resulting in a collection of 335,631 messages sent between 542 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
 
-We generated ten simulated datasets using our generative process.  Each dataset spans 100 days and contains content associated with ten entities.  Approximately ten events also exist in each dataset, randomly distributed in time and with a three day decay of relevancy.
+We fit Capsule with 100 topics and using an exponential decay with mean lifetime of 3---this indicates that most intervals would no longer be relevant after about 3 weeks.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$. Table~\ref{tab:entebbe} show the top documents for the week of July, 6, 1976.  Two weeks prior, an Air France airplane had been hijacked and taken to Entebbe, Uganda.  The flight had originally be scheduled to travel between Tel Aviv and Paris, and on July 4th, Israeli operatives recovered the passengers who were being held hostage.  Our model accurately recovers cables that are relevant to this event, allowing investigators to use it as a tool to uncover relevant documents for a given time interval.
 
-To evaluate performance, we rank each day by its probability of having an event occur, and plot the number of true events discovered against the number of false positive events, as shown in Figure~\ref{fig:sim_auc}; the area under the curve (AUC) can be computed for a single evaluation metric.  Note that this approach is only valid when true events are known, and thus we only apply it to simulated data.
+The week of December 12, 1976, the State Department sends a query for all posts to report on the presence of gambling equipment, or ``gaming devices.''  Nearly all posts respond that week with a report.  Unsuprisingly, the top terms in the event description $\pi$ for that week are the terms \emph{gaming} and \emph{devices}.
 
-We compare Capsule to two baseline approaches: one considers the greatest document outlier on a given day--days with the furthest outliers are the most likely to have events.  The other approach is similar: days are represented by an average of all documents associated with that day, and one considers how these averages deviate from the global average--the further away, the more likely an event.
+These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
-Figure~\ref{fig:sim_auc} shows that Capsule outperforms both of these approaches.  It should be noted that inference on Capsule will produce different results, depending on the random seed; the results shown are the best of three random seeds.
+%  Figure~\ref{fig:events} shows the interval strength parameters $\psi$ over the considered time range.
+% \begin{figure}[ht]
+% \centering
+% \includegraphics[width=\linewidth]{fig/events_over_time.pdf}
+% \caption{Interval strength $\phi$ in 1976.  The inverse of the fit values are shown, as smaller values indicate more cables about a given interval.  The end of December and beginning of November have the weeks in which the time intervals contribute most strongly to message content.}
+% \label{fig:events}
+% \end{figure}
 
-\begin{figure}[ht]
+\begin{table*}
 \centering
-\includegraphics[width=\linewidth]{fig/sim_auc.pdf}
-\caption{Average performance on ten simulated datasets; lines closer to the upper-left are better.  Baselines consider outliers based on full corpus averages (dashed) and averages of all entity documents (dotted).  Capsule performance is best of three random seeds.}
-\label{fig:sim_auc}
-\end{figure}
+\begin{tabular}{ccccl}
+\toprule
+$\epsilon$ & date & sender & recipient & subject \\
+\midrule
+0.04133056 & 1976-07-06 & PEKING & STATE & POSSIBLE SC MEETING ON ISRAELI RESCUE \\
+0.04095504 & 1976-07-09 & MASERU & STATE & UGANDAN ROLE IN AIR FRANCE HIJACKING \\
+0.03768492 & 1976-07-04 & STATE & ABU DHABI & ISRAELI RESCUE OPERATION \\
+0.03583023 & 1976-07-14 & STATE & BERN & VIOLATIONS OF SEC REGULATIONS ALLEG... \\
+0.02769182 & 1976-07-06 & ROME & STATE & POSSIBLE SC MEETING ON ISRAELI RESCUE \\ %OPERATION \\
+0.02531757 & 1976-07-12 & CARACAS & STATE & SECURITY COUNCIL DEBATE ON ENTEBBE...\\%EVENTS \\
+% 0.02506698 & 1976-07-07 & STATE & SANTIAGO & AROLE APPLICATION OF CHILEAN DETAINEE LUIS ANTONIO HERRERA MAFFET,  CASE S-311 \\
+% 0.02501447 & 1976-07-13 & EC BRUSSELS & STATE & THE EC AND ITALIAN SITUATION \\
+% 0.02490369 & 1976-07-15 & STATE & SANTIAGO & AROLE APPLICATION OF CHILEAN DETAINEE MARTIN ORLANDO POBLETE PUJOL,  CASE S-727 \\
+% 0.02484431 & 1976-07-15 & STATE & SANTIAGO & PAROLE APPLICATION OF CHILEAN DETAINEE ESTEBAN SANTOS FUENTES, CASE  S-332, AND DEPENDENTS \\
+% 0.02462204 & 1976-07-06 & PARIS & STATE & ISRAELI RESCUE OF AIR FRANCE HOST... \\
+% 0.02462204 & 1976-07-06 & PARIS & STATE & ISRAELI RESCUE OF AIR FRANCE HOST... \\
+\bottomrule
+\end{tabular}
+\label{tab:entebbe}
+\caption{Top cables by $\epsilon$ for the week of July 6, 1976.  The majority of these cables are concerning the Israeli rescue of a Air France airplane hijacking that had occurred the week prior.}
+\end{table*}
 
 
-%\PP fig / discussion of varrying entity dists in simualted data
-
-%\PP performance vs parameters (event occurrence hyperparameter (which impacts initialization), event duration)
-
-\subsection{Exploration}
-
-\parhead{Cables}
-\PP where did we get it / size / preprocessing
-
-\PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-\PP example interesting entities + figure
-
-\PP explore pairwise entities? (quick with and single figure shared with enron); compare sender vs reiever for same pair  (or does direction matter?? tyr both ways) look at sender in norma model vs sender in a few pairs under this construction 
-
-\parhead{arXiv}
-\PP where did we get it / size / preprocessing
-
-\PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-\PP example interesting entities + figure
-
-\parhead{enron}
-\PP where did we get it / size / preprocessing
-
-\PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-\PP example interesting entities + figure
-
-\PP explore pairwise entities?
 
 
+% In this section we study the performance of Capsule. Using simulated data, we compare Capsule to deterministic methods of event detection and show that Capsule outperforms them at identifying when events occur.  
+% %We also examine how sensitive Capsule is to the attributes of a dataset and model parameters.
+% We conclude by exploring three real-world datasets with Capsule.
+
+% \subsection{Performance}
+
+% We generated ten simulated datasets using our generative process.  Each dataset spans 100 days and contains content associated with ten entities.  Approximately ten events also exist in each dataset, randomly distributed in time and with a three day decay of relevancy.
+
+% To evaluate performance, we rank each day by its probability of having an event occur, and plot the number of true events discovered against the number of false positive events, as shown in Figure~\ref{fig:sim_auc}; the area under the curve (AUC) can be computed for a single evaluation metric.  Note that this approach is only valid when true events are known, and thus we only apply it to simulated data.
+
+% We compare Capsule to two baseline approaches: one considers the greatest document outlier on a given day--days with the furthest outliers are the most likely to have events.  The other approach is similar: days are represented by an average of all documents associated with that day, and one considers how these averages deviate from the global average--the further away, the more likely an event.
+
+% Figure~\ref{fig:sim_auc} shows that Capsule outperforms both of these approaches.  It should be noted that inference on Capsule will produce different results, depending on the random seed; the results shown are the best of three random seeds.
+
+% \begin{figure}[ht]
+% \centering
+% \includegraphics[width=\linewidth]{fig/sim_auc.pdf}
+% \caption{Average performance on ten simulated datasets; lines closer to the upper-left are better.  Baselines consider outliers based on full corpus averages (dashed) and averages of all entity documents (dotted).  Capsule performance is best of three random seeds.}
+% \label{fig:sim_auc}
+% \end{figure}
+
+
+% %\PP fig / discussion of varrying entity dists in simualted data
+
+% %\PP performance vs parameters (event occurrence hyperparameter (which impacts initialization), event duration)
+
+% \subsection{Exploration}
 
 % \parhead{Cables}
-% We obtained around two million of these cables sent between 1973 and 1977 via the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.
-% Excerpts from three example cables are shown in Figure~\ref{fig:cables_example}.
+% \PP where did we get it / size / preprocessing
 
-% % \begin{figure}[ht]
-% % \centering
-% % \includegraphics[width=\textwidth]{../fig/cables_orphan_example.png}
-% % \caption{Example excerpts of cables sent in April 1975 concerning orphans from the Vietnam War.}
-% % \label{fig:cables_example}
-% % \end{figure}
+% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
+
+% \PP example interesting entities + figure
+
+% \PP explore pairwise entities? (quick with and single figure shared with enron); compare sender vs reiever for same pair  (or does direction matter?? tyr both ways) look at sender in norma model vs sender in a few pairs under this construction 
 
 % \parhead{arXiv}
+% \PP where did we get it / size / preprocessing
 
-% \parhead{Enron}
+% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
 
+% \PP example interesting entities + figure
 
-% \PP insert table and refetence for both (number of days, entities, total messages, or something); maybe a plot showing attributes of the data...somehow inform them that the state department is a bias for the cables data
+% \parhead{enron}
+% \PP where did we get it / size / preprocessing
 
-% \PP footnote on handling multiple recipients of message...
+% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
 
-% \subsection{Metrics and competing methods}
+% \PP example interesting entities + figure
 
-% \PP how we evaluate based on real events
-
-% \PP how we evaluate based on perplexity (prediction of words)
-
-% \PP competing methods for perplexity: LDA, average user words?, dynamic topic model, network topic models
-
-% \subsection{Performance and exploration}
-
-% \PP sumry of comparison to gold-standard events for cables
-
-% \PP table of predictive likelihood results and summary pgh; and/or cite tea leaves paper
-
-% \parhead{Exploration}
-
-% \PP charachetrize events manually (based on cables) vs event detection characterization
-
-% \PP show descriptions for cables entities and select events; same for arxiv/enron
-
-% \PP any other exploration you can think of!
+% \PP explore pairwise entities?
 
 
-% Results: ROC curve (x=false postive rate, y=true postive rate)
+
+% % \parhead{Cables}
+% % We obtained around two million of these cables sent between 1973 and 1977 via the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.
+% % Excerpts from three example cables are shown in Figure~\ref{fig:cables_example}.
+
+% % % \begin{figure}[ht]
+% % % \centering
+% % % \includegraphics[width=\textwidth]{../fig/cables_orphan_example.png}
+% % % \caption{Example excerpts of cables sent in April 1975 concerning orphans from the Vietnam War.}
+% % % \label{fig:cables_example}
+% % % \end{figure}
+
+% % \parhead{arXiv}
+
+% % \parhead{Enron}
+
+
+% % \PP insert table and refetence for both (number of days, entities, total messages, or something); maybe a plot showing attributes of the data...somehow inform them that the state department is a bias for the cables data
+
+% % \PP footnote on handling multiple recipients of message...
+
+% % \subsection{Metrics and competing methods}
+
+% % \PP how we evaluate based on real events
+
+% % \PP how we evaluate based on perplexity (prediction of words)
+
+% % \PP competing methods for perplexity: LDA, average user words?, dynamic topic model, network topic models
+
+% % \subsection{Performance and exploration}
+
+% % \PP sumry of comparison to gold-standard events for cables
+
+% % \PP table of predictive likelihood results and summary pgh; and/or cite tea leaves paper
+
+% % \parhead{Exploration}
+
+% % \PP charachetrize events manually (based on cables) vs event detection characterization
+
+% % \PP show descriptions for cables entities and select events; same for arxiv/enron
+
+% % \PP any other exploration you can think of!
+
+
+% % Results: ROC curve (x=false postive rate, y=true postive rate)

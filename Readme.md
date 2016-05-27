@@ -8,7 +8,7 @@
 
 - [ ] add in exploratory results (figures + discussion)
 
-- [ ] take a pass through document to ensure everything is up to date with current model
+- [X] take a pass through document to ensure everything is up to date with current model
 
 
 ## Results

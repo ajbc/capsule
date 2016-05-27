@@ -1,6 +1,8 @@
 %!TEX root = emnlp2016.tex
 
-In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies time intervals in which many entities deviate from these patterns.  The model relies on high dimensional entity behavior data over time, such as text messages being sent between entities.  We first review topic models at a high level, and give the intuition on Capsule. Then, we formally specify our model, discuss its relationship to Poisson processes, and describe how we learn the hidden variables.
+In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies time intervals in which many entities deviate from these patterns.  The model relies on high dimensional entity behavior data over time, such as text messages being sent between entities.  We first review topic models at a high level, and give the intuition on Capsule. Then, we formally specify our model
+%, discuss its relationship to Poisson processes, 
+and describe how we learn the hidden variables.
 
 \parhead{Background: Topic Models.} Capsule relies on topic models to model text data.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
@@ -80,13 +82,13 @@ where $f$ is some function of decay.  This function is important because events 
 \end{figure}
 
 
-\parhead{Relationship to Poisson Processes.}
-TODO: talk about poisson and hawkes processes
+% \parhead{Relationship to Poisson Processes.}
+% TODO: talk about poisson and hawkes processes
 
 \parhead{Learning the hidden variables.}
 In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goals to to compute the posterior values of the hidden parameters---global interval strengths $\psi$, interval descriptions $\pi$, entity concerns $\phi$, and topics $\beta$, as well as document-specific entity concerns $\theta$ and interval relevancy parameters $\epsilon$.
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.\footnote{Source code is available at https://github.com/?????/capsule.}
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.\footnote{Source code will be released on github upon publication.}%is available at https://github.com/?????/capsule.} % ?????=ajbc on publication
 
 Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
 This is equivalent to maximizing the ELBO,
