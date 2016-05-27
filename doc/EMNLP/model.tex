@@ -1,52 +1,56 @@
 %!TEX root = emnlp2016.tex
 
-In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies events that cause deviations from these patterns among many entities.  The model relies on rich entity behavior data over time, such as messages being sent between entities; text data can summarized (making the model more tractable) with a topic model~\cite{Blei:2012}.  We first review topic models at a high level and give the intuition on Capsule.  Then, we formally specify our model and discuss how we learn the hidden variables.
+In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies time intervals in which many entities deviate from these patterns.  The model relies on high dimensional entity behavior data over time, such as text messages being sent between entities.  We first review topic models at a high level, and give the intuition on Capsule. Then, we formally specify our model
+%, discuss its relationship to Poisson processes, 
+and describe how we learn the hidden variables.
 
-\parhead{Background: Topic Models.} Capsule relies on topic models to summarize text data, making the model tractable.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions); then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  We use the LDA topic model~\cite{Blei:2003,Hoffman:2010} to summarize text data, and assume that these summaries are held fixed.  Our model could be extended to include topic modeling as component, but in practice the results would be similar to the stage-wise approach.
+\parhead{Background: Topic Models.} Capsule relies on topic models to model text data.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
 \parhead{The Capsule Model.}
 Topic models are often applied to provide a structure for an otherwise unstructured collection of documents.  Documents, however, are often accompanied by metadata, such as the date written or author attribution; this information is not exploited by traditional topic models.  The Capsule model uses both author and date information to identify and characterize events that influence the content of the collection.
 
 Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:cartoon}.  We can imagine that there is a stream of messages (or \emph{diplomatic cables}) being sent by this embassy---some might be sent to the US State Department, others to another American embassy like Hong Kong.  An entity will usually talk about certain topics; the Bangkok embassy, for instance, is concerned with topics regarding southeast Asia more generally.
 
-Now imagine that at a particular time, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but each event can again be described in the same topic space used to describe individual messages.  Further, when an event occurs, the message content changes for multiple entities. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy were about Vietnam war refugees.
+Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy were about Vietnam war refugees.
 Thus we imagine that an entity's stream of messages is controlled by what it usually talks about as well as the higher level stream of unobserved events.
 
 \parhead{Model Specification.}
-% We formally describe Capsule. The observed data are documents represented in topic space; each document has an author (or entity) and a time (or date) associated with it.  The document content for each document $d$ is represented as $\theta_d$, a $K$-dimensional vector, where $K$ is the number of topics.  The author and time associated with document $d$ are represented as $n_d$ and $m_d$, respectively.
+We formally describe Capsule. The observed data are word counts $w_{d,v}$ for document $d$ and vocabulary term $v$; each document $d$ also has an author (or entity) $a_d$ and a time (or date) interval $i_d$ associated with it.
 
-% The hidden variables of this model are the authors' typical concerns, event occurrences, and event descriptions.  We represent the concerns of author $n$ as $\phi_n$, also a $K$-dimensional topic vector.  For each time $t$ we represent whether or not an event occurs with $\epsilon_t$; when an event does occur we represent its content as $\pi_t$, another $K$-dimensional topic vector.
+The hidden variables of this model are general topics of conversation $\beta$, authors' typical concerns $\phi$, event descriptions $\pi$, event strengths $\psi$, and document-specific topics $\theta$ and event relevancy $\epsilon$.  The graphical model in Figure~\ref{fig:graphicalmodel} shows considers dependencies between these latent parameters and the observed data.
 
-% Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document topics $\theta_d$ came to be; we generate the topics for each document
-% \begin{equation}
-% \theta_{d,k} \sim \mbox{Gamma}\left(\phi_{n_d,k} + \sum_{t=1}^T f(t, m_d) \epsilon_t \pi_{t,k}\right),\footnotemark
-% \end{equation}
-% % \footnotetext{Throughout this work, we use a non-traditional parameterization of the gamma distribution.  Recall the shape $a$ and scale $b$ parameterization of the gamma, or \[\mbox{Gamma}^*(x \g a, b) = \frac{1}{\Gamma(a) b^a} x^{(a-1)}e^{- x / b}.\] In our alternative parameterization, we use a single mean parameter $\mu$ and a fixed sparsity hyperparameter $\alpha$, or \[\mbox{Gamma}(x \g \mu, \alpha) = \mbox{Gamma}^*(x \g \alpha, \mu / \alpha);\] when a gamma distribution is only specified by a single parameter, it is the mean $\mu$ and the sparsity hyperparamter $\alpha$ is hidden for simplicity.
-% % }
-% where we define the event decay function $f$ to be a simple linear decrease: \[f(t, m) =
-% \begin{cases}
-%   1 - \frac{m-t}{\delta}, & \mbox{if } t \le m < t+\delta \\
-%   0, & \mbox{otherwise,}
-% \end{cases} \] with $\delta$ being the time duration after the event at time $t$ is no longer relevant.  Figure~\ref{fig:graphicalmodel} shows the dependencies between the hidden and observed variables as a graphical model.
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\linewidth]{fig/graphicalmodel.pdf}
+\caption{A directed graphical model of Capsule to show considered dependencies. Shaded nodes $w$ are observed word counts.  Unshaded nodes are hidden variables---at the global level, these are topics $\beta$, entity typical concerns $\phi$, interval strength $\epsilon$, and interval content descriptions $\pi$.  At the document level, we have hidden variables for local entity concerns $\theta$ and interval relevancy $\epsilon$. Plates denote replication: there are $D$ documents, $T$ intervals, $N$ entities, $K$ topics, and $V$ vocabulary terms. Fixed hyperparameters are indicated by black squares.}
+\label{fig:graphicalmodel}
+\end{figure}
 
-% To complete the specification of all the variables, we place priors on all of the hidden variables.  Author concerns $\phi_{n,k}$ and event content $\pi_t$ are specified with Gamma priors.  Event occurrence $\epsilon_t$ has a Poisson prior.
-% % TODO: we make a note about the Poisson taking values > 1; what is the intuition?
+As in topic modeling, we represent the topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$ 
 
-% \begin{figure}
-% \centering
-% \includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
-% \caption{A directed graphical model of Capsule to show considered dependencies. Shaded document topics nodes $\theta$ are observed. unshaded nodes are hidden variables---these are event occurrences $\epsilon$, event content descriptions $\pi$, and entity typical concerns $\phi$. Plates denote replication: there are $D$ documents, $T$ time steps, $N$ entities, and $K$ topics. Hyperparameters $\eta$, $\mu$, and $\alpha$ are fixed.}
-% \label{fig:graphicalmodel}
-% \end{figure}
+The concerns of author $n$ are represented with $\phi_n$, a $K$-dimensional topic vector, where each element is drawn from a gamma distribution, or $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$.\footnote{We use the shape-rate parameterization for all Gamma distributions.}  
+Similar to topic modeling, we represent the contents of each document in topic space; each document $d$ has a $K$-dimensional latent parameter $\theta_d$ to describe the particular contents of that document.  Unlike traditional topic models, each document $d$'s topics depend on the concerns of the author $a_d$; each document topic $\theta_{d,k}$ is drawn from a gamma distribution parameterized by the corresponding author concerns $\phi_{a_d,k}$: $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$.
 
-\begin{figure}
+To represent events, we consider discrete intervals of time.  Each interval $t$ has a corresponding interval strength $\psi_t$ and description $\pi_t$.  Event strengths are a single value for each interval $t$, and are drawn from a gamma distribution: $\psi_{n,k} \sim \mbox{Gamma}(s_\psi, r_\psi)$.  These strengths indicate how important the interval is in determining message content.  Interval descriptions are similar to topics: each description is a $V$-dimensional vector drawn from a Dirichlet distribution over the vocabulary terms, or $\pi_k \sim \mbox{Dirichlet}_V (\alpha_\pi).$
+
+Just as we describe each document $d$ in terms of relevant topics with the $\theta_d$ parameters, we also describe the relevancy of each time interval with the $\epsilon_d$ parameters.  These interval relevancy parameters are drawn from gamma distributions and depend on the overall strength $\psi$ of the corresponding interval; for interval $t$ and document $d$ (written at time $i_d$), we have $\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$.
+
+Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document word counts came to be.  For document $d$ and vocabulary term $v$, we generate the word counts form a Poisson distribution parameterized by the documents topics $\theta_d$ and relevant events $\epsilon$, as well as global topic $\beta$ and event descriptions $\pi$:
+\begin{equation}
+w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right),
+\label{eq:generateData}
+\end{equation}
+where $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we consider step functions, linear decay, and exponential decay.  Figure~\ref{fig:generative-model} gives the full generative process for Capsule.
+
+
+\begin{figure}[htb]
 \begin{mdframed}
 \small
 \begin{itemize}[leftmargin=*]
 \item for each time step $t=$~1:$T$,
 	\begin{itemize}[leftmargin=*]
-	\item draw event description over vocabulary \\$\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
-	\item draw event strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
+	\item draw interval description over vocabulary \\$\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
 \item for each topic $k=$~1:$K$,
 	\begin{itemize}[leftmargin=*]
@@ -64,7 +68,7 @@ Thus we imagine that an entity's stream of messages is controlled by what it usu
 		\end{itemize}
 	\item for each time $t=$~1:$T$,
 		\begin{itemize}[leftmargin=*]
-			\item draw local event relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ 
+			\item draw local interval relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ 
 		\end{itemize}
 	\item for each vocabulary term $v=$~1:$V$,
 		\begin{itemize}[leftmargin=*]
@@ -78,10 +82,13 @@ Thus we imagine that an entity's stream of messages is controlled by what it usu
 \end{figure}
 
 
-\parhead{Learning the hidden variables.}
-In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goals to to compute the posterior values of the hidden parameters---global event strengths $\psi$, event descriptions $\pi$, entity concerns $\phi$, and topics $\beta$, as well as document-specific entity concerns $\theta$ and event relevancy parameters $\epsilon$.
+% \parhead{Relationship to Poisson Processes.}
+% TODO: talk about poisson and hawkes processes
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.\footnote{Source code is available at https://github.com/?????/capsule.}
+\parhead{Learning the hidden variables.}
+In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goals to to compute the posterior values of the hidden parameters---global interval strengths $\psi$, interval descriptions $\pi$, entity concerns $\phi$, and topics $\beta$, as well as document-specific entity concerns $\theta$ and interval relevancy parameters $\epsilon$.
+
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.\footnote{Source code will be released on github upon publication.}%is available at https://github.com/?????/capsule.} % ?????=ajbc on publication
 
 Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
 This is equivalent to maximizing the ELBO,
@@ -106,13 +113,14 @@ The variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distrib
 
 The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates, as detailed in Appendix~\ref{sec:inference}. We update each parameter in turn, following standard coordinate ascent variational inference techniques.  Full details on our inference algorithm can be found in the appendix.  This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
-\parhead{Visualization.}
-Capsule is a high-level statistical tool. In order to understand and explore its results, a user must scrutinize numerical distributions.
-To make Capsule more accessible, we developed an open source tool for visualizing its results.\footnote{Source code: https://github.com/?????/capsule-viz.}  Our tool creates a navigator of the documents and latent parameters, allowing users to explore events, entities, topics, and the original documents.  Figure~\ref{fig:viz} shows several screenshots of this browsing interface.
 
-\begin{figure}
-\centering
-\includegraphics[width=\linewidth]{fig/viz.png}
-\caption{Screenshots of Capsule visualization of US State Department cables.  Left: top words in a topic (manually labeled topic title).  Center-top: events over time (height is volume of messages sent, color is probability of an event occurring).  Center-bottom: topics for an event on <date TODO: cyprus coup?>.  Right-top: cyprus entity topics? TODO.  Right-bottom: entities shown on a map.}
-\label{fig:viz}
-\end{figure}
+% \parhead{Visualization.}
+% Capsule is a high-level statistical tool. In order to understand and explore its results, a user must scrutinize numerical distributions.
+% To make Capsule more accessible, we developed an open source tool for visualizing its results.\footnote{Source code: https://github.com/?????/capsule-viz.}  Our tool creates a navigator of the documents and latent parameters, allowing users to explore events, entities, topics, and the original documents.  Figure~\ref{fig:viz} shows several screenshots of this browsing interface.
+
+% \begin{figure}
+% \centering
+% \includegraphics[width=\linewidth]{fig/viz.png}
+% \caption{Screenshots of Capsule visualization of US State Department cables.  Left: top words in a topic (manually labeled topic title).  Center-top: events over time (height is volume of messages sent, color is probability of an event occurring).  Center-bottom: topics for an event on <date TODO: cyprus coup?>.  Right-top: cyprus entity topics? TODO.  Right-bottom: entities shown on a map.}
+% \label{fig:viz}
+% \end{figure}
