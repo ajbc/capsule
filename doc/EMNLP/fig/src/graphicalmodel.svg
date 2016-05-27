@@ -28,10 +28,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.8122835"
-     inkscape:cx="166.57106"
+     inkscape:cx="512.07034"
      inkscape:cy="-74.798664"
      inkscape:document-units="px"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g4781"
      showgrid="false"
      inkscape:window-width="2560"
      inkscape:window-height="1391"
@@ -52,7 +52,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1589,14 +1589,14 @@
       <text
          transform="scale(1,-1)"
          id="text4787"
-         x="206.784"
-         y="-40.666641"
+         x="209.79201"
+         y="-40.714642"
          style="font-size:12px">
         <tspan
            style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:32px;font-family:Athelas;-inkscape-font-specification:'Athelas Italic';writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-           x="206.784"
-           y="-40.666641"
-           id="tspan4789">π</tspan>
+           x="209.79201"
+           y="-40.714642"
+           id="tspan4789">ϵ</tspan>
       </text>
     </g>
     <g
@@ -1643,15 +1643,15 @@
            id="path4891" />
       </g>
       <text
-         y="145.20189"
-         x="-213.00015"
+         y="145.34589"
+         x="-215.03305"
          transform="matrix(0,-1,1,0,0,0)"
          id="text4893">
         <tspan
            style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:32px;font-family:Athelas;-inkscape-font-specification:'Athelas Italic';writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
-           x="-213.00015"
-           y="145.20189"
-           id="tspan4895">ϵ</tspan>
+           x="-215.03305"
+           y="145.34589"
+           id="tspan4895">π</tspan>
       </text>
     </g>
     <g
