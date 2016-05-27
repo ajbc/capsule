@@ -6,15 +6,13 @@ Recall that the variational distributions $q(\pi)$ and $q(\beta)$ are both Diric
 
 Minimizing the KL divergence between the true posterior $p$ and the variational approximation $q$ is equivalent to maximizing the ELBO (Eq.~\ref{eq:elbo}).  We achieve this with closed form coordinate updates, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
 
-To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count distribution in Eq.~\ref{} and define Poisson variables for each component of the word count:
-\begin{equation*}
-  z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}) \quad
-  z^\mathcal{T}_{d,v,t} \sim \mbox{Poisson}\left(f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right).
-\end{equation*}
+To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count distribution in Eq.~\ref{eq:generateData} and define Poisson variables for each component of the word count:
+\[ z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}) \]
+\[ z^\mathcal{T}_{d,v,t} \sim \mbox{Poisson}\left(f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right). \]
 The $\mathcal{K}$ and $\mathcal{T}$ superscripts indicate the contributions from entity concerns and events, respectively.  Given these variables, the total word count is deterministic:
 \[ w_{d,v} = \sum_{k=1}^K z^\mathcal{K}_{d,v,k} + \sum_{t=1}^T z^\mathcal{T}_{d,v,t}. \]
 
-TODO: text here....
+Coordinate-ascent variational inference is derived from complete conditionals, i.e., the conditional distributions of each variable given the other variables and observations. These conditionals define both the form of each variational factor and their updates. The following are the complete conditional for each of the gamma- and Dirchlet-distributed latent parameters.  The notation $D(i)$ is used for the set of documents sent by entity $i$; $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
 
 \begin{multline}
 \pi_t \g \mathbf{W}, \psi, \phi, \beta, \theta, \epsilon, z \sim \\
@@ -68,17 +66,19 @@ TODO: text here....
 \label{eq:epsilon}
 \end{multline}
 
-Where $D(i)$ is the set of documents sent by entity $i$ and $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
-
-$z_{d,v} \g \psi, \pi, \phi, \beta, \theta, \epsilon \sim \mbox{Mult}(w_{d,v}, \omega_{d,v})$ where
+The complete conditional for the auxiliary variables has the form
+$z_{d,v} \g \psi, \pi, \phi, \beta, \theta, \epsilon \sim \mbox{Mult}(w_{d,v}, \omega_{d,v}),$ where
 \begin{multline}
 \omega_{d,v} \propto \langle 
 \theta_{d,1} \beta_{1,v}, \cdots, \theta_{d,K} \beta_{K,v}, \\
 f(i_d, 1) \epsilon_{d,1} \pi_{1,v}, \cdots, f(i_d, T) \epsilon_{d,T} \pi_{T,v}\rangle.
 \label{eq:omega}
 \end{multline}
+Intuitively, these variables allocate the data to one of the entity concerns or events, and thus can be used to explore the data.
 
-TODO: check for consistent indexing of variables (e.g., beta_{v,k} vs beta_{k,v})
+Given these conditionals, the algorithm sets each parameter to the expected conditional parameter under the variational distribution. The mean field assumption guarantees that this expectation will not involve the parameter being updated.  Algorithm 1 shows our variational inference algorithm. 
+
+%TODO: check for consistent indexing of variables (e.g., beta_{v,k} vs beta_{k,v})
 
 
 \begin{algorithm}
