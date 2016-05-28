@@ -13,7 +13,7 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
 
     // xi: entity strengths
     printf("\tinitializing entity strengths (xi)\n");
-    xi = fvec(data->date_count());
+    xi = fvec(data->entity_count());
     logxi = fvec(data->entity_count());
     a_xi = fvec(data->entity_count());
     b_xi = fvec(data->entity_count());
@@ -163,7 +163,7 @@ void Capsule::learn() {
                 b_zeta(doc) = xi(entity) + accu(eta.row(entity));
                 update_zeta(doc);
                 a_xi(entity) += settings->a_zeta * scale;
-                b_xi(entity) += zeta(doc, entity) * scale;
+                b_xi(entity) += zeta(doc) * scale;
             }
 
             if (settings->incl_topics) {
