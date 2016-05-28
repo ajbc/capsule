@@ -2,17 +2,14 @@
 #define ARMA_64BIT_WORD
 #include <armadillo>
 #include <gsl/gsl_rng.h>
-//#include <gsl/gsl_sf_psi.h>
 #include <gsl/gsl_sf.h>
 #include <list>
-//#include <algorithm>
 
 #include "utils.h"
-#include "eval.h"
+#include "data.h"
 
 using namespace std;
 using namespace arma;
-#include "data.h"
 
 struct model_settings {
     bool verbose;
@@ -179,8 +176,7 @@ struct model_settings {
     }
 };
 
-//WORKING LINE
-class Capsule: protected Model {
+class Capsule {
     private:
         model_settings* settings;
         Data* data;

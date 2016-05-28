@@ -321,8 +321,23 @@ void Capsule::evaluate(string label, bool write_rankings) {
     time_t start_time, end_time;
     time(&start_time);
 
-    eval(this, &Model::predict, settings->outdir, data, false, settings->seed,
-        settings->verbose, label, write_rankings);
+    // open file for eval
+    FILE* file = fopen((settings->outdir+"/eval.dat").c_str(), "a");
+
+    double prediction, likelihood = 0;
+    int doc, term, count;
+    for (int i = 0; i < data->num_test(); i++) {
+        doc = data->get_test_doc(i);
+        term = data->get_test_term(i);
+        count = data->get_test_count(i);
+
+        prediction = predict(doc, term);
+
+        likelihood += point_likelihood(prediction, count);
+    }
+
+    fprintf(file, "held out log likelihood @ %s:\t%e", label.c_str(), likelihood);
+    fclose(file);
 
     time(&end_time);
     log_time(-1, difftime(end_time, start_time));

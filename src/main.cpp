@@ -3,7 +3,6 @@
 
 
 #include <stdio.h>
-//#include <string.h>
 
 //gsl_rng * RANDOM_NUMBER = NULL;
 
@@ -449,7 +448,7 @@ int main(int argc, char* argv[]) {
     model->learn();
 
     // test the final model fit
-    printf("evaluating model on held-out data (TODO)\n");
+    printf("evaluating model on held-out data\n");
     model->evaluate();
 
     delete model;
