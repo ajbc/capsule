@@ -811,6 +811,17 @@ double Capsule::p_gamma(fvec x, double a, fvec b) {
     return rv;
 }
 
+// special for zeta
+double Capsule::p_gammaM(fvec x, double a, fvec b) {
+    double rv = 0.0;
+    double lga = lgamma(a);
+    for (uint i = 0; i < x.n_elem; i++) {
+        int m = data->get_entity(i);
+        rv += (a - 1.0) * log(x(i)) - b(m) * x(i) - a * log(b(m)) - lga;
+    }
+    return rv;
+}
+
 double Capsule::p_gamma(fvec x, double a, double b) {
     return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
 }
@@ -839,6 +850,7 @@ double Capsule::p_dir(fmat x, double a) {
 
 double Capsule::elbo_extra() {
     double rvtotal = 0;
+    printf("start ELBO\n");
 
     // subtract q
     if (settings->incl_events) {
@@ -868,7 +880,7 @@ double Capsule::elbo_extra() {
 
     if (settings->incl_entity) {
         rvtotal += p_dir(eta, settings->a_eta);
-        rvtotal += p_gamma(zeta, settings->a_zeta, xi);
+        rvtotal += p_gammaM(zeta, settings->a_zeta, xi);
         rvtotal += p_gamma(xi, settings->a_xi, settings->b_xi);
     }
 
@@ -877,6 +889,7 @@ double Capsule::elbo_extra() {
         rvtotal += p_gamma(theta, settings->a_theta, phi);
         rvtotal += p_gamma(phi, settings->a_phi, settings->b_phi);
     }
+    printf("end ELBO\n");
 
     return rvtotal;
 }
