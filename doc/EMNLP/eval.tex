@@ -43,6 +43,37 @@ $\epsilon$ & date & sender & recipient & subject \\
 
 
 
+% %-----------------
+
+\begin{table*}
+\centering
+\begin{tabular}{ccccc}
+\toprule
+data & full Capsule model & events only & topics only & entities only \\
+\midrule
+US State Dept. Cables & -2.41e7 & \textbf{-1.82e7} & -2.69e7 & -2.43e7 \\
+arXiv & \textbf{-3.12e6} & -3.57e6 & -3.14e6 & -3.57e6 \\
+\bottomrule
+\end{tabular}
+\label{tab:loglikelihood}
+\caption{Held-out data log likelihood.}
+\end{table*}
+% arxiv is after 15 iterations
+% cables is 15 iterations with exp 3
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/sim_eventdetect.pdf}
+\caption{TODO}
+\label{fig:sim_eventdetect}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/precision10.pdf}
+\caption{TODO}
+\label{fig:sim_precision}
+\end{figure}
 
 % In this section we study the performance of Capsule. Using simulated data, we compare Capsule to deterministic methods of event detection and show that Capsule outperforms them at identifying when events occur.  
 % %We also examine how sensitive Capsule is to the attributes of a dataset and model parameters.

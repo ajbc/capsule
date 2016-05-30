@@ -9,6 +9,14 @@ and describe how we learn the hidden variables.
 \parhead{The Capsule Model.}
 Topic models are often applied to provide a structure for an otherwise unstructured collection of documents.  Documents, however, are often accompanied by metadata, such as the date written or author attribution; this information is not exploited by traditional topic models.  The Capsule model uses both author and date information to identify and characterize events that influence the content of the collection.
 
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/cartoon.pdf}
+\caption{Cartoon intuition of Capsule.  The Bangkok embassy, Honk Kong embassy, and State Department all have typical concerns about which they usually send messages.  When an events occurs at time $t$, the stream of message content alters to include the event, then fades back to ``business as usual.''  Capsule discovers both entities' typical concerns and the event locations and content.}
+\label{fig:cartoon}
+\end{figure}
+
 Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:cartoon}.  We can imagine that there is a stream of messages (or \emph{diplomatic cables}) being sent by this embassy---some might be sent to the US State Department, others to another American embassy like Hong Kong.  An entity will usually talk about certain topics; the Bangkok embassy, for instance, is concerned with topics regarding southeast Asia more generally.
 
 Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy were about Vietnam war refugees.
