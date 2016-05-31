@@ -83,7 +83,7 @@ def main():
         #temp = sorted(range(V), key = lambda v: Fcdf[k][v], reverse=False)
         #temp = sorted(range(V), key = lambda v: Ecdf[k][v], reverse=False)
         #temp = sorted(range(V), key = lambda v: 1./((0.9/Ecdf[k][v]) + (0.1/Fcdf[k][v])), reverse=False)
-        temp = sorted(range(V), key = lambda v: 1./((0.9/Ecdf[k][v]) + (0.1/Fcdf[k][v])), reverse=False)
+        temp = sorted(range(V), key = lambda v: 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])), reverse=False)
         terms = ', '.join(['%s' % vocab[temp[i]] for i in range(int(sys.argv[4]))])
         #terms = '\n'.join(['%s (%f, %f, %f)' % (vocab[temp[i]], Fcdf[k][temp[i]], Ecdf[k][temp[i]], 1./((0.01/Ecdf[k][temp[i]]) + (0.99/Fcdf[k][temp[i]]))) for i in range(int(sys.argv[3]))])
         print '%d\t%f\t%s' % (k, strength[k], terms)#, 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])))

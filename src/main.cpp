@@ -3,7 +3,6 @@
 
 
 #include <stdio.h>
-//#include <string.h>
 
 //gsl_rng * RANDOM_NUMBER = NULL;
 
@@ -33,14 +32,19 @@ void print_usage_and_exit() {
     printf("  --b_phi {b}       rate hyperparamter to phi (entity concerns); default 0.3\n");
     printf("  --a_psi {a}       shape hyperparamter to psi (event strength); default 0.3\n");
     printf("  --b_psi {b}       rate hyperparamter to psi (event strength); default 0.3\n");
+    printf("  --a_xi {a}        shape hyperparamter to xi (entity strength); default 0.3\n");
+    printf("  --b_xi {b}        rate hyperparamter to xi (entity strength); default 0.3\n");
     printf("  --a_theta {a}     shape hyperparamter to theta (doc topics); default 0.3\n");
     printf("  --a_epsilon {a}   shape hyperparamter to epsilon (doc events); default 0.3\n");
+    printf("  --a_zeta {a}      shape hyperparamter to epsilon (doc entity relevancy); default 0.3\n");
     printf("  --a_beta {a}      shape hyperparamter to beta (topics); default 0.3\n");
     printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 0.3\n");
+    printf("  --a_eta {a}       shape hyperparamter to eta (entity description); default 0.3\n");
 
     printf("\n");
-    printf("  --entity_only     only consider entity concern aspect of factorization\n");
-    printf("  --event_only      only consider event aspect of factorization\n");
+    printf("  --no_topics       don't consider entity topics aspect of factorization\n");
+    printf("  --no_entity       don't consider entity concern aspect of factorization\n");
+    printf("  --no_events       don't consider event aspect of factorization\n");
 
     printf("\n");
     printf("  --event_dur {d}   event duration; default 7\n");
@@ -87,14 +91,19 @@ int main(int argc, char* argv[]) {
     double b_phi = 0.3;
     double a_psi = 0.3;
     double b_psi = 0.3;
+    double a_xi = 0.3;
+    double b_xi = 0.3;
     double a_theta = 0.3;
     double a_epsilon = 0.3;
+    double a_zeta = 0.3;
     double a_beta = 0.3;
     double a_pi = 0.3;
+    double a_eta = 0.3;
 
     // these are really bools, but typed as integers to play nice with getopt
-    int entity_only = 0;
-    int event_only = 0;
+    int incl_topics = 1;
+    int incl_entity = 1;
+    int incl_events = 1;
     bool final_pass = 0;
 
     int event_dur = 3;
@@ -116,7 +125,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:5:7:9:0:r:y:s:w:j:g:x:m:c:a:e:f:pk:";
+    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -128,12 +137,17 @@ int main(int argc, char* argv[]) {
         {"b_phi",           required_argument, NULL, '2'},
         {"a_psi",           required_argument, NULL, '3'},
         {"b_psi",           required_argument, NULL, '4'},
-        {"a_theta",         required_argument, NULL, '5'},
-        {"a_epsilon",       required_argument, NULL, '7'},
-        {"a_beta",          required_argument, NULL, '9'},
-        {"a_pi",            required_argument, NULL, '0'},
-        {"entity_only",     no_argument, &entity_only, 1},
-        {"event_only",      no_argument, &event_only, 1},
+        {"a_xi",            required_argument, NULL, '5'},
+        {"b_xi",            required_argument, NULL, '6'},
+        {"a_theta",         required_argument, NULL, '7'},
+        {"a_epsilon",       required_argument, NULL, '8'},
+        {"a_zeta",          required_argument, NULL, '9'},
+        {"a_beta",          required_argument, NULL, '0'},
+        {"a_pi",            required_argument, NULL, 'i'},
+        {"a_eta",           required_argument, NULL, 'l'},
+        {"no_topics",       no_argument, &incl_topics, 0},
+        {"no_entity",       no_argument, &incl_entity, 0},
+        {"no_events",       no_argument, &incl_events, 0},
         {"event_dur",       required_argument, NULL, 'r'},
         {"event_decay",     required_argument, NULL, 'y'},
         {"seed",            required_argument, NULL, 's'},
@@ -186,16 +200,28 @@ int main(int argc, char* argv[]) {
                 b_psi = atof(optarg);
                 break;
             case '5':
-                a_theta = atof(optarg);
+                a_xi = atof(optarg);
+                break;
+            case '6':
+                b_xi = atof(optarg);
                 break;
             case '7':
+                a_theta = atof(optarg);
+                break;
+            case '8':
                 a_epsilon = atof(optarg);
                 break;
             case '9':
-                a_beta = atof(optarg);
+                a_zeta = atof(optarg);
                 break;
             case '0':
+                a_beta = atof(optarg);
+                break;
+            case 'i':
                 a_pi = atof(optarg);
+                break;
+            case 'l':
+                a_eta = atof(optarg);
                 break;
             case 'r':
                 event_dur = atoi(optarg);
@@ -287,8 +313,8 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
 
-    if (entity_only && event_only) {
-        printf("Model cannot be both entity only and event only.  Exiting.\n");
+    if (!incl_topics && !incl_entity && !incl_events) {
+        printf("Model must include at least one of: topics, entity, or event factors.  Exiting.\n");
         exit(-1);
     }
 
@@ -302,21 +328,19 @@ int main(int argc, char* argv[]) {
         final_pass = false;
     }
 
-    printf("\nmodel specification:\n");
+    printf("\nmodel specification includes:\n");
+    if (incl_topics)
+        printf("\ttopic factors\n");
+    if (incl_entity)
+        printf("\tentity factors\n");
+    if (incl_events)
+        printf("\tevent factors\n");
 
-    if (entity_only) {
-        printf("\tentity factors only\n");
-    } else if (event_only) {
-        printf("\tevent factors only\n");
-    } else {
-        printf("\tfull Capsule model (entity + event factors)\n");
-    }
-
-    if (!event_only) {
+    if (incl_topics) {
         printf("\tK = %d   (number of latent factors for general preferences)\n", k);
     }
 
-    if (!entity_only) {
+    if (incl_events) {
         printf("\nevent duration: %d\n", event_dur);
         printf("\nevent decay: %s\n", event_decay.c_str());
         if (!(event_decay == "none" || event_decay == "linear" || event_decay == "exponential")) {
@@ -326,12 +350,17 @@ int main(int argc, char* argv[]) {
     }
 
     printf("\nshape and rate hyperparameters:\n");
-    if (!event_only) {
+    if (incl_topics) {
         printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
         printf("\ttheta    (%.2f, ---)\n", a_theta);
         printf("\tbeta     (%.2f, 1.0)\n", a_beta);
     }
-    if (!entity_only) {
+    if (incl_entity) {
+        printf("\txi       (%.2f, %.2f)\n", a_xi, b_xi);
+        printf("\tzeta     (%.2f, ---)\n", a_zeta);
+        printf("\teta      (%.2f, 1.0)\n", a_eta);
+    }
+    if (incl_events) {
         printf("\tpsi      (%.2f, %.2f)\n", a_psi, b_psi);
         printf("\tepsilon  (%.2f, ---)\n", a_epsilon);
         printf("\tpi       (%.2f, 1.0)\n", a_pi);
@@ -360,9 +389,9 @@ int main(int argc, char* argv[]) {
 
 
     model_settings settings;
-    settings.set(verbose, out, data, svi, a_phi, b_phi, a_psi, b_psi, a_theta,
-        a_epsilon, a_pi, a_beta,
-        (bool) entity_only, (bool) event_only,
+    settings.set(verbose, out, data, svi, a_phi, b_phi, a_psi, b_psi, a_xi, b_xi,
+        a_theta, a_epsilon, a_zeta, a_pi, a_beta, a_eta,
+        (bool) incl_topics, (bool) incl_entity, (bool) incl_events,
         event_dur, event_decay,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,
         final_pass, sample_size, svi_delay, svi_forget, k);
@@ -419,7 +448,7 @@ int main(int argc, char* argv[]) {
     model->learn();
 
     // test the final model fit
-    printf("evaluating model on held-out data (TODO)\n");
+    printf("evaluating model on held-out data\n");
     model->evaluate();
 
     delete model;

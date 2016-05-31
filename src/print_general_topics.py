@@ -92,15 +92,17 @@ def main():
             Ecdf[k][idx] = cv
 
     for k in range(0, len(testlambda)):
-        #temp = sorted(range(V), key = lambda v: 1./((0.01/Ecdf[k][v]) + (0.99/Fcdf[k][v])), reverse=False)
-        #temp = sorted(range(V), key = lambda v: Fcdf[k][v], reverse=False)
-        #temp = sorted(range(V), key = lambda v: Ecdf[k][v], reverse=False)
-        #temp = sorted(range(V), key = lambda v: 1./((0.9/Ecdf[k][v]) + (0.1/Fcdf[k][v])), reverse=False)
-        temp = sorted(range(V), key = lambda v: 1./((0.9/Ecdf[k][v]) + (0.1/Fcdf[k][v])), reverse=False)
+        temp = sorted(range(V), key = lambda v: 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])), reverse=False)
         terms = ', '.join(['%s' % vocab[temp[i]] for i in range(int(sys.argv[3]))])
-        #terms = '\n'.join(['%s (%f, %f, %f)' % (vocab[temp[i]], Fcdf[k][temp[i]], Ecdf[k][temp[i]], 1./((0.01/Ecdf[k][temp[i]]) + (0.99/Fcdf[k][temp[i]]))) for i in range(int(sys.argv[3]))])
-        print '%d\t%s' % (k, terms)#, 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])))
-        #print '    topic %d: %s' % (k, terms)
+        print '%d H\t%s' % (k, terms)#, 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])))
+
+        temp = sorted(range(V), key = lambda v: 1./((0.0/Ecdf[k][v]) + (1.0/Fcdf[k][v])), reverse=False)
+        terms = ', '.join(['%s' % vocab[temp[i]] for i in range(int(sys.argv[3]))])
+        print '%d F\t%s' % (k, terms)#, 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])))
+
+        temp = sorted(range(V), key = lambda v: 1./((1.0/Ecdf[k][v]) + (0.0/Fcdf[k][v])), reverse=False)
+        terms = ', '.join(['%s' % vocab[temp[i]] for i in range(int(sys.argv[3]))])
+        print '%d E\t%s' % (k, terms)#, 1./((0.5/Ecdf[k][v]) + (0.5/Fcdf[k][v])))
 
 
 if __name__ == '__main__':

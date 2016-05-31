@@ -26,7 +26,7 @@ class Data {
         int max_term;
         int max_entity;
         int max_date;
-        
+
         map<int,int> authors;
         map<int,int> dates;
         map<pair<int, int>,int> doc_counts;
@@ -41,9 +41,9 @@ class Data {
         vector<int> validation_terms;
         vector<int> validation_counts;
         //sp_fmat validation_counts_matrix;
-       
+
         // test data - rm?
-        set<DocTerm> train_set; 
+        set<DocTerm> train_set;
         map<int, int> test_num_terms;
         map<int, int> test_num_docs;
         // typedef set<Point> List;
@@ -53,17 +53,17 @@ class Data {
         // simple summaries
         //map<int,float> item_ave_ratings;
         //map<int,float> user_ave_ratings;
-        
+
         // summaires used fror baselines
         map<int, double> overall_doc_dist;
         map<int, double> overall_day_dist;
         map<int, map<int, double> > entity_doc_dist;
         map<int, map<int, double> > entity_day_dist;
-    
+
     public:
         //sp_fmat ratings;
         //sp_fmat network_spmat;
-        
+
         Data();
         void read_training(string counts_filename, string meta_filename);
         void read_validation(string filename);
@@ -91,34 +91,21 @@ class Data {
         int get_train_doc(int i);
         int get_train_term(int i);
         int get_train_count(int i);
-        
+
         // validation data
         int num_validation();
         int get_validation_doc(int i);
         int get_validation_term(int i);
         int get_validation_count(int i);
-        
+
         // test data
         vector<int> test_docs;
         vector<int> test_terms;
         vector<int> test_counts;
-        
-        map<DocTerm,int> test_dat; 
         int num_test();
-        int num_test(int doc);
-        int get_test_count(int doc, int term);
-        int num_test_term(int term);
-        /*set<int> test_users;
-        set<int> test_items;
-        sp_umat test_ratings;
-        int num_test_item(int item);*/
-        bool in_training(int doc, int term);
-
-        // outlier distances
-        double overall_doc_outlier_dist(int day);
-        double overall_day_ave_dist(int day);
-        double entity_doc_outlier_dist(int entity, int day);
-        double entity_day_ave_dist(int entity, int day);
+        int get_test_doc(int i);
+        int get_test_term(int i);
+        int get_test_count(int i);
 };
 
 #endif
