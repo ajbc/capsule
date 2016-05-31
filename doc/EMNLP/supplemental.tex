@@ -8,9 +8,10 @@
 \usepackage{times}
 \usepackage{latexsym}
 
-% reference appendix
+% reference main submission for equations, etc.
 \usepackage{xr}
-\externaldocument{supplemental}
+\externaldocument{emnlp2016}
+\setcounter{equation}{3}
 
 \input{preamble/preamble.tex}
 \input{preamble/preamble_math.tex}
@@ -27,7 +28,7 @@
 % below and set accordingly.
 % \addtolength\titlebox{.5in}    
 
-\title{Detecting and Characterizing Events}
+\title{Detecting and Characterizing Events: Appendices}
 
 % Author information can be set in various styles:
 % For several authors from the same institution:
@@ -71,26 +72,10 @@ Matthew Connelly\\
 
 \maketitle
 
-\begin{abstract}
-\input{abstract.tex}
-\end{abstract}
- 
-
-\section{Introduction}
-\label{sec:intro}
-\input{intro.tex}
-
-\section{The Capsule Model}
-\label{sec:model}
-\input{model.tex}
-
-\section{Evaluation}
-\label{sec:eval}
-\input{eval.tex}
-
-\section{Discussion}
-\label{sec:discussion}
-\input{discussion.tex}
+\appendix
+\section{Inference}
+\label{sec:inference}
+\input{appendix.tex}
 
 %TODO:
 % go through and check citation styles [ ~\cite{Gusfield:97} and Gusfield~\shortcite{Gusfield:97} ]
