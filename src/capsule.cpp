@@ -101,12 +101,35 @@ void Capsule::learn() {
     bool converged = false;
     bool on_final_pass = false;
 
+    bool damper_entity = false;
+    bool damper_topics = false;
+
     while (!converged) {
         time(&start_time);
         iteration++;
         printf("iteration %d\n", iteration);
 
         reset_helper_params();
+
+        /*if (settings->incl_events && iteration == 1) {
+            if (settings->incl_entity) {
+                damper_entity = true;
+                settings->incl_entity = false;
+            }
+
+            if (settings->incl_topics) {
+                damper_topics = true;
+                settings->incl_topics = false;
+            }
+        } else {
+            if (damper_entity) {
+                settings->incl_entity = true;
+            }
+
+            if (damper_topics) {
+                settings->incl_topics = true;
+            }
+        }*/
 
         set<int> terms;
         set<int> entities;
@@ -336,7 +359,7 @@ void Capsule::evaluate(string label, bool write_rankings) {
         likelihood += point_likelihood(prediction, count);
     }
 
-    fprintf(file, "held out log likelihood @ %s:\t%e", label.c_str(), likelihood);
+    fprintf(file, "held out log likelihood @ %s:\t%e\n", label.c_str(), likelihood);
     fclose(file);
 
     time(&end_time);
@@ -811,6 +834,17 @@ double Capsule::p_gamma(fvec x, double a, fvec b) {
     return rv;
 }
 
+// special for zeta
+double Capsule::p_gammaM(fvec x, double a, fvec b) {
+    double rv = 0.0;
+    double lga = lgamma(a);
+    for (uint i = 0; i < x.n_elem; i++) {
+        int m = data->get_entity(i);
+        rv += (a - 1.0) * log(x(i)) - b(m) * x(i) - a * log(b(m)) - lga;
+    }
+    return rv;
+}
+
 double Capsule::p_gamma(fvec x, double a, double b) {
     return accu((a-1) * log(x) - b * x - a * log(b) - lgamma(a));
 }
@@ -839,6 +873,7 @@ double Capsule::p_dir(fmat x, double a) {
 
 double Capsule::elbo_extra() {
     double rvtotal = 0;
+    printf("start ELBO\n");
 
     // subtract q
     if (settings->incl_events) {
@@ -868,7 +903,7 @@ double Capsule::elbo_extra() {
 
     if (settings->incl_entity) {
         rvtotal += p_dir(eta, settings->a_eta);
-        rvtotal += p_gamma(zeta, settings->a_zeta, xi);
+        rvtotal += p_gammaM(zeta, settings->a_zeta, xi);
         rvtotal += p_gamma(xi, settings->a_xi, settings->b_xi);
     }
 
@@ -877,6 +912,7 @@ double Capsule::elbo_extra() {
         rvtotal += p_gamma(theta, settings->a_theta, phi);
         rvtotal += p_gamma(phi, settings->a_phi, settings->b_phi);
     }
+    printf("end ELBO\n");
 
     return rvtotal;
 }
