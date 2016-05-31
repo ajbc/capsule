@@ -8,14 +8,14 @@
 % http://www.tug.dk/FontCatalogue/lmoderntypewriterprop/
 \renewcommand*\ttdefault{lmvtt}
 
-\usepackage[bitstream-charter]{mathdesign} % not needed for mtpro
+%\usepackage[bitstream-charter]{mathdesign} % not needed for mtpro
 \usepackage{amsmath}
-% \usepackage[subscriptcorrection,
-%             amssymbols,
-%             mtpbb,
-%             mtpcal,
-%             nofontinfo  % suppresses all warnings
-%            ]{mtpro2} %TODO: put htis back in and take out mathdesign
+\usepackage[subscriptcorrection,
+            amssymbols,
+            mtpbb,
+            mtpcal,
+            nofontinfo  % suppresses all warnings
+           ]{mtpro2} %TODO: put htis back in and take out mathdesign
 \usepackage{scalefnt,letltxmacro}
 \LetLtxMacro{\oldtextsc}{\textsc}
 \renewcommand{\textsc}[1]{\oldtextsc{\scalefont{1.10}#1}}

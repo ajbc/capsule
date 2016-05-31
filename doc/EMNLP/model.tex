@@ -9,6 +9,14 @@ and describe how we learn the hidden variables.
 \parhead{The Capsule Model.}
 Topic models are often applied to provide a structure for an otherwise unstructured collection of documents.  Documents, however, are often accompanied by metadata, such as the date written or author attribution; this information is not exploited by traditional topic models.  The Capsule model uses both author and date information to identify and characterize events that influence the content of the collection.
 
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/cartoon.pdf}
+\caption{Cartoon intuition of Capsule.  The Bangkok embassy, Honk Kong embassy, and State Department all have typical concerns about which they usually send messages.  When an events occurs at time $t$, the stream of message content alters to include the event, then fades back to ``business as usual.''  Capsule discovers both entities' typical concerns and the event locations and content.}
+\label{fig:cartoon}
+\end{figure}
+
 Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:cartoon}.  We can imagine that there is a stream of messages (or \emph{diplomatic cables}) being sent by this embassy---some might be sent to the US State Department, others to another American embassy like Hong Kong.  An entity will usually talk about certain topics; the Bangkok embassy, for instance, is concerned with topics regarding southeast Asia more generally.
 
 Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy were about Vietnam war refugees.
@@ -17,19 +25,22 @@ Thus we imagine that an entity's stream of messages is controlled by what it usu
 \parhead{Model Specification.}
 We formally describe Capsule. The observed data are word counts $w_{d,v}$ for document $d$ and vocabulary term $v$; each document $d$ also has an author (or entity) $a_d$ and a time (or date) interval $i_d$ associated with it.
 
-The hidden variables of this model are general topics of conversation $\beta$, authors' typical concerns $\phi$, event descriptions $\pi$, event strengths $\psi$, and document-specific topics $\theta$ and event relevancy $\epsilon$.  The graphical model in Figure~\ref{fig:graphicalmodel} shows considers dependencies between these latent parameters and the observed data.
+The hidden variables of this model are general topics of conversation $\beta$, authors' typical concerns $\phi$, event descriptions $\pi$, event strengths $\psi$, and document-specific topics $\theta$ and event relevancy $\epsilon$.  %The graphical model in Figure~\ref{fig:graphicalmodel} shows considers dependencies between these latent parameters and the observed data.
 
-\begin{figure}[htb]
-\centering
-\includegraphics[width=\linewidth]{fig/graphicalmodel.pdf}
-\caption{A directed graphical model of Capsule to show considered dependencies. Shaded nodes $w$ are observed word counts.  Unshaded nodes are hidden variables---at the global level, these are topics $\beta$, entity typical concerns $\phi$, interval strength $\epsilon$, and interval content descriptions $\pi$.  At the document level, we have hidden variables for local entity concerns $\theta$ and interval relevancy $\epsilon$. Plates denote replication: there are $D$ documents, $T$ intervals, $N$ entities, $K$ topics, and $V$ vocabulary terms. Fixed hyperparameters are indicated by black squares.}
-\label{fig:graphicalmodel}
-\end{figure}
+% \begin{figure}[htb]
+% \centering
+% \includegraphics[width=\linewidth]{fig/graphicalmodel.pdf}
+% \caption{A directed graphical model of Capsule to show considered dependencies. Shaded nodes $w$ are observed word counts.  Unshaded nodes are hidden variables---at the global level, these are topics $\beta$, entity typical concerns $\phi$, interval strength $\epsilon$, and interval content descriptions $\pi$.  At the document level, we have hidden variables for local entity concerns $\theta$ and interval relevancy $\epsilon$. Plates denote replication: there are $D$ documents, $T$ intervals, $N$ entities, $K$ topics, and $V$ vocabulary terms. Fixed hyperparameters are indicated by black squares.}
+% \label{fig:graphicalmodel}
+% \end{figure}
 
-As in topic modeling, we represent the topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$ 
+As in topic modeling, we represent the general topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$ 
 
-The concerns of author $n$ are represented with $\phi_n$, a $K$-dimensional topic vector, where each element is drawn from a gamma distribution, or $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$.\footnote{We use the shape-rate parameterization for all Gamma distributions.}  
-Similar to topic modeling, we represent the contents of each document in topic space; each document $d$ has a $K$-dimensional latent parameter $\theta_d$ to describe the particular contents of that document.  Unlike traditional topic models, each document $d$'s topics depend on the concerns of the author $a_d$; each document topic $\theta_{d,k}$ is drawn from a gamma distribution parameterized by the corresponding author concerns $\phi_{a_d,k}$: $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$.
+In addition to using these general topics to represent entity concerns, each entity $n$ has its own exclusive topic $\beta^{(n)}_{0}$, which can be appended as a bias row to the general topics $\beta$.  These entity-specific topics are drawn from a Dirichlet, just as the general topics.
+
+The concerns of author $n$ are represented with $\phi_n$, a $(K+1)$-dimensional topic vector, where each element is drawn from a gamma distribution, or $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi),$\footnote{We use the shape-rate parameterization for all Gamma distributions.} and the first element of the concern vector $\phi_{n,0}$ describes how much the entity $n$ relies on its exclusive topic $\beta^{(n)}_0$
+
+Similar to topic modeling, we represent the contents of each document in topic space; each document $d$ has a $(K+1)$-dimensional latent parameter $\theta_d$ to describe the particular contents of that document.  Unlike traditional topic models, each document $d$'s topics depend on the concerns of the author $a_d$; each document topic $\theta_{d,k}$ is drawn from a gamma distribution parameterized by the corresponding author concerns $\phi_{a_d,k}$: $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$.
 
 To represent events, we consider discrete intervals of time.  Each interval $t$ has a corresponding interval strength $\psi_t$ and description $\pi_t$.  Event strengths are a single value for each interval $t$, and are drawn from a gamma distribution: $\psi_{n,k} \sim \mbox{Gamma}(s_\psi, r_\psi)$.  These strengths indicate how important the interval is in determining message content.  Interval descriptions are similar to topics: each description is a $V$-dimensional vector drawn from a Dirichlet distribution over the vocabulary terms, or $\pi_k \sim \mbox{Dirichlet}_V (\alpha_\pi).$
 
@@ -37,7 +48,7 @@ Just as we describe each document $d$ in terms of relevant topics with the $\the
 
 Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document word counts came to be.  For document $d$ and vocabulary term $v$, we generate the word counts form a Poisson distribution parameterized by the documents topics $\theta_d$ and relevant events $\epsilon$, as well as global topic $\beta$ and event descriptions $\pi$:
 \begin{equation}
-w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right),
+w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta^{(a_d)}_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right),
 \label{eq:generateData}
 \end{equation}
 where $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we consider step functions, linear decay, and exponential decay.  Figure~\ref{fig:generative-model} gives the full generative process for Capsule.
@@ -52,17 +63,23 @@ where $f$ is some function of decay.  This function is important because events 
 	\item draw interval description over vocabulary \\$\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
 	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
+\item for each entity $n=$~1:$N$,
+	\begin{itemize}[leftmargin=*]
+	\item draw entity-specific topics over vocabulary \\$\beta^{(n)}_{0} \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw entity-specific topic strength \\$\phi_{n,0} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+	\end{itemize}
 \item for each topic $k=$~1:$K$,
 	\begin{itemize}[leftmargin=*]
-	\item draw topic distribution over vocabulary \\$\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw general topic distribution over vocabulary \\$\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
 	\item for each entity $n=$~1:$N$,
 		\begin{itemize}[leftmargin=*]
-		\item draw entity concern \\$\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+		\item draw general entity concern \\$\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
 		\end{itemize}
 	\end{itemize}
 \item for each document $d=$~1:$D$ sent at time $i_d$ by author $a_d$,
 	\begin{itemize}[leftmargin=*]
-		\item for each topic $k=$~1:$K$,
+	\item draw local entity concern \\$\theta_{d,0} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,0})$
+	\item for each topic $k=$~1:$K$,
 		\begin{itemize}[leftmargin=*]
 			\item draw local entity concern \\$\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$
 		\end{itemize}
@@ -72,7 +89,7 @@ where $f$ is some function of decay.  This function is important because events 
 		\end{itemize}
 	\item for each vocabulary term $v=$~1:$V$,
 		\begin{itemize}[leftmargin=*]
-			\item draw word counts $w_{d,v} \sim\\ \mbox{Poisson}\left(\theta_d^\top\beta_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right)$
+			\item draw word counts $w_{d,v} \sim \\ \mbox{Poisson}\left(\theta_d^\top\beta^{(a_d)}_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right)$
 		\end{itemize}
 	\end{itemize}
 \end{itemize}
@@ -101,6 +118,7 @@ This is equivalent to maximizing the ELBO,
 We define the approximating distribution $q$ using the mean field assumption:
 \begin{multline}
 	q(\psi, \pi, \phi, \beta, \theta, \epsilon) = \prod_{t=1}^T \left[ q(\pi_{t} \g \lambda^\pi_t) q(\psi_t \g \lambda^\psi_t) \right] \\
+		\prod_{n=1}^N \left[ q(\phi_{n,0} \g \lambda^\phi_{n,0})~q(\beta^{(n)}_0 \g \lambda^{\beta}_{n,0}) \right] \\
 		\prod_{k=1}^K \left[ q(\beta_{k} \g \lambda^\beta_k) \prod_{n=1}^N q(\phi_{n,k} \g \lambda^\phi_{n,k}) \right] \\
 		\prod_{d=1}^D \left[
 				\prod_{k=1}^K q(\theta_{d,k} \g \lambda^\theta_{d,k})
@@ -110,6 +128,15 @@ We define the approximating distribution $q$ using the mean field assumption:
 \end{multline}
 
 The variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.
+
+
+% cheating by putting this here...
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\linewidth]{fig/cables_events.pdf}
+\caption{Measure of time interval impact on cable content: $\psi_t \frac{1}{\vert D_t \vert}\sum_{d\in D_t} \epsilon_{d,t}$, where $D_t$ is the set of all cables sent in interval $t$.  The grey background indicates the number of cables sent over time.}
+\label{fig:cables_events}
+\end{figure*}
 
 The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates, as detailed in Appendix~\ref{sec:inference}. We update each parameter in turn, following standard coordinate ascent variational inference techniques.  Full details on our inference algorithm can be found in the appendix.  This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
@@ -124,3 +151,4 @@ The expectations under $q$, which are needed to maximize the ELBO, have closed f
 % \caption{Screenshots of Capsule visualization of US State Department cables.  Left: top words in a topic (manually labeled topic title).  Center-top: events over time (height is volume of messages sent, color is probability of an event occurring).  Center-bottom: topics for an event on <date TODO: cyprus coup?>.  Right-top: cyprus entity topics? TODO.  Right-bottom: entities shown on a map.}
 % \label{fig:viz}
 % \end{figure}
+

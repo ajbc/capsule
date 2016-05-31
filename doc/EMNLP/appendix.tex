@@ -13,7 +13,6 @@ The $\mathcal{K}$ and $\mathcal{T}$ superscripts indicate the contributions from
 \[ w_{d,v} = \sum_{k=1}^K z^\mathcal{K}_{d,v,k} + \sum_{t=1}^T z^\mathcal{T}_{d,v,t}. \]
 
 Coordinate-ascent variational inference is derived from complete conditionals, i.e., the conditional distributions of each variable given the other variables and observations. These conditionals define both the form of each variational factor and their updates. The following are the complete conditional for each of the gamma- and Dirchlet-distributed latent parameters.  The notation $D(i)$ is used for the set of documents sent by entity $i$; $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
-
 \begin{multline}
 \pi_t \g \mathbf{W}, \psi, \phi, \beta, \theta, \epsilon, z \sim \\
 	\mbox{Dirichlet}_V\left(\alpha_\pi + \sum_{d=1}^D \langle
@@ -21,7 +20,6 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 	\right)
 \label{eq:pi}
 \end{multline}
-
 \begin{multline}
 \beta_k \g \mathbf{W}, \psi, \pi, \phi, \theta, \epsilon, z \sim \\
 	\mbox{Dirichlet}_V\left(\alpha_\beta + \sum_{d=1}^D \langle
@@ -29,7 +27,6 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 	\right)
 \label{eq:beta}
 \end{multline}
-
 \begin{multline}
 \psi_t \g \mathbf{W}, \pi, \phi, \beta, \theta, \epsilon, z \sim \\
 	\mbox{Gamma}\left(
@@ -38,7 +35,6 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 	\right)
 \label{eq:psi}
 \end{multline}
-
 \begin{multline}
 \phi_{i,k} \g \mathbf{W}, \psi, \pi, \beta, \theta, \epsilon, z \sim \\
 	\mbox{Gamma}\left(
@@ -47,7 +43,6 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 	\right)
 \label{eq:phi}
 \end{multline}
-
 \begin{multline}
 \theta_{d,k} \g \mathbf{W}, \psi, \pi, \phi \beta, \epsilon, z \sim \\
 	\mbox{Gamma}\left(
@@ -56,7 +51,6 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 	\right)
 \label{eq:theta}
 \end{multline}
-
 \begin{multline}
 \epsilon_{d,t} \g \mathbf{W}, \psi, \pi, \phi, \beta, \theta, z \sim \\
 	\mbox{Gamma}\left(
