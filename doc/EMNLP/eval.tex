@@ -97,6 +97,21 @@ Examples of general topics of conversation are shown in Table~\ref{tab:topics} a
 
 These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
+\begin{table}[h]
+\centering
+\begin{tabular}{cc}
+\toprule
+method & held out log likelihood \\
+\midrule
+full Capsule model & -2.41e7 \\
+event only & \textbf{-1.82e7} \\
+topics only & -2.69e7 \\
+entities only & -2.43e7 \\
+\bottomrule
+\end{tabular}
+\label{tab:loglikelihood}
+\caption{Held-out data log likelihood.}
+\end{table}
 We also considered held out log likelihood in evaluating the fitness of our model, as shown in Table~\ref{tab:loglikelihood}.  We see that the event structure is crucial to fitting the data well.  We held out 5\% of the data.
 
 % %-----------------
@@ -117,24 +132,7 @@ We also considered held out log likelihood in evaluating the fitness of our mode
 % arxiv is after 15 iterations
 % cables is 15 iterations with exp 3
 
-\begin{table}
-\centering
-\begin{tabular}{cc}
-\toprule
-method & held out log likelihood \\
-\midrule
-full Capsule model & -2.41e7 \\
-event only & \textbf{-1.82e7} \\
-topics only & -2.69e7 \\
-entities only & -2.43e7 \\
-\bottomrule
-\end{tabular}
-\label{tab:loglikelihood}
-\caption{Held-out data log likelihood.}
-\end{table}
-
-
-\begin{figure}
+\begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{fig/sim_eventdetect.pdf}
 \caption{Event detection performance on twenty simulated datasets.  Capsule is able to detect events as well as comparison methods, but its performance has higher variance.}
@@ -144,8 +142,7 @@ entities only & -2.43e7 \\
 Finally, we simulated data according to our generative process in order to compare our method to baseline and existing approaches.  
 To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a model and the simulated ground at every threshold; this generates an curve under which we cam compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC.  
 The most successful of the comparison methods for event detection was average absolute error in wordcount, both unweighted and weighted by tf-idf.  Figure~\ref{fig:sim_eventdetect} shows that Capsule can outperform these approaches for event detection, but that it has higher variance in performance.  The other comparison method in Figure~\ref{fig:sim_eventdetect} is based on LDA; we fit a multinomial Gaussian to the topic representation of all documents and then computed the average probability of seeing the topic distributions of documents in the time interval.  Time intervals with the lowest probability were marked as most likely to have events.  All other baselines performed close to random for event detection.
-
-\begin{figure}
+\begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{fig/precision10.pdf}
 \caption{Precision of recovering the top ten most relevant documents, averaged over all time intervals.  Capsule performs best, averaged over twenty simulations.}
@@ -154,7 +151,7 @@ The most successful of the comparison methods for event detection was average ab
 
 This method of fitting a multinomial Gaussian to LDA representations of documents also performed well for recovering relevant documents.  This approach can be altered to fit a per-entity multinomial Gaussian, but this performs worse.  Simply finding documents based on absolute deviation from the mean works well in LDA topic space (relative to overall mean or entity mean), but not over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  Figure~\ref{fig:sim_precision} shows precision of recovering the top ten documents.
 
-We also assessed the sensitivity of our model to various parameter settings.  We simulated data sets with three different event relevancy decay functions $f$: exponential, linear, and step functions.  Then, we fit Capsule to each of these datasets using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model was not sensitive to decay shape or duration, but that exponential decay generally performed the best on all data types.
+We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model is not sensitive to decay shape or duration.
 
 % \begin{figure*}
 % \centering
