@@ -101,12 +101,35 @@ void Capsule::learn() {
     bool converged = false;
     bool on_final_pass = false;
 
+    bool damper_entity = false;
+    bool damper_topics = false;
+
     while (!converged) {
         time(&start_time);
         iteration++;
         printf("iteration %d\n", iteration);
 
         reset_helper_params();
+
+        /*if (settings->incl_events && iteration == 1) {
+            if (settings->incl_entity) {
+                damper_entity = true;
+                settings->incl_entity = false;
+            }
+
+            if (settings->incl_topics) {
+                damper_topics = true;
+                settings->incl_topics = false;
+            }
+        } else {
+            if (damper_entity) {
+                settings->incl_entity = true;
+            }
+
+            if (damper_topics) {
+                settings->incl_topics = true;
+            }
+        }*/
 
         set<int> terms;
         set<int> entities;
@@ -336,7 +359,7 @@ void Capsule::evaluate(string label, bool write_rankings) {
         likelihood += point_likelihood(prediction, count);
     }
 
-    fprintf(file, "held out log likelihood @ %s:\t%e", label.c_str(), likelihood);
+    fprintf(file, "held out log likelihood @ %s:\t%e\n", label.c_str(), likelihood);
     fclose(file);
 
     time(&end_time);
