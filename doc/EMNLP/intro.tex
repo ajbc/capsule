@@ -10,7 +10,7 @@ We develop a Bayesian model that discovers the typical concerns of authors, iden
 
 %Our final goal is to visualize the results of the Capsule model to make them accessible.   We provide source code for both Capsule and its associated visualization.
 
-We first review previous research related to event detect, summarization, and visualization.  In Section~\ref{sec:model}, we describe the Capsule model and how to infer the latent parameters (the appendix provides further inference details).  Section~\ref{sec:eval} provides an exploration of results on a real-world dataset.%on simulated and three real-world datasets.%, and we conclude with a discussion in Section~\ref{sec:discussion}.
+We first review previous research related to event detect, summarization, and visualization.  In Section~\ref{sec:model}, we describe the Capsule model and how to infer the latent parameters (the appendix provides further inference details).  Section~\ref{sec:eval} provides an exploration of results on simulated and a real-world data set, and we conclude with a discussion in Section~\ref{sec:discussion}.
 
 % Contributions
 % \begin{itemize}
@@ -42,7 +42,7 @@ In both univariate and multivariate settings, the goal is often the same: analys
 
 % Text is often used in event detection, as it is an abundant source of data.  
 % In some applications, documents themselves are considered to be observed events~\cite{mccallum1998comparison,peng2007event}, or events are predetermined and tracked through the documents~\cite{yang2000improving,VanDam:2012}.  We are interested in detecting \emph{unobserved} events which can be characterized by patterns in the data.
-\newpage % note:when using hyperref, references can be split between pages!
+%\newpage % note:when using hyperref, references can be split between pages!
 A common goal is to identify clusters of documents; these approaches are used on news articles~\cite{zhao2012novel,zhao2007temporal,zhang2002novelty,li2005probabilistic,wang2007mining,allan1998line} and social media posts~\cite{VanDam:2012,lau2012line,jackoway2011identification,sakaki2010earthquake,reuter2012event,becker2010learning,sayyadi2009event}.  
 In the case of news articles, the task is to create new clusters as novel news stories appear---this does not help disentangle typical content from rare events of interest.
 Social media approaches identify rare events, but the methods are designed for short, noisy documents; they are not appropriate for larger documents that contain information about a variety of subjects.

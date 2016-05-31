@@ -1,93 +1,172 @@
 %!TEX root = emnlp2016.tex
 
 In this section we explore the performance of Capsule on a collection of US State Department cables.
-These cables were sent between 1973 and 1977 and obtained from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives. In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  To test our model, we considered only cables from 1976 Using a vocabulary of size 6293, we omitted cables with fewer than three terms, resulting in a collection of 335,631 messages sent between 542 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
+These cables were sent between 1973 and 1978 and obtained from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives. In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  To test our model, we used a vocabulary of size 6,293 and omitted cables with fewer than three terms, resulting in a collection of 2,139,324 messages sent between 27,134 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
 
-We fit Capsule with 100 topics and using an exponential decay with mean lifetime of 3---this indicates that most intervals would no longer be relevant after about 3 weeks.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$. Table~\ref{tab:entebbe} show the top documents for the week of July, 6, 1976.  Two weeks prior, an Air France airplane had been hijacked and taken to Entebbe, Uganda.  The flight had originally be scheduled to travel between Tel Aviv and Paris, and on July 4th, Israeli operatives recovered the passengers who were being held hostage.  Our model accurately recovers cables that are relevant to this event, allowing investigators to use it as a tool to uncover relevant documents for a given time interval.
+We fit Capsule with 100 topics and using an exponential decay with mean lifetime of 3---this indicates that most intervals would no longer be relevant after about 3 weeks.  To detect when an event occurs, we multiply the average event relevancy $\epsilon$ for all documents in a given interval together with interval strength $\psi$, or  $\psi_t \frac{1}{\vert D_t \vert}\sum_{d\in D_t} \epsilon_{d,t}$, where $D_t$ is the set of all cables sent in interval $t$.
 
-The week of December 12, 1976, the State Department sends a query for all posts to report on the presence of gambling equipment, or ``gaming devices.''  Nearly all posts respond that week with a report.  Unsuprisingly, the top terms in the event description $\pi$ for that week are the terms \emph{gaming} and \emph{devices}.
+Figure~\ref{fig:cables_events} shows this measure over the duration of the data set. The highest time intervals, ones in which we declare events to be detected, include the tallest peak the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.  The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$; Tables~\ref{tab:timor} and~\ref{tab:saigon} show the top cables for these two events, which reflect the real-world events those weeks.
 
-These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
-
-%  Figure~\ref{fig:events} shows the interval strength parameters $\psi$ over the considered time range.
-% \begin{figure}[ht]
-% \centering
-% \includegraphics[width=\linewidth]{fig/events_over_time.pdf}
-% \caption{Interval strength $\phi$ in 1976.  The inverse of the fit values are shown, as smaller values indicate more cables about a given interval.  The end of December and beginning of November have the weeks in which the time intervals contribute most strongly to message content.}
-% \label{fig:events}
-% \end{figure}
-
-\begin{table*}
+\begin{table*}[tb]
+\small
 \centering
-\begin{tabular}{ccccl}
+\begin{tabular}{cccl}
 \toprule
-$\epsilon$ & date & sender & recipient & subject \\
+$\epsilon$ & date & entity & subject \\
 \midrule
-0.04133056 & 1976-07-06 & PEKING & STATE & POSSIBLE SC MEETING ON ISRAELI RESCUE \\
-0.04095504 & 1976-07-09 & MASERU & STATE & UGANDAN ROLE IN AIR FRANCE HIJACKING \\
-0.03768492 & 1976-07-04 & STATE & ABU DHABI & ISRAELI RESCUE OPERATION \\
-0.03583023 & 1976-07-14 & STATE & BERN & VIOLATIONS OF SEC REGULATIONS ALLEG... \\
-0.02769182 & 1976-07-06 & ROME & STATE & POSSIBLE SC MEETING ON ISRAELI RESCUE \\ %OPERATION \\
-0.02531757 & 1976-07-12 & CARACAS & STATE & SECURITY COUNCIL DEBATE ON ENTEBBE...\\%EVENTS \\
-% 0.02506698 & 1976-07-07 & STATE & SANTIAGO & AROLE APPLICATION OF CHILEAN DETAINEE LUIS ANTONIO HERRERA MAFFET,  CASE S-311 \\
-% 0.02501447 & 1976-07-13 & EC BRUSSELS & STATE & THE EC AND ITALIAN SITUATION \\
-% 0.02490369 & 1976-07-15 & STATE & SANTIAGO & AROLE APPLICATION OF CHILEAN DETAINEE MARTIN ORLANDO POBLETE PUJOL,  CASE S-727 \\
-% 0.02484431 & 1976-07-15 & STATE & SANTIAGO & PAROLE APPLICATION OF CHILEAN DETAINEE ESTEBAN SANTOS FUENTES, CASE  S-332, AND DEPENDENTS \\
-% 0.02462204 & 1976-07-06 & PARIS & STATE & ISRAELI RESCUE OF AIR FRANCE HOST... \\
-% 0.02462204 & 1976-07-06 & PARIS & STATE & ISRAELI RESCUE OF AIR FRANCE HOST... \\
+0.1237 & 1975-12-03 & {\footnotesize STATE} & {\footnotesize PRESIDENT'S TALKING POINTS ON PORTUGUESE TIMOR } \\
+0.1210   &  1975-12-03 & {\footnotesize STATE} & {\footnotesize    PRESIDENT'S TALKING POINTS ON PORTUGUESE TIMOR }\\
+0.1153   &  1975-12-04  &  {\footnotesize STATE  }  & {\footnotesize  TIMOR WE ARE REPEATING FYI A DAO MESSAGE}\\
+0.1126   &  1975-012-04  &  {\footnotesize STATE   }  &  {\footnotesize  LEGAL PROBLEMS RELATING TO PORTUGUESE TIMOR}\\
+0.1053   &  1975-12-07  &  {\footnotesize SECRETARY PEKING } & {\footnotesize US SUPPORT FOR TIMOR RESOLUTION }\\
+0.1021   &  1975-12-01  &  {\footnotesize STATE } & {\footnotesize  INVASION OF PORTUGUESE TIMOR } \\
 \bottomrule
 \end{tabular}
-\label{tab:entebbe}
-\caption{Top cables by $\epsilon$ for the week of July 6, 1976.  The majority of these cables are concerning the Israeli rescue of a Air France airplane hijacking that had occurred the week prior.}
+\label{tab:timor}
+\caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.}
 \end{table*}
 
 
+\begin{table*}[htb]
+\small
+\centering
+\begin{tabular}{cccl}
+\toprule
+$\epsilon$ & date & entity & subject \\
+\midrule
+0.0908 & 1975-04-24 & {\footnotesize MANSFIELD, MIKE} & {\footnotesize ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM } \\
+0.0886   &  1975-04-24 & {\footnotesize RAILSBACK, TOM } & {\footnotesize    ASSISTANCE IN EVACUATING FRIEND FROM SOUTH VIETNAM }\\
+0.0877   &  1975-04-24  &  {\footnotesize MANSFIELD, MIKE  }  & {\footnotesize    ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM}\\
+0.0863   &  1975-04-24  &  {\footnotesize WILLIAMS, HARRISON   }  &  {\footnotesize    ASSISTANCE IN EVACUATING FAMILY FROM VIETNAM}\\
+0.0860   &  1975-04-24  &  {\footnotesize KOCH, EDWARD } & {\footnotesize ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM }\\
+0.0858   &  1975-04-21  &  {\footnotesize SCHWEIKER, RICHARD } & {\footnotesize  SUPPORT IN EVACUATING FAMILY FROM VIETNAM } \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+0.0812  &   1975-04-25  &  {\footnotesize KETCHUM, WILLIAM} & {\footnotesize  MOVEMENT OF SOUTH VIETNAMESE REFUGEES TO GUAM } \\
+0.0800 & 1975-04-21 & {\footnotesize SCOTT, HUGH } & {\footnotesize  WHEREABOUTS OF MISSIONARIES IN VIETNAM }\\
+\bottomrule
+\end{tabular}
+\label{tab:saigon}
+\caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975.}
+\end{table*}
 
-% %-----------------
+Other event peaks include the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
+
+Another peak occurs the week of April 17, 1978 surrounding a UN special session on disarmament; the top three words under event its description $\pi$ are \emph{SSOD} (acronym for ``special session on disarmament'', \emph{disarmament}, and \emph{ICS} (likely an acronym for ``incident command system'').
 
 \begin{table*}
 \centering
-\begin{tabular}{ccccc}
+\small
+\begin{tabular}{c}
 \toprule
-data & full Capsule model & events only & topics only & entities only \\
+top terms \\
 \midrule
-US State Dept. Cables & -2.41e7 & \textbf{-1.82e7} & -2.69e7 & -2.43e7 \\
-arXiv & \textbf{-3.12e6} & -3.57e6 & -3.14e6 & -3.57e6 \\
+OUTLOOK, REVIEW, HIRE, PERSONNEL, INVITE, PREPARE, NECESSARY \\
+ARREST, INCIDENT, SECURITY, FAMILY, OFF, GUARD, DEATH, JAIL \\
+LOCATE, HOME, SON, DEATH, PLEASE, CONTACT, FATHER, DEPARTMENT \\
+REQUEST, REFUGEE, RESPONSE, SERVICE, SALE, ASYLUM, APPRECIATE \\
+MARKET, REPORT, COPY, COMMERCIAL, FOOD, IMPORT, COMMERCE \\
+FEAR, LEADERSHIP, BACK, ARM, ROLE, PLAY, THREATEN \\
+HOTEL, TRAVEL, RESERVATION, VISIT, ARRANGE, SCHEDULE, STAY \\
+\bottomrule
+\end{tabular}
+\label{tab:topics}
+\caption{Top vocabulary terms for a selection of topics, according to topic distributions $\beta_k$.}
+\end{table*}
+
+\begin{table*}
+\centering
+\small
+\begin{tabular}{cc}
+\toprule
+entity & top terms \\
+\midrule
+STATE & REQUEST, FOLLOW, EMBASSY, MEET, MAKE, STATE, DEPARTMENT \\
+BANGKOK & BANGKOK, THAILAND, THAI, REFUGEE, EMBASSY, FOLLOW, REPORT \\
+JERUSALEM & JERUSALEM, ISRAELI, BANK, REPORT, SAY, COMMENT, ONE \\
+STOCKHOLM & SWEDISH, SWEDEN, TRADE, MEET, EMBASSY, FOLLOW, MAKE \\
+CASABLANCA & CASABLANCA, MOROCCO, MOROCCAN, REQUEST, PLEASE, FOLLOW, NOTE \\
+KAMPALA & UGANDAN, NAIROBI, AFRICAN, IMPERIALIST, VOICE, KENYA, MISSIONARY \\
+NDJAMEAN & CHADIAN, CHAD, LAGOS, DROUGHT, INITIATION, AUSTERITY, GOC \\
+\bottomrule
+\end{tabular}
+\label{tab:entities}
+\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\beta^{(n)}_0$.}
+\end{table*}
+
+Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.  
+
+These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
+
+We also considered held out log likelihood in evaluating the fitness of our model, as shown in Table~\ref{tab:loglikelihood}.  We see that the event structure is crucial to fitting the data well.  We held out 5\% of the data.
+
+% %-----------------
+
+% \begin{table*}
+% \centering
+% \begin{tabular}{ccccc}
+% \toprule
+% data & full Capsule model & events only & topics only & entities only \\
+% \midrule
+% US State Dept. Cables & -2.41e7 & \textbf{-1.82e7} & -2.69e7 & -2.43e7 \\
+% arXiv & \textbf{-3.12e6} & -3.57e6 & -3.14e6 & -3.57e6 \\
+% \bottomrule
+% \end{tabular}
+% \label{tab:loglikelihood}
+% \caption{Held-out data log likelihood.}
+% \end{table*}
+% arxiv is after 15 iterations
+% cables is 15 iterations with exp 3
+
+\begin{table}
+\centering
+\begin{tabular}{cc}
+\toprule
+method & held out log likelihood \\
+\midrule
+full Capsule model & -2.41e7 \\
+event only & \textbf{-1.82e7} \\
+topics only & -2.69e7 \\
+entities only & -2.43e7 \\
 \bottomrule
 \end{tabular}
 \label{tab:loglikelihood}
 \caption{Held-out data log likelihood.}
-\end{table*}
-% arxiv is after 15 iterations
-% cables is 15 iterations with exp 3
+\end{table}
+
 
 \begin{figure}
 \centering
 \includegraphics[width=\linewidth]{fig/sim_eventdetect.pdf}
-\caption{TODO}
+\caption{Event detection performance on twenty simulated datasets.  Capsule is able to detect events as well as comparison methods, but its performance has higher variance.}
 \label{fig:sim_eventdetect}
 \end{figure}
+
+Finally, we simulated data according to our generative process in order to compare our method to baseline and existing approaches.  
+To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a model and the simulated ground at every threshold; this generates an curve under which we cam compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC.  
+The most successful of the comparison methods for event detection was average absolute error in wordcount, both unweighted and weighted by tf-idf.  Figure~\ref{fig:sim_eventdetect} shows that Capsule can outperform these approaches for event detection, but that it has higher variance in performance.  The other comparison method in Figure~\ref{fig:sim_eventdetect} is based on LDA; we fit a multinomial Gaussian to the topic representation of all documents and then computed the average probability of seeing the topic distributions of documents in the time interval.  Time intervals with the lowest probability were marked as most likely to have events.  All other baselines performed close to random for event detection.
 
 \begin{figure}
 \centering
 \includegraphics[width=\linewidth]{fig/precision10.pdf}
-\caption{TODO}
+\caption{Precision of recovering the top ten most relevant documents, averaged over all time intervals.  Capsule performs best, averaged over twenty simulations.}
 \label{fig:sim_precision}
 \end{figure}
 
-\begin{figure*}
-\centering
-\includegraphics[width=\linewidth]{fig/arxiv_events.pdf}
-\caption{TODO}
-\label{fig:arxiv_events}
-\end{figure*}
+This method of fitting a multinomial Gaussian to LDA representations of documents also performed well for recovering relevant documents.  This approach can be altered to fit a per-entity multinomial Gaussian, but this performs worse.  Simply finding documents based on absolute deviation from the mean works well in LDA topic space (relative to overall mean or entity mean), but not over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  Figure~\ref{fig:sim_precision} shows precision of recovering the top ten documents.
 
-\begin{figure*}
-\centering
-\includegraphics[width=\linewidth]{fig/cables_events.pdf}
-\caption{TODO}
-\label{fig:cables_events}
-\end{figure*}
+We also assessed the sensitivity of our model to various parameter settings.  We simulated data sets with three different event relevancy decay functions $f$: exponential, linear, and step functions.  Then, we fit Capsule to each of these datasets using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model was not sensitive to decay shape or duration, but that exponential decay generally performed the best on all data types.
+
+% \begin{figure*}
+% \centering
+% \includegraphics[width=\linewidth]{fig/arxiv_events.pdf}
+% \caption{TODO}
+% \label{fig:arxiv_events}
+% \end{figure*}
+
+
+
+
+
 
 % In this section we study the performance of Capsule. Using simulated data, we compare Capsule to deterministic methods of event detection and show that Capsule outperforms them at identifying when events occur.  
 % %We also examine how sensitive Capsule is to the attributes of a dataset and model parameters.
