@@ -21,6 +21,9 @@
 \renewcommand{\textsc}[1]{\oldtextsc{\scalefont{1.10}#1}}
 \usepackage[scaled=0.92]{PTSans}
 
+\LetLtxMacro{\oldtt}{\tt}
+\renewcommand{\tt}[1]{\oldtt{\scalefont{0.93}#1}}
+
 
 % % COLOR
 \usepackage[usenames,dvipsnames]{xcolor}
@@ -61,7 +64,7 @@
 \fvset{fontsize=\normalsize}
 
 % % HYPERREF
-\usepackage[colorlinks,linktoc=all,draft]{hyperref} %TODO: rm draft
+\usepackage[colorlinks,linktoc=all,draft]{hyperref}
 \usepackage[all]{hypcap}
 \hypersetup{citecolor=Green}
 \hypersetup{linkcolor=Green}

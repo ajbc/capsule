@@ -130,14 +130,6 @@ We define the approximating distribution $q$ using the mean field assumption:
 The variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.
 
 
-% cheating by putting this here...
-\begin{figure*}[ht]
-\centering
-\includegraphics[width=\linewidth]{fig/cables_events.pdf}
-\caption{Measure of time interval impact on cable content: $\psi_t \frac{1}{\vert D_t \vert}\sum_{d\in D_t} \epsilon_{d,t}$, where $D_t$ is the set of all cables sent in interval $t$.  The grey background indicates the number of cables sent over time.}
-\label{fig:cables_events}
-\end{figure*}
-
 The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates, as detailed in Appendix~\ref{sec:inference}. We update each parameter in turn, following standard coordinate ascent variational inference techniques.  Full details on our inference algorithm can be found in the appendix.  This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
 
