@@ -1,41 +1,81 @@
-%!TEX root = emnlp2016.tex
+% TODO | fill in the XXX below
 
-Events are difficult to define; historians and political scientists read large quantities of text to construct an accurate picture of a single historical event.  Events are interesting by definition: they are the hidden causes of anomalous observations.  But they are also inherently abstract---we can observe that changes occur, but we cannot directly observe whether or not an event occurs.
+% TODO | fill in with real cables
 
-Consider embassies sending diplomatic messages, such as shown in Figure~\ref{fig:cartoon}.  The Bangkok embassy, Hong Kong Embassy, and the State Department all have \emph{typical concerns} about which they usually send messages.  At date $d$, however, the message content changes for all three entities---again, we only observe the changes in message content, and do not observe the event directly.  Our first goal is to determine \emph{when} events happen, or identify these rare but pervasive deviations from the typical concerns.
+Foreign embassies of the United States government communicate with
+each other and with the U.S. State Department through cabled message.
+The National Archive collects these documents in a running corpus,
+which traces the (unclassified) diplomatic history of the United
+States. Between 1973 and 1978, for example, it has collected about two
+million cables.
 
-Our second goal is to characterize \emph{what} occurs.  We rely on topic modeling~\cite{Blei:2012} to summarize content and to characterize events.
+Typically, a cable from this collection describes diplomatic ``business as usual,'' such as arrangements for visiting officials, XXX, or XXX. For example,
+the embassies sent XXX cables during the week of XXX. Here is one,
+selected at random,
+\begin{shaded*} {\tt Jim is visiting. He needs a hotel. They opened a
+    new library
+  here. They have some English books, thank goodness. Sigh. I miss
+  Yale. I'm just doing this until I'm old enough to run for Senate.}
+\end{shaded*}
 
-We develop a Bayesian model that discovers the typical concerns of authors, identifies when events occur, and characterizes these events; we call this the \emph{Capsule} model, as it encapsulates events.
+But hidden in the corpus are also cables about important diplomatic
+events, the cables and events that are of primary interest to
+historians. During that same week the United States was in the last
+moments of the Vietnam war and, on XXX, lost its hold on Saigon. One
+of the cables around this event is
+\begin{shaded*}
+  {\tt We need help evacuating several families back to the United States.
+  This is an urgent matter.}
+\end{shaded*}
 
-%Our final goal is to visualize the results of the Capsule model to make them accessible.   We provide source code for both Capsule and its associated visualization.
+Our goal in this paper is to develop a method to help historians and
+political scientists wade through their collections, such as the 1970s
+cables, to find potentially important events, such as the fall of
+Saigon, and the primary sources around them. We develop
+\textit{Capsule}, a probabilistic model for detecting and
+characterizing important events in large collections of historical
+communication.
 
-We first review previous research related to event detect, summarization, and visualization.  In Section~\ref{sec:model}, we describe the Capsule model and how to infer the latent parameters (the appendix provides further inference details).  Section~\ref{sec:eval} provides an exploration of results on simulated and a real-world data set, and we conclude with a discussion in Section~\ref{sec:discussion}.
+\Cref{fig:cables_events} illustrates Capsule's analysis of the two
+million cables from the National Archives. The $y$-axis is
+``eventness'', a loose measure how strongly a week's cables deviate
+from the usual diplomatic chatter to discuss a matter that is common
+to many embassies. (This is described in detail in \Cref{}.)
 
-% Contributions
-% \begin{itemize}
-% \item we define the concept of events via our model
-% \item inference + code for this model
-% \item (hopefully) evidence that our model outperfoms baselines in terms of event detection
-% \item exploration of cables (+ other)
-% \item visualization / exploration pipeline for investigating a generic corpus fit
-% \end{itemize}
+The figure shows that Capsule detects many of the important moments
+during this five-year span, including Indonesia's invasion of East
+Timor (XXX), the Air France hijacking and Israeli rescue operation
+(XXX), and the fall of Saigon (XXX). It also identifies other moments,
+such as the U.S. sharing lunar rocks with other countries (XXX) and
+the death of Mao Tse-tung (XXX). Broadly speaking, Capsule gives a
+picture of the diplomatic history of these five years; it identifies
+and characterizes moments and source material that might be of
+interest to a historian.
 
+The intuition behind Capsule is this. Embassies write cables
+throughout the year, usually describing typical business such as the
+visiting of a government official. Sometimes, however, there is an
+important event---e.g., the fall of Saigon. When an event occurs, it
+pulls embassies away from their typical business to write cables that
+discuss what happened and its consequences. Thus Capsule effectively
+defines an ``event'' to be a moment in history when embassies deviate
+from what each usually discusses, and when each embassy deviates in
+the same way.
 
-% \PP outliers vs events \cite{Neill:2009} (univariate -> multivariate); this whoudlbe in reated work?
-% How is event detection different from:
-% 1. SupervisedLearning:
-% • Abnormal events are extremely rare, normal events are
-% plentiful
-% 2. Clustering:
-% • Clustering = partitioning data into groups
-% • Not the same as finding statistically anomalous groups
-% 3. OutlierDetection:
-% • Events of interest are usually not individual outliers
-% • The event typically affects a subgroup of the data rather than a single data point
+Capsule embeds this intuition into a Bayesian model. It uses hidden
+variables to encode what ``typical business'' means for each embassy,
+how to characterize the events of each week, and which cables discuss
+those events. Given a corpus, the corresponding posterior distribution
+provides a filter on the cables that isolates important moments in the
+diplomatic history. \Cref{fig:cables_events} illustrates this
+posterior.
 
+% TODO | mention that this can be used with other types of corpora
 
-\parhead{Related work.}  We first review previous work on automatic event detection and other related concepts.  
+% TODO | summary of the paper's sections
+
+\parhead{Related work.} We first review previous work on automatic
+event detection and other related concepts.
 
 % While Capsule uses text documents and associated metadata as input, event detection is often performed with univariate input data.  In this context, bursts that deviate from typical behavior (e.g., noisy constant or a repeating pattern) can define an event \cite{kleinberg2003bursty,ihler2007learning}; Poisson Processes~\cite{Kingman:1993} are often used to model events under this definition.  Alternatively, events can be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event}.
 In both univariate and multivariate settings, the goal is often the same: analysts want to predict whether or not a rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
@@ -57,3 +97,44 @@ In addition to text data over time, author~\cite{zhao2007temporal}, news outlet~
 Detecting and characterizing relationships~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic} is related to event detection.  When a message recipient is known, Capsule's author input can be replaced with a sender-receiver pair, but the model could be further tailored for interactions within networks.
 
 % Once events have been identified and characterized, visualization translates a model's output into sometime intepretable for non experts.  LeadLine~\cite{dou2012leadline} is an excellent example of a visualization of event detection.  We build on topic model visualization concepts~\cite{chaney2012visualizing} to provide tailored visualization code for Capsule.
+
+% ===== old introduction
+
+% Events are difficult to define; historians and political scientists read large quantities of text to construct an accurate picture of a single historical event.  Events are interesting by definition: they are the hidden causes of anomalous observations.  But they are also inherently abstract---we can observe that changes occur, but we cannot directly observe whether or not an event occurs.
+
+% Consider embassies sending diplomatic messages, such as shown in Figure~\ref{fig:cartoon}.  The Bangkok embassy, Hong Kong Embassy, and the State Department all have \emph{typical concerns} about which they usually send messages.  At date $d$, however, the message content changes for all three entities---again, we only observe the changes in message content, and do not observe the event directly.  Our first goal is to determine \emph{when} events happen, or identify these rare but pervasive deviations from the typical concerns.
+
+% Our second goal is to characterize \emph{what} occurs.  We rely on topic modeling~\cite{Blei:2012} to summarize content and to characterize events.
+
+% We develop a Bayesian model that discovers the typical concerns of authors, identifies when events occur, and characterizes these events; we call this the \emph{Capsule} model, as it encapsulates events.
+
+% %Our final goal is to visualize the results of the Capsule model to make them accessible.   We provide source code for both Capsule and its associated visualization.
+
+% We first review previous research related to event detect, summarization, and visualization.  In Section~\ref{sec:model}, we describe the Capsule model and how to infer the latent parameters (the appendix provides further inference details).  Section~\ref{sec:eval} provides an exploration of results on simulated and a real-world data set, and we conclude with a discussion in Section~\ref{sec:discussion}.
+
+% % Contributions
+% % \begin{itemize}
+% % \item we define the concept of events via our model
+% % \item inference + code for this model
+% % \item (hopefully) evidence that our model outperfoms baselines in terms of event detection
+% % \item exploration of cables (+ other)
+% % \item visualization / exploration pipeline for investigating a generic corpus fit
+% % \end{itemize}
+
+
+% % \PP outliers vs events \cite{Neill:2009} (univariate -> multivariate); this whoudlbe in reated work?
+% % How is event detection different from:
+% % 1. SupervisedLearning:
+% % • Abnormal events are extremely rare, normal events are
+% % plentiful
+% % 2. Clustering:
+% % • Clustering = partitioning data into groups
+% % • Not the same as finding statistically anomalous groups
+% % 3. OutlierDetection:
+% % • Events of interest are usually not individual outliers
+% % • The event typically affects a subgroup of the data rather than a single data point
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "emnlp2016"
+%%% End:
