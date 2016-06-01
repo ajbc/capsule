@@ -252,6 +252,7 @@ class Capsule {
         double p_gamma(fmat x, double a, double b);
         double p_gamma(fvec x, fvec a, fvec b);
         double p_gamma(fvec x, double a, fvec b);
+        double p_gammaM(fvec x, double a, fvec b);
         double p_gamma(fvec x, double a, double b);
         double p_dir(fmat x, fmat a);
         double p_dir(fmat x, double a);
