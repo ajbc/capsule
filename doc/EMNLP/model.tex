@@ -1,8 +1,6 @@
 %!TEX root = emnlp2016.tex
 
-In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies time intervals in which many entities deviate from these patterns.  The model relies on high dimensional entity behavior data over time, such as text messages being sent between entities.  We first review topic models at a high level, and give the intuition on Capsule. Then, we formally specify our model
-%, discuss its relationship to Poisson processes, 
-and describe how we learn the hidden variables.
+In this section we develop the Capsule model.  Capsule captures patterns in entity behavior and identifies time intervals in which many entities deviate from these patterns.  The model relies on high dimensional entity behavior data over time, such as text messages being sent between entities.  We first review topic models at a high level, and give the intuition on Capsule. Then, we formally specify our model, discuss its relationship to Poisson processes, describe how we learn the hidden variables.
 
 \parhead{Background: Topic Models.} Capsule relies on topic models to model text data.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
@@ -105,32 +103,7 @@ where $f$ is some function of decay.  This function is important because events 
 \parhead{Learning the hidden variables.}
 In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goals to to compute the posterior values of the hidden parameters---global interval strengths $\psi$, interval descriptions $\pi$, entity concerns $\phi$, and topics $\beta$, as well as document-specific entity concerns $\theta$ and interval relevancy parameters $\epsilon$.
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.\footnote{Source code will be released on github upon publication.}%is available at https://github.com/?????/capsule.} % ?????=ajbc on publication
-
-Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
-This is equivalent to maximizing the ELBO,
-\begin{multline}
-	\mathcal{L}(q)  = \E_{q(\psi, \pi, \phi, \beta, \theta, \epsilon)}\bigl[\log p(w, \psi, \pi, \phi, \beta, \theta, \epsilon) \\
-	-~\log q(\psi, \pi, \phi, \beta, \theta, \epsilon)\bigr].
-	\label{eq:elbo}
-\end{multline}
-
-We define the approximating distribution $q$ using the mean field assumption:
-\begin{multline}
-	q(\psi, \pi, \phi, \beta, \theta, \epsilon) = \prod_{t=1}^T \left[ q(\pi_{t} \g \lambda^\pi_t) q(\psi_t \g \lambda^\psi_t) \right] \\
-		\prod_{n=1}^N \left[ q(\phi_{n,0} \g \lambda^\phi_{n,0})~q(\beta^{(n)}_0 \g \lambda^{\beta}_{n,0}) \right] \\
-		\prod_{k=1}^K \left[ q(\beta_{k} \g \lambda^\beta_k) \prod_{n=1}^N q(\phi_{n,k} \g \lambda^\phi_{n,k}) \right] \\
-		\prod_{d=1}^D \left[
-				\prod_{k=1}^K q(\theta_{d,k} \g \lambda^\theta_{d,k})
-				\prod_{t=1}^T q(\epsilon_{d,t} \g \lambda^\epsilon_{d,t})
-			\right]
-	\label{eq:q}
-\end{multline}
-
-The variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.
-
-
-The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates, as detailed in Appendix~\ref{sec:inference}. We update each parameter in turn, following standard coordinate ascent variational inference techniques.  Full details on our inference algorithm can be found in the appendix.  This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008},\footnote{Source code is available at https://github.com/?????/capsule.} which is detailed in Appendix~\ref{sec:inference}. This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
 
 % \parhead{Visualization.}

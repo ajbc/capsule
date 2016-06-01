@@ -1,10 +1,35 @@
-%!TEX root = emnlp2016.tex
+%!TEX root = supplemental.tex
 
-In this appendix, we describe the details of the variational inference algorithm for Capsule. This algorithm fits the parameters of the variational distribution $q$ in Eq.~\ref{eq:q} so that it is close in KL divergence to the posterior.
+In this appendix, we describe the details of the inference algorithm for Capsule. Source code for this algorithm is available at is available at https://github.com/?????/capsule.
 
-Recall that the variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, the variational distributions $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
+Conditional on a collection of observed documents, our goal is to estimate the posterior values of the hidden parameters, according to the Capsule model.   Recall that our data is observed as word counts $w_d$ for document $d$, with corresponding author and time interval information---$a_d$ and $i_d$, respectively.
+The latent parameters of the model include global interval strengths $\psi$, interval descriptions $\pi$, entity concerns $\phi$, and topics $\beta$,\footnote{Note that for brevity we include entity-specific topics $\beta_0$ within $\beta$ and their corresponding entity strength parameters $\phi_0$ within $\phi$ and per-document entity relevancy parameters $\theta_0$ withing $\theta$.} as well as document-specific entity concerns $\theta$ and interval relevancy parameters $\epsilon$.
 
-Minimizing the KL divergence between the true posterior $p$ and the variational approximation $q$ is equivalent to maximizing the ELBO (Eq.~\ref{eq:elbo}).  We achieve this with closed form coordinate updates, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; we must instead approximate it.  Thus, we develop an approximate inference algorithm for Capsule based on variational methods~\cite{Wainwright:2008}.
+
+Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
+This is equivalent to maximizing the ELBO,
+\begin{multline}
+	\mathcal{L}(q)  = \E_{q(\psi, \pi, \phi, \beta, \theta, \epsilon)}\bigl[\log p(w, \psi, \pi, \phi, \beta, \theta, \epsilon) \\
+	-~\log q(\psi, \pi, \phi, \beta, \theta, \epsilon)\bigr].
+	\label{eq:elbo}
+\end{multline}
+
+We define the approximating distribution $q$ using the mean field assumption:
+\begin{multline}
+	q(\psi, \pi, \phi, \beta, \theta, \epsilon) = \prod_{t=1}^T \left[ q(\pi_{t} \g \lambda^\pi_t) q(\psi_t \g \lambda^\psi_t) \right] \\
+		\prod_{n=1}^N \left[ q(\phi_{n,0} \g \lambda^\phi_{n,0})~q(\beta^{(n)}_0 \g \lambda^{\beta}_{n,0}) \right] \\
+		\prod_{k=1}^K \left[ q(\beta_{k} \g \lambda^\beta_k) \prod_{n=1}^N q(\phi_{n,k} \g \lambda^\phi_{n,k}) \right] \\
+		\prod_{d=1}^D \left[
+				\prod_{k=1}^K q(\theta_{d,k} \g \lambda^\theta_{d,k})
+				\prod_{t=1}^T q(\epsilon_{d,t} \g \lambda^\epsilon_{d,t})
+			\right]
+	\label{eq:q}
+\end{multline}
+
+The variational distributions $q(\pi)$ and $q(\beta)$ are both Dirichlet-distributed with free variational parameters $\lambda^\pi$ and $\lambda^\beta$, respectively.  Similarly, the variational distributions $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
+
+The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates--we update each parameter in turn, following standard coordinate ascent variational inference techniques, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
 
 To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count distribution in Eq.~\ref{eq:generateData} and define Poisson variables for each component of the word count:
 \[ z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}) \]
