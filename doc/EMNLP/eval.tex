@@ -40,9 +40,9 @@ f(i_d, t) =
 with mean lifetime $\tau=3$.  This mean lifetime indicates that most intervals would no longer be relevant after about three weeks.  With these settings on the cables data, fitting the model takes 2.8 hours per iteration;\footnote{Our algorithm is batch--we consider each data point for every iteration.  Modifying the algorithm to stochastically sample the data would reduce the time required to achieve an equivalent model fit.} results are shown on 15 iterations.
 
 \parhead{Results.}
-We begin our exploration by detecting events using Capsule.  With Equation~\ref{eq:eventness} as our metric of ``eventness,'' we consider this metric over time, which is shown in Figure~\ref{fig:cables_events}.  Here, peaks correspond to real-worlds events, several of which are labeled.\footnote{Appendix~\ref{sec:additional_results} contains an analogous figure on arXiv data, which shows that Capsule does not capture weekly events on data that does not contain real-world events at that resolution.}
+We begin our exploration by detecting events using Capsule.  With \Cref{eq:eventness} as our metric of ``eventness,'' we consider this metric over time, which is shown in \Cref{fig:cables_events}.  Here, peaks correspond to real-worlds events, several of which are labeled.\footnote{Appendix~\ref{sec:additional_results} contains an analogous figure on arXiv data, which shows that Capsule does not capture weekly events on data that does not contain real-world events at that resolution.}
 
-The tallest peak occurs the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.  As discussed in Section~\ref{sec:model}, we sort documents by their event relevancy parameters $\epsilon$ to find cables that reflect an event.  Table~\ref{tab:timor} shows the top cables for the East Timor invasion.  Capsule accurately identifies this real-world event and recovers relevant cables.
+The tallest peak occurs the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.  As discussed in \Cref{sec:model}, we sort documents by their event relevancy parameters $\epsilon$ to find cables that reflect an event.  \Cref{tab:timor} shows the top cables for the East Timor invasion.  Capsule accurately identifies this real-world event and recovers relevant cables.
 
 \begin{table*}[tb]
 \small
@@ -85,7 +85,7 @@ $\epsilon$ & date & entity & subject \\
 \caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975.}
 \end{table*}
 
-The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; Table~\ref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
+The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; \Cref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
 
 Another event peaks occurs the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
 
@@ -152,14 +152,14 @@ Ndjamean & chadian, chad, lagos, drought, austerity \\
 \caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\beta^{(n)}_0$.}
 \end{table}
 
-In addition to events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
+In addition to events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in \Cref{tab:topics} and entity-exclusive topics are shown in \Cref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
 
 Appendix~\ref{sec:additional_results} contains additional examples of events discovered by Capsule, and more examples of general and entity-specific topics.
 
 These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
 \parhead{Simulations.}  We simulated data to provide a quantitative assessment of Capsule.
-We generated twenty data sets, each with 100 time steps, 10 general topics, and 100 entities. Each simulation contained about 55,000 documents and followed the generative process assumed by Capsule, as shown in~Figure~\ref{fig:generative-model}.
+We generated twenty data sets, each with 100 time steps, 10 general topics, and 100 entities. Each simulation contained about 55,000 documents and followed the generative process assumed by Capsule, as shown in \Cref{fig:generative-model}.
 
 \begin{figure}[h]
 \centering
@@ -172,9 +172,17 @@ To evaluate event detection, we created a ranked list of all time intervals and 
 
 %^ XXX citation
  
-The most successful of the comparison methods for event detection was average absolute error in wordcount, both unweighted and weighted by tf-idf.  Figure~\ref{fig:sim_eventdetect} shows that Capsule can outperform these approaches for event detection, but that it has higher variance in performance.  The other comparison method in Figure~\ref{fig:sim_eventdetect} is based on LDA; we fit a multinomial Gaussian to the topic representation of all documents and then computed the average probability of seeing the topic distributions of documents in the time interval.  Time intervals with the lowest probability were marked as most likely to have events.  All other baselines performed close to random for event detection.
-
-%^ XXX add citations for each method
+The most successful of the baseline methods for event detection was average absolute error in word count relative to the mean, or
+\begin{equation}
+	\sum_{v=1}^V\left[\sum_{d=1}^D \mbox{abs}\left( w_{d,v} - \frac{1}{\vert D \vert}\sum_{d=1}^D w_{d,v} \right) \right],
+\label{eq:wordev}
+\end{equation}
+and its tf-idf variant, 
+\begin{equation}
+	\sum_{v=1}^V\mbox{tf-idf}(v)\left[\sum_{d=1}^D \mbox{abs}\left( w_{d,v} - \frac{1}{\vert D \vert}\sum_{d=1}^D w_{d,v} \right) \right].
+\label{eq:tfidfwordev}
+\end{equation}
+\Cref{fig:sim_eventdetect} shows that Capsule can outperform these approaches for event detection, but that it has higher variance in performance.  We also consider an ``event only'' model---this is a model that only uses the interval-related subset of Capsule's parameters; comparing to this shows that is it important to model ``business as usual'' for improved event detection.  LDA based approaches like average deviation from mean in topic space~\cite{dou2012leadline} do not perform well for event detection as deviations in topic space are too coarse to provide a meaningful signal.
 
 \begin{figure}[h]
 \centering
@@ -183,13 +191,11 @@ The most successful of the comparison methods for event detection was average ab
 \label{fig:sim_precision}
 \end{figure}
 
-This method of fitting a multinomial Gaussian to LDA representations of documents also performed well for recovering relevant documents.  This approach can be altered to fit a per-entity multinomial Gaussian, but this performs worse.  Simply finding documents based on absolute deviation from the mean works well in LDA topic space (relative to overall mean or entity mean), but not over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  Figure~\ref{fig:sim_precision} shows precision of recovering the top ten documents.
+Once events have been identified, our next task is to identify relevant documents; to evaluate this, we calculate precision of recovering the top ten documents.  LDA is useful in finding relevant documents by selecting documents that deviate from the mean in topic space.  Word count deviations for each document (similar to Equations~\ref{eq:wordev} and~\ref{eq:tfidfwordev}) perform worse close to random for document recovery.
 
-% ^ citation for LDA methods
-% ^ citation for multinomial gaussian
-% citation for precision
+Finding documents based on absolute deviation from the mean works better in LDA topic space, but devnot over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  \Cref{fig:sim_precision} shows precision of recovering the top ten documents.
 
 We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model is not sensitive to decay shape or duration; details are in Appendix~\ref{sec:additional_results}.
 
 \parhead{Comparisons on Cables.}
-We ran the word count based approaches on the cables data and found that they were difficult to interpret and did not recover important historical events.  For instance, none detected the evacuation of Saigon, a major historical event in the corpus.  The LDA-based approaches do not yield large gains in run time over Capsule and do not provide the granularity needed to capture substantial events---deviations in topic space are too coarse to provide a meaningful signal.
+We ran the word count based approaches on the cables data and found that they were difficult to interpret and did not recover important historical events.  For instance, none detected the evacuation of Saigon, a major historical event in the corpus.  The LDA-based approaches do not yield large gains in run time over Capsule and do not provide the granularity needed to capture substantial events.
