@@ -37,7 +37,7 @@ f(i_d, t) =
     \exp\{-(i_d - t) / \tau\},          & \text{otherwise,}
 \end{cases}
 \end{equation}
-with mean lifetime $\tau=3$.  This mean lifetime indicates that most intervals would no longer be relevant after about three weeks.
+with mean lifetime $\tau=3$.  This mean lifetime indicates that most intervals would no longer be relevant after about three weeks.  With these settings on the cables data, fitting the model takes 2.8 hours per iteration;\footnote{Our algorithm is batch--we consider each data point for every iteration.  Modifying the algorithm to stochastically sample the data would reduce the time required to achieve an equivalent model fit.} results are shown on 15 iterations.
 
 \parhead{Results.}
 We begin our exploration by detecting events using Capsule.  With Equation~\ref{eq:eventness} as our metric of ``eventness,'' we consider this metric over time, which is shown in Figure~\ref{fig:cables_events}.  Here, peaks correspond to real-worlds events, several of which are labeled.\footnote{Appendix~\ref{sec:additional_results} contains an analogous figure on arXiv data, which shows that Capsule does not capture weekly events on data that does not contain real-world events at that resolution.}
@@ -52,7 +52,7 @@ The tallest peak occurs the week of December 1, 1975, just prior to the Indonesi
 $\epsilon$ & date & entity & subject \\
 \midrule
 0.124   &  1975-12-03  &  State  & President's talking point on Portuguese Timor \\
-0.121   &  1975-12-03  &  State  & President's talking point on Portuguese Timor \\
+%0.121   &  1975-12-03  &  State  & President's talking point on Portuguese Timor \\
 0.115   &  1975-12-04  &  State  & Timor we are repeating FYI a DAO message \\
 0.112   &  1975-12-04  &  State  &  Legal problems relating to Portuguese Timor\\
 0.105   &  1975-12-04  &  Secretary Peking & US Support for Timor resolution \\
@@ -63,8 +63,6 @@ $\epsilon$ & date & entity & subject \\
 \caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.}
 \end{table*}
 
-The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; Table~\ref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
-
 \begin{table*}[htb]
 \small
 \centering
@@ -74,11 +72,11 @@ $\epsilon$ & date & entity & subject \\
 \midrule
 0.090   &  1975-04-24  &  Mansfield, Mike & Assistance in evacuating family from South Vietnam \\
 0.089   &  1975-04-24  &  Railsback, Tom & Assistance in evacuating friend from South Vietnam \\
-0.088   &  1975-04-24  &  Mansfield, Mike  & Assistance in evacuating family from South Vietnam \\
-0.086   &  1975-04-24  &  Williams, Harrison &  Assistance in evacuating family from South Vietnam \\
+%0.088   &  1975-04-24  &  Mansfield, Mike  & Assistance in evacuating family from South Vietnam \\
+%0.086   &  1975-04-24  &  Williams, Harrison &  Assistance in evacuating family from South Vietnam \\
 0.086   &  1975-04-24  &  Koch, Edward & Assistance in evacuating family from South Vietnam \\
 0.086   &  1975-04-21  &  Schweiker, Richard & Support in evacuating family from Vietnam \\
-$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+%$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
 0.081   &  1975-04-25  &  Ketchum, William & Movement of South Vietnamese refugees to Guam \\
 0.080   &  1975-04-21  &  Scott, Hugh & Whereabouts of missionaries in Vietnam \\
 \bottomrule
@@ -87,19 +85,80 @@ $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
 \caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975.}
 \end{table*}
 
-Smaller events...
+The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; Table~\ref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
 
-%WORKING LINE
+Another event peaks occurs the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
 
-\PP highlight a few events, recover cables for them (1 pgh per event).  Point to appendix for more cable contnet and more events
+Capsule also identifies events with smaller peaks, such as the death of Mao Tse-tung.  One of the top cables for this event is sent by Kissinger to all post with public affairs guidance: %the subject \emph{Death of Mao Tse Tung -- Public Affairs Guidance}:
+\begin{shaded*} \tt{1.  Missions should avoid all speculation about the 
+possible effects of the death of Chairman Mao on
+US-PRC relationships as well as impact on internal
+Chinese developments.}
 
-\PP maybe: top terms for a selection of events (needs new table)
+\tt{2.  Official comments should be limited to the statements
+of top level administration officials, texts of which
+will follow by SEPTEL and wireless file.}
+\end{shaded*}
+\noindent In the other top cables for this event, embassies generally reported on press reactions and condolence or memorial ceremonies at their various locations.
 
-\PP top terms for a selectoion of topics (point to appendix for full list?)
+Capsule helps discovers events which follow a chain of related incidents, though connecting these events is left to the investigator.  For example, Capsule discovers an event the week the Sinai Interim Agreement was signed (September 4, 1975), but it also detects an event in mid-October 1975 about the hiring of observers and technicians for the Sinai peace keeping force.  Associated with this second event is a cable from London to the State department entitled \emph{FCO views on Syrian stance}:
+\begin{shaded*} \tt{Since conclusion of Sinai II negotiations, FCO
+officials have expressed considerable interest in prospects
+for next US effort to promote Syrian negotiations with Israelis. ...}
+%Basic FCO position remains one of pervasion admiration for success of 
+%Secretary's tactics with Egyptians and Israelis tempered by recognition that
+%Syrian negotiating position will be a very tough nut to crack.  
+%During recent ...}
+\end{shaded*}
+\noindent This cable and the sequence of events discovered by Capsule indicate that there is a longer lasting underlying situation.  Capsule cannot capture every aspect of these larger sequences of events, but it can provide insight into key moments so that investigators can explore both short-lived events and long-lasting political situations.
 
-\PP top terms for a selection of entities (point to appendix for full list)
+Appendix~\ref{sec:additional_results} contains additional examples of events discovered by Capsule, including results for the Apollo 17 lunar gifts, the return of the crown of St. Stephen to Hungary, and the UN Special Session on Disarmament in 1978.
 
-\PP saying that this method is awesome!
+\begin{table}
+\centering
+\small
+\begin{tabular}{c}
+\toprule
+top terms \\
+\midrule
+outlook, review, hire, personnel, invite, prepare \\
+arrest, incident, security, family, guard, death, jail \\
+locate, home, son, death, please, contact, father \\
+request, refugee, response, service, sale, asylum \\
+market, report, commercial, food, import, commerce \\
+fear, leadership, back, arm, role, threaten \\
+hotel, travel, reservation, visit, arrange, schedule \\
+\bottomrule
+\end{tabular}
+\label{tab:topics}
+\caption{Top vocabulary terms for a selection of topics, one per row, according to topic distributions $\beta_k$.}
+\end{table}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{cc}
+\toprule
+entity & top terms \\
+\midrule
+State & request, follow, embassy, meet, make \\
+Bangkok & bangkok, thailand, thai, refugee, follow \\
+Jerusalem & jerusalem, israeli, bank, report, say \\
+Stockholm & swedish, sweden, trade, meet, embassy \\
+%Casablanca & casablanca, morocco, moroccan, request, please, note \\
+Kampala & ugandan, nairobi, african, imperialist \\
+Ndjamean & chadian, chad, lagos, drought, austerity \\
+\bottomrule
+\end{tabular}
+\label{tab:entities}
+\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\beta^{(n)}_0$.}
+\end{table}
+
+In addition to events, Capsule can be used to explore the general themes in the corpus and the concerns of specific entities.  Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.  Appendix~\ref{sec:additional_results} contains more examples of general and entity-specific topics.
+
+These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
+
+
 
 \parhead{Simulations.}
 \PP how did we simulate data; note on why this is okay
@@ -114,59 +173,6 @@ Smaller events...
 
 \PP note on sensitivity to duration/shape and more simulations in Appendix~\ref{sec:additional_results}
 
-
-Figure~\ref{fig:cables_events} shows this measure over the duration of the data set. The highest time intervals, ones in which we declare events to be detected, include the tallest peak the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.  The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$; Tables~\ref{tab:timor} and~\ref{tab:saigon} show the top cables for these two events, which reflect the real-world events those weeks.
-
-
-
-
-Other event peaks include the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
-
-Another peak occurs the week of April 17, 1978 surrounding a UN special session on disarmament; the top three words under event its description $\pi$ are \emph{SSOD} (acronym for ``special session on disarmament'', \emph{disarmament}, and \emph{ICS} (likely an acronym for ``incident command system'').
-
-\begin{table*}
-\centering
-\small
-\begin{tabular}{c}
-\toprule
-top terms \\
-\midrule
-OUTLOOK, REVIEW, HIRE, PERSONNEL, INVITE, PREPARE, NECESSARY \\
-ARREST, INCIDENT, SECURITY, FAMILY, OFF, GUARD, DEATH, JAIL \\
-LOCATE, HOME, SON, DEATH, PLEASE, CONTACT, FATHER, DEPARTMENT \\
-REQUEST, REFUGEE, RESPONSE, SERVICE, SALE, ASYLUM, APPRECIATE \\
-MARKET, REPORT, COPY, COMMERCIAL, FOOD, IMPORT, COMMERCE \\
-FEAR, LEADERSHIP, BACK, ARM, ROLE, PLAY, THREATEN \\
-HOTEL, TRAVEL, RESERVATION, VISIT, ARRANGE, SCHEDULE, STAY \\
-\bottomrule
-\end{tabular}
-\label{tab:topics}
-\caption{Top vocabulary terms for a selection of topics, according to topic distributions $\beta_k$.}
-\end{table*}
-
-\begin{table*}
-\centering
-\small
-\begin{tabular}{cc}
-\toprule
-entity & top terms \\
-\midrule
-STATE & REQUEST, FOLLOW, EMBASSY, MEET, MAKE, STATE, DEPARTMENT \\
-BANGKOK & BANGKOK, THAILAND, THAI, REFUGEE, EMBASSY, FOLLOW, REPORT \\
-JERUSALEM & JERUSALEM, ISRAELI, BANK, REPORT, SAY, COMMENT, ONE \\
-STOCKHOLM & SWEDISH, SWEDEN, TRADE, MEET, EMBASSY, FOLLOW, MAKE \\
-CASABLANCA & CASABLANCA, MOROCCO, MOROCCAN, REQUEST, PLEASE, FOLLOW, NOTE \\
-KAMPALA & UGANDAN, NAIROBI, AFRICAN, IMPERIALIST, VOICE, KENYA, MISSIONARY \\
-NDJAMEAN & CHADIAN, CHAD, LAGOS, DROUGHT, INITIATION, AUSTERITY, GOC \\
-\bottomrule
-\end{tabular}
-\label{tab:entities}
-\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\beta^{(n)}_0$.}
-\end{table*}
-
-Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.  
-
-These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
 
 \begin{figure}[h]
