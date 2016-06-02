@@ -107,7 +107,7 @@ where $D_t$ is the set of all cables sent in interval $t$. This measure of ``eve
 Given an identified event, we can characterize it in terms of its top terms under $\pi$, but we can also use event relevancy parameters $\epsilon$ to sort documents; Section~\ref{sec:eval} explores relevant documents for events found in the National Archive diplomatic cables data.
 In addition to detecting and characterizing events, Capsule can be used to explore entity concerns and the general themes in a given collection.\footnote{Upon publication, we will release code for a pipeline to visualize and explore a corpus, given a Capsule fit.}
 
-\parhead{Relationship to Poisson Processes.}  The Capsule model includes a specific variety of Poisson process.
+\parhead{Relationship to Poisson Processes.}  The Capsule model includes a specific variety of Poisson process~\cite{Kingman:1993}.
 Poisson processes describe the number of discrete observations between times $a$ and $b$ as being drawn from a Poisson distribution parameterized by the integral of some intensity function $\lambda(t)$, or
 \[ N(a,b] \sim \mbox{Poisson}\left(\int_a^b \lambda(t) dt\right). \]
 In the case of Capsule, we have a Poisson process for every combination of document $d$ and vocabulary term $v$, which generate our observed word counts $w$.

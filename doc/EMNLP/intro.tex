@@ -4,8 +4,8 @@ Foreign embassies of the United States government communicate with
 each other and with the U.S. State Department through cabled message.
 The National Archive collects these documents in a running corpus,
 which traces the (unclassified) diplomatic history of the United
-States. Between 1973 and 1978, for example, it has collected about two
-million cables.
+States. For example, it has collected about two
+million cables that were sent between 1973 and 1978.
 
 Typically, a cable from this collection describes diplomatic ``business as usual,'' such as arrangements for visiting officials, recovery of lost or stolen passports, or obtaining lists of names for meetings and conferences. For example,
 the embassies sent 8,635 cables during the week of April 21, 1975. Here is one,
@@ -20,7 +20,7 @@ with Dr.~John P.~Klus RE list of persons to be invited.}
 
 But hidden in the corpus are also cables about important diplomatic
 events, the cables and events that are of primary interest to
-historians. During that same week the United States was in the last
+historians. During that same week, the United States was in the last
 moments of the Vietnam war and, on April 30, 1975, lost its hold on Saigon. This resulted in the end of the Vietnam War and a max exodus of refugees from the country.  One
 of the cables around this event is
 \begin{shaded*}
@@ -56,7 +56,7 @@ characterizing important events in large collections of historical
 communication.
 
 \Cref{fig:cables_events} illustrates Capsule's analysis of the two
-million cables from the National Archives. The $y$-axis is
+million cables from the National Archives. The \mbox{$y$-axis} is
 ``eventness'', a loose measure how strongly a week's cables deviate
 from the usual diplomatic chatter to discuss a matter that is common
 to many embassies. (This is described in detail in Section~\ref{sec:model}.)
@@ -71,10 +71,10 @@ picture of the diplomatic history of these five years; it identifies
 and characterizes moments and source material that might be of
 interest to a historian.
 
-The intuition behind Capsule is this. Embassies write cables
+The intuition behind Capsule is this: embassies write cables
 throughout the year, usually describing typical business such as the
 visiting of a government official. Sometimes, however, there is an
-important event---e.g., the fall of Saigon. When an event occurs, it
+important event, e.g., the fall of Saigon. When an event occurs, it
 pulls embassies away from their typical business to write cables that
 discuss what happened and its consequences. Thus Capsule effectively
 defines an ``event'' to be a moment in history when embassies deviate
@@ -105,7 +105,9 @@ a collection of U.S. State Department cables and on simulated data.
 event detection and other related concepts.
 
 % While Capsule uses text documents and associated metadata as input, event detection is often performed with univariate input data.  In this context, bursts that deviate from typical behavior (e.g., noisy constant or a repeating pattern) can define an event \cite{kleinberg2003bursty,ihler2007learning}; Poisson Processes~\cite{Kingman:1993} are often used to model events under this definition.  Alternatively, events can be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event}.
-In both univariate and multivariate settings, the goal is often the same: analysts want to predict whether or not a rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
+In both univariate and multivariate settings, the goal is often the same: analysts want to predict whether or not rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
+
+Events can also be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event,adams2007bayesian}. Both varieties of events are important, but we focus on temporary shifts away from normal.
 
 % Text is often used in event detection, as it is an abundant source of data.  
 % In some applications, documents themselves are considered to be observed events~\cite{mccallum1998comparison,peng2007event}, or events are predetermined and tracked through the documents~\cite{yang2000improving,VanDam:2012}.  We are interested in detecting \emph{unobserved} events which can be characterized by patterns in the data.
