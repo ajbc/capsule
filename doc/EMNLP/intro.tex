@@ -1,9 +1,5 @@
 %!TEX root = emnlp2016.tex
 
-% TODO | fill in the XXX below
-
-% TODO | fill in with real cables
-
 Foreign embassies of the United States government communicate with
 each other and with the U.S. State Department through cabled message.
 The National Archive collects these documents in a running corpus,
@@ -47,7 +43,7 @@ of the cables around this event is
 \begin{figure*}[ht]
 \centering
 \includegraphics[width=\linewidth]{fig/cables_events.pdf}
-\caption{Measure of time interval impact on cable content (Eq.~\ref{eq:eventness}).  The grey background indicates the number of cables sent over time.}
+\caption{Measure of time interval impact on cable content (Eq.~\ref{eq:eventness}).  Grey background indicates the number of cables sent over time.}
 \label{fig:cables_events}
 \end{figure*}
 
@@ -68,7 +64,7 @@ to many embassies. (This is described in detail in Section~\ref{sec:model}.)
 The figure shows that Capsule detects many of the important moments
 during this five-year span, including Indonesia's invasion of East
 Timor (December 7, 1975), the Air France hijacking and Israeli rescue operation
-(Jun 27--July 4, 1976), and the fall of Saigon (April 30, 1975). It also identifies other moments,
+(June 27--July 4, 1976), and the fall of Saigon (April 30, 1975). It also identifies other moments,
 such as the U.S. sharing lunar rocks with other countries (March 21, 1973) and
 the death of Mao Tse-tung (September 9, 1976). Broadly speaking, Capsule gives a
 picture of the diplomatic history of these five years; it identifies
@@ -93,9 +89,17 @@ provides a filter on the cables that isolates important moments in the
 diplomatic history. \Cref{fig:cables_events} illustrates this
 posterior.
 
-% TODO | mention that this can be used with other types of corpora
+Capsule can be used to explore any corpora with the same underlying
+structure: text generated over time by known entities.  This includes
+email, social media posts, and news articles.  It could also be used to analyze 
+-text discrete data such as consumer or stock purchases where the
+purchasing entity is known.
 
-% TODO | summary of the paper's sections
+We present the model in Section~\ref{sec:model}, providing both a formal
+model specification and guidance on how to use its posterior to detect 
+and characterize real-worlds events.
+In Section~\ref{sec:eval}, we evaluate Capsule and explore its results on
+a collection of U.S. State Department cables and on simulated data.
 
 \parhead{Related work.} We first review previous work on automatic
 event detection and other related concepts.

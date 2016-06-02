@@ -1,11 +1,48 @@
 %!TEX root = emnlp2016.tex
 
-In this section we explore the performance of Capsule on a collection of US State Department cables.
-These cables were sent between 1973 and 1978 and obtained from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives. In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  To test our model, we used a vocabulary of size 6,293 and omitted cables with fewer than three terms, resulting in a collection of 2,139,324 messages sent between 27,134 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
 
-We fit Capsule with 100 topics and using an exponential decay with mean lifetime of 3---this indicates that most intervals would no longer be relevant after about 3 weeks.  To detect when an event occurs, we multiply the average event relevancy $\epsilon$ for all documents in a given interval together with interval strength $\psi$, or  $\psi_t \frac{1}{\vert D_t \vert}\sum_{d\in D_t} \epsilon_{d,t}$, where $D_t$ is the set of all cables sent in interval $t$.
+% *** results ***
+% (1) 1970s cables data; details
+%     how we trimmed; how we selected the vocabulary
+% (2) we fit the model; 100 topics
+%     what we found
+% (3) simulations
+%     (a) how we simulated data; size, etc.
+%     (b) competing methods
+%     (c) results
 
-Figure~\ref{fig:cables_events} shows this measure over the duration of the data set. The highest time intervals, ones in which we declare events to be detected, include the tallest peak the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.  The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$; Tables~\ref{tab:timor} and~\ref{tab:saigon} show the top cables for these two events, which reflect the real-world events those weeks.
+% - divde into pghs
+% - made f clear on our model
+% - make comparison methods clear (citations)
+% - make evaluation metrics clear (citation?)
+% - how long does it take to fit the model
+% - address simulate then fit
+% - details on simuated data; do other methods scale?
+
+% ========================
+
+\PP In this section we first explore the performance of Capsule on a collection of U.S. State Department diplomatics cables, then we ??? on simulated data.
+
+\parhead{Data.}
+The National Archive collects communications between the U.S. Sate department and its embassies.  We obtained a collection of these diplomatic messages from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  The communications in this data set were sent between 1973 and 1978.
+
+In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  We used a vocabulary of size 6,293 and omitted cables with fewer than three terms, resulting in a collection of 2,139,324 messages sent between 27,134 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
+
+\parhead{Model settings.}
+We fit Capsule with $K=100$ general topics and using an exponential decay $f$,
+\begin{equation}
+f(i_d, t) = 
+\begin{cases}
+    0,			& \text{if } t > i_d\\
+    \exp\{-(i_d - t) / \tau\},          & \text{otherwise,}
+\end{cases}
+\end{equation}
+with mean lifetime $\tau=3$.  This mean lifetime indicates that most intervals would no longer be relevant after about three weeks.
+
+\parhead{Results.}
+We begin our exploration by detecting events using Capsule.  With Equation~\ref{eq:eventness} as our metric of ``eventness,'' we consider this metric over time, which is shown in Figure~\ref{fig:cables_events}.  Here, peaks correspond to real-worlds events, several of which are labeled.\footnote{Appendix~\ref{sec:additional_results} contains an analogous figure on arXiv data, which shows that Capsule does not capture weekly events on data that does not contain real-world events at that resolution.}
+
+The tallest peak occurs the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.  As discussed in Section~\ref{sec:model}, we sort documents by their event relevancy parameters $\epsilon$ to find cables that reflect an event.  Table~\ref{tab:timor} shows the top cables for the East Timor invasion.  Capsule accurately identifies this real-world event and recovers relevant cables.
 
 \begin{table*}[tb]
 \small
@@ -14,18 +51,19 @@ Figure~\ref{fig:cables_events} shows this measure over the duration of the data 
 \toprule
 $\epsilon$ & date & entity & subject \\
 \midrule
-0.1237 & 1975-12-03 & {\footnotesize STATE} & {\footnotesize PRESIDENT'S TALKING POINTS ON PORTUGUESE TIMOR } \\
-0.1210   &  1975-12-03 & {\footnotesize STATE} & {\footnotesize    PRESIDENT'S TALKING POINTS ON PORTUGUESE TIMOR }\\
-0.1153   &  1975-12-04  &  {\footnotesize STATE  }  & {\footnotesize  TIMOR WE ARE REPEATING FYI A DAO MESSAGE}\\
-0.1126   &  1975-012-04  &  {\footnotesize STATE   }  &  {\footnotesize  LEGAL PROBLEMS RELATING TO PORTUGUESE TIMOR}\\
-0.1053   &  1975-12-07  &  {\footnotesize SECRETARY PEKING } & {\footnotesize US SUPPORT FOR TIMOR RESOLUTION }\\
-0.1021   &  1975-12-01  &  {\footnotesize STATE } & {\footnotesize  INVASION OF PORTUGUESE TIMOR } \\
+0.124   &  1975-12-03  &  State  & President's talking point on Portuguese Timor \\
+0.121   &  1975-12-03  &  State  & President's talking point on Portuguese Timor \\
+0.115   &  1975-12-04  &  State  & Timor we are repeating FYI a DAO message \\
+0.112   &  1975-12-04  &  State  &  Legal problems relating to Portuguese Timor\\
+0.105   &  1975-12-04  &  Secretary Peking & US Support for Timor resolution \\
+0.102   &  1975-12-07  &  State  & Invasion of Portuguese Timor \\
 \bottomrule
 \end{tabular}
 \label{tab:timor}
-\caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.}
+\caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.}
 \end{table*}
 
+The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; Table~\ref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
 
 \begin{table*}[htb]
 \small
@@ -34,20 +72,53 @@ $\epsilon$ & date & entity & subject \\
 \toprule
 $\epsilon$ & date & entity & subject \\
 \midrule
-0.0908 & 1975-04-24 & {\footnotesize MANSFIELD, MIKE} & {\footnotesize ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM } \\
-0.0886   &  1975-04-24 & {\footnotesize RAILSBACK, TOM } & {\footnotesize    ASSISTANCE IN EVACUATING FRIEND FROM SOUTH VIETNAM }\\
-0.0877   &  1975-04-24  &  {\footnotesize MANSFIELD, MIKE  }  & {\footnotesize    ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM}\\
-0.0863   &  1975-04-24  &  {\footnotesize WILLIAMS, HARRISON   }  &  {\footnotesize    ASSISTANCE IN EVACUATING FAMILY FROM VIETNAM}\\
-0.0860   &  1975-04-24  &  {\footnotesize KOCH, EDWARD } & {\footnotesize ASSISTANCE IN EVACUATING FAMILY FROM SOUTH VIETNAM }\\
-0.0858   &  1975-04-21  &  {\footnotesize SCHWEIKER, RICHARD } & {\footnotesize  SUPPORT IN EVACUATING FAMILY FROM VIETNAM } \\
+0.090   &  1975-04-24  &  Mansfield, Mike & Assistance in evacuating family from South Vietnam \\
+0.089   &  1975-04-24  &  Railsback, Tom & Assistance in evacuating friend from South Vietnam \\
+0.088   &  1975-04-24  &  Mansfield, Mike  & Assistance in evacuating family from South Vietnam \\
+0.086   &  1975-04-24  &  Williams, Harrison &  Assistance in evacuating family from South Vietnam \\
+0.086   &  1975-04-24  &  Koch, Edward & Assistance in evacuating family from South Vietnam \\
+0.086   &  1975-04-21  &  Schweiker, Richard & Support in evacuating family from Vietnam \\
 $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
-0.0812  &   1975-04-25  &  {\footnotesize KETCHUM, WILLIAM} & {\footnotesize  MOVEMENT OF SOUTH VIETNAMESE REFUGEES TO GUAM } \\
-0.0800 & 1975-04-21 & {\footnotesize SCOTT, HUGH } & {\footnotesize  WHEREABOUTS OF MISSIONARIES IN VIETNAM }\\
+0.081   &  1975-04-25  &  Ketchum, William & Movement of South Vietnamese refugees to Guam \\
+0.080   &  1975-04-21  &  Scott, Hugh & Whereabouts of missionaries in Vietnam \\
 \bottomrule
 \end{tabular}
 \label{tab:saigon}
 \caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975.}
 \end{table*}
+
+Smaller events...
+
+%WORKING LINE
+
+\PP highlight a few events, recover cables for them (1 pgh per event).  Point to appendix for more cable contnet and more events
+
+\PP maybe: top terms for a selection of events (needs new table)
+
+\PP top terms for a selectoion of topics (point to appendix for full list?)
+
+\PP top terms for a selection of entities (point to appendix for full list)
+
+\PP saying that this method is awesome!
+
+\parhead{Simulations.}
+\PP how did we simulate data; note on why this is okay
+
+\PP evaluation metrics; w/ citations
+
+\PP comparison methods; w/ citations
+
+\PP eventness results
+
+\PP document recovery results
+
+\PP note on sensitivity to duration/shape and more simulations in Appendix~\ref{sec:additional_results}
+
+
+Figure~\ref{fig:cables_events} shows this measure over the duration of the data set. The highest time intervals, ones in which we declare events to be detected, include the tallest peak the week of December 1, 1975, just prior to the Indonesian invasion of East Timor, which Began December 7, 1975.  The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975.  For any given week, we can sort the documents by their interval relevancy parameters $\epsilon$; Tables~\ref{tab:timor} and~\ref{tab:saigon} show the top cables for these two events, which reflect the real-world events those weeks.
+
+
+
 
 Other event peaks include the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
 
