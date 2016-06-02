@@ -21,7 +21,7 @@
 
 % ========================
 
-\PP In this section we first explore the performance of Capsule on a collection of U.S. State Department diplomatics cables, then we ??? on simulated data.
+In this section we explore the performance of Capsule on a collection of U.S. State Department diplomatics cables and on simulated data.
 
 \parhead{Data.}
 The National Archive collects communications between the U.S. Sate department and its embassies.  We obtained a collection of these diplomatic messages from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  The communications in this data set were sent between 1973 and 1978.
@@ -112,8 +112,6 @@ for next US effort to promote Syrian negotiations with Israelis. ...}
 \end{shaded*}
 \noindent This cable and the sequence of events discovered by Capsule indicate that there is a longer lasting underlying situation.  Capsule cannot capture every aspect of these larger sequences of events, but it can provide insight into key moments so that investigators can explore both short-lived events and long-lasting political situations.
 
-Appendix~\ref{sec:additional_results} contains additional examples of events discovered by Capsule, including results for the Apollo 17 lunar gifts, the return of the crown of St. Stephen to Hungary, and the UN Special Session on Disarmament in 1978.
-
 \begin{table}
 \centering
 \small
@@ -154,26 +152,14 @@ Ndjamean & chadian, chad, lagos, drought, austerity \\
 \caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\beta^{(n)}_0$.}
 \end{table}
 
-In addition to events, Capsule can be used to explore the general themes in the corpus and the concerns of specific entities.  Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.  Appendix~\ref{sec:additional_results} contains more examples of general and entity-specific topics.
+In addition to events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in Table~\ref{tab:topics} and entity-exclusive topics are shown in Table~\ref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
+
+Appendix~\ref{sec:additional_results} contains additional examples of events discovered by Capsule, and more examples of general and entity-specific topics.
 
 These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
-
-
-\parhead{Simulations.}
-\PP how did we simulate data; note on why this is okay
-
-\PP evaluation metrics; w/ citations
-
-\PP comparison methods; w/ citations
-
-\PP eventness results
-
-\PP document recovery results
-
-\PP note on sensitivity to duration/shape and more simulations in Appendix~\ref{sec:additional_results}
-
-
+\parhead{Simulations.}  We simulated data to provide a quantitative assessment of Capsule.
+We generated twenty data sets, each with 100 time steps, 10 general topics, and 100 entities. Each simulation contained about 55,000 documents and followed the generative process assumed by Capsule, as shown in~Figure~\ref{fig:generative-model}.
 
 \begin{figure}[h]
 \centering
@@ -182,9 +168,14 @@ These exploratory results show that our model is successfully capturing when mul
 \label{fig:sim_eventdetect}
 \end{figure}
 
-Finally, we simulated data according to our generative process in order to compare our method to baseline and existing approaches.  
-To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a model and the simulated ground at every threshold; this generates an curve under which we cam compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC.  
+To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a method and the simulated ground at every threshold; this generates an curve under which we cam compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC. 
+
+%^ XXX citation
+ 
 The most successful of the comparison methods for event detection was average absolute error in wordcount, both unweighted and weighted by tf-idf.  Figure~\ref{fig:sim_eventdetect} shows that Capsule can outperform these approaches for event detection, but that it has higher variance in performance.  The other comparison method in Figure~\ref{fig:sim_eventdetect} is based on LDA; we fit a multinomial Gaussian to the topic representation of all documents and then computed the average probability of seeing the topic distributions of documents in the time interval.  Time intervals with the lowest probability were marked as most likely to have events.  All other baselines performed close to random for event detection.
+
+%^ XXX add citations for each method
+
 \begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{fig/precision10.pdf}
@@ -194,116 +185,11 @@ The most successful of the comparison methods for event detection was average ab
 
 This method of fitting a multinomial Gaussian to LDA representations of documents also performed well for recovering relevant documents.  This approach can be altered to fit a per-entity multinomial Gaussian, but this performs worse.  Simply finding documents based on absolute deviation from the mean works well in LDA topic space (relative to overall mean or entity mean), but not over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  Figure~\ref{fig:sim_precision} shows precision of recovering the top ten documents.
 
-We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model is not sensitive to decay shape or duration.
+% ^ citation for LDA methods
+% ^ citation for multinomial gaussian
+% citation for precision
 
-% \begin{figure*}
-% \centering
-% \includegraphics[width=\linewidth]{fig/arxiv_events.pdf}
-% \caption{TODO}
-% \label{fig:arxiv_events}
-% \end{figure*}
+We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model is not sensitive to decay shape or duration; details are in Appendix~\ref{sec:additional_results}.
 
-
-
-
-
-
-% In this section we study the performance of Capsule. Using simulated data, we compare Capsule to deterministic methods of event detection and show that Capsule outperforms them at identifying when events occur.  
-% %We also examine how sensitive Capsule is to the attributes of a dataset and model parameters.
-% We conclude by exploring three real-world datasets with Capsule.
-
-% \subsection{Performance}
-
-% We generated ten simulated datasets using our generative process.  Each dataset spans 100 days and contains content associated with ten entities.  Approximately ten events also exist in each dataset, randomly distributed in time and with a three day decay of relevancy.
-
-% To evaluate performance, we rank each day by its probability of having an event occur, and plot the number of true events discovered against the number of false positive events, as shown in Figure~\ref{fig:sim_auc}; the area under the curve (AUC) can be computed for a single evaluation metric.  Note that this approach is only valid when true events are known, and thus we only apply it to simulated data.
-
-% We compare Capsule to two baseline approaches: one considers the greatest document outlier on a given day--days with the furthest outliers are the most likely to have events.  The other approach is similar: days are represented by an average of all documents associated with that day, and one considers how these averages deviate from the global average--the further away, the more likely an event.
-
-% Figure~\ref{fig:sim_auc} shows that Capsule outperforms both of these approaches.  It should be noted that inference on Capsule will produce different results, depending on the random seed; the results shown are the best of three random seeds.
-
-% \begin{figure}[ht]
-% \centering
-% \includegraphics[width=\linewidth]{fig/sim_auc.pdf}
-% \caption{Average performance on ten simulated datasets; lines closer to the upper-left are better.  Baselines consider outliers based on full corpus averages (dashed) and averages of all entity documents (dotted).  Capsule performance is best of three random seeds.}
-% \label{fig:sim_auc}
-% \end{figure}
-
-
-% %\PP fig / discussion of varrying entity dists in simualted data
-
-% %\PP performance vs parameters (event occurrence hyperparameter (which impacts initialization), event duration)
-
-% \subsection{Exploration}
-
-% \parhead{Cables}
-% \PP where did we get it / size / preprocessing
-
-% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-% \PP example interesting entities + figure
-
-% \PP explore pairwise entities? (quick with and single figure shared with enron); compare sender vs reiever for same pair  (or does direction matter?? tyr both ways) look at sender in norma model vs sender in a few pairs under this construction 
-
-% \parhead{arXiv}
-% \PP where did we get it / size / preprocessing
-
-% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-% \PP example interesting entities + figure
-
-% \parhead{enron}
-% \PP where did we get it / size / preprocessing
-
-% \PP plot of events timeline with select real-world match evetns pointed out (verified by history lab)
-
-% \PP example interesting entities + figure
-
-% \PP explore pairwise entities?
-
-
-
-% % \parhead{Cables}
-% % We obtained around two million of these cables sent between 1973 and 1977 via the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.
-% % Excerpts from three example cables are shown in Figure~\ref{fig:cables_example}.
-
-% % % \begin{figure}[ht]
-% % % \centering
-% % % \includegraphics[width=\textwidth]{../fig/cables_orphan_example.png}
-% % % \caption{Example excerpts of cables sent in April 1975 concerning orphans from the Vietnam War.}
-% % % \label{fig:cables_example}
-% % % \end{figure}
-
-% % \parhead{arXiv}
-
-% % \parhead{Enron}
-
-
-% % \PP insert table and refetence for both (number of days, entities, total messages, or something); maybe a plot showing attributes of the data...somehow inform them that the state department is a bias for the cables data
-
-% % \PP footnote on handling multiple recipients of message...
-
-% % \subsection{Metrics and competing methods}
-
-% % \PP how we evaluate based on real events
-
-% % \PP how we evaluate based on perplexity (prediction of words)
-
-% % \PP competing methods for perplexity: LDA, average user words?, dynamic topic model, network topic models
-
-% % \subsection{Performance and exploration}
-
-% % \PP sumry of comparison to gold-standard events for cables
-
-% % \PP table of predictive likelihood results and summary pgh; and/or cite tea leaves paper
-
-% % \parhead{Exploration}
-
-% % \PP charachetrize events manually (based on cables) vs event detection characterization
-
-% % \PP show descriptions for cables entities and select events; same for arxiv/enron
-
-% % \PP any other exploration you can think of!
-
-
-% % Results: ROC curve (x=false postive rate, y=true postive rate)
+\parhead{Comparisons on Cables.}
+We ran the word count based approaches on the cables data and found that they were difficult to interpret and did not recover important historical events.  For instance, none detected the evacuation of Saigon, a major historical event in the corpus.  The LDA-based approaches do not yield large gains in run time over Capsule and do not provide the granularity needed to capture substantial events---deviations in topic space are too coarse to provide a meaningful signal.
