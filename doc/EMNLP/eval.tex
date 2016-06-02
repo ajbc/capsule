@@ -97,40 +97,6 @@ Examples of general topics of conversation are shown in Table~\ref{tab:topics} a
 
 These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
 
-\begin{table}[h]
-\centering
-\begin{tabular}{cc}
-\toprule
-method & held out log likelihood \\
-\midrule
-full Capsule model & -2.41e7 \\
-event only & \textbf{-1.82e7} \\
-topics only & -2.69e7 \\
-entities only & -2.43e7 \\
-\bottomrule
-\end{tabular}
-\label{tab:loglikelihood}
-\caption{Held-out data log likelihood.}
-\end{table}
-We also considered held out log likelihood in evaluating the fitness of our model, as shown in Table~\ref{tab:loglikelihood}.  We see that the event structure is crucial to fitting the data well.  We held out 5\% of the data.
-
-% %-----------------
-
-% \begin{table*}
-% \centering
-% \begin{tabular}{ccccc}
-% \toprule
-% data & full Capsule model & events only & topics only & entities only \\
-% \midrule
-% US State Dept. Cables & -2.41e7 & \textbf{-1.82e7} & -2.69e7 & -2.43e7 \\
-% arXiv & \textbf{-3.12e6} & -3.57e6 & -3.14e6 & -3.57e6 \\
-% \bottomrule
-% \end{tabular}
-% \label{tab:loglikelihood}
-% \caption{Held-out data log likelihood.}
-% \end{table*}
-% arxiv is after 15 iterations
-% cables is 15 iterations with exp 3
 
 \begin{figure}[h]
 \centering
