@@ -69,6 +69,7 @@ general diplomacy.
 Putting this together, the Poisson rate for term $v$ in document $d$ is
 \begin{align}
   \lambda_{d,v} = \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v},
+\label{eq:poisrate}
 \end{align} where $\theta_d$ corresponds to strength of general diplomacy, $\zeta_d$ corresponds to strength of entity-specific concerns, and $\epsilon_d$ corresponds to strength of events; $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we find that exponential decay, as in \Cref{eq:f}, performs well.
 
 We place gamma priors on the topic strengths and Dirichlet priors on

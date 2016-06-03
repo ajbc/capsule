@@ -2,7 +2,7 @@
 
 In this appendix, we describe the details of the inference algorithm for Capsule. Source code for this algorithm is available at is available at https://github.com/?????/capsule.
 
-Conditional on a collection of observed documents, our goal is to estimate the posterior values of the hidden parameters, according to the Capsule model.   Recall that our data is observed as word counts $w_d$ for document $d$, with corresponding author and time interval information---$a_d$ and $i_d$, respectively.
+Conditional on a collection of observed documents, our goal is to estimate the posterior values of the hidden parameters, according to the Capsule model.   Recall that our data is observed as word counts $w_{d,v}$ for document $d$ and vocabulary term $v$, with corresponding author and time interval information for each document---$a_d$ and $i_d$, respectively.
 The latent parameters of the model include general topics $\beta$, entity topics $\eta$, and interval topics $\pi$, as well as document-specific strengths in each of these spaces: document relevancy to general topics $\theta$, entity topics $\zeta$, and interval topics $\epsilon$.  The latent parameters also include entity concerns with general topics $\phi$ and with entity-specific topics $\xi$, and overall event strength $\psi$.  See \Cref{fig:generative-model} for the full generative model.
 
 As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; we must instead approximate it.  Thus, we develop an approximate inference algorithm for Capsule based on variational methods~\cite{jordan1999introduction,Wainwright:2008}.
@@ -28,33 +28,41 @@ We define the approximating distribution $q$ using the mean field assumption:
 	\label{eq:q}
 \end{multline}
 
-The variational distributions for the topics $q(\pi)$, $q(\beta)$ and $q(\eta)$ are all Dirichlet-distributed with free variational parameters $\lambda^\pi$, $\lambda^\beta$, and $\lambda^\eta$ respectively.  Similarly, the variational distributions $q(\psi)$, $q(\phi)$, $q(\theta)$ and $q(\epsilon)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\theta$, and $\lambda^\epsilon$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
+The variational distributions for the topics $q(\pi)$, $q(\beta)$ and $q(\eta)$ are all Dirichlet-distributed with free variational parameters $\lambda^\pi$, $\lambda^\beta$, and $\lambda^\eta$ respectively.  Similarly, the variational distributions $q(\psi)$, $q(\phi)$, $q(\xi)$, $q(\theta)$, $q(\epsilon)$, and $q(\zeta)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\xi$, $\lambda^\theta$, $\lambda^\epsilon$ and $\lambda^\zeta$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
 
 The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates--we update each parameter in turn, following standard coordinate ascent variational inference techniques, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
 
-To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count distribution in Eq.~\ref{eq:generateData} and define Poisson variables for each component of the word count:
-\[ z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}) \]
+To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this decomposition to the word count rate in \Cref{eq:poisrate} and define Poisson variables for each component of the word count:
+\[ z^\mathcal{K}_{d,v,k} \sim \mbox{Poisson}(\theta_{d,k}\beta_{k,v}), \]
+\[ z^\mathcal{E}_{d,v} \sim \mbox{Poisson}(\zeta_{d}\eta_{a_d,v}), \]
 \[ z^\mathcal{T}_{d,v,t} \sim \mbox{Poisson}\left(f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right). \]
-The $\mathcal{K}$ and $\mathcal{T}$ superscripts indicate the contributions from entity concerns and events, respectively.  Given these variables, the total word count is deterministic:
-\[ w_{d,v} = \sum_{k=1}^K z^\mathcal{K}_{d,v,k} + \sum_{t=1}^T z^\mathcal{T}_{d,v,t}. \]
+The $\mathcal{K}$, $\mathcal{E}$, and $\mathcal{T}$ superscripts indicate the contributions from general, entity, and event topics, respectively.  Given these variables, the total word count is deterministic:
+\[ w_{d,v} = \sum_{k=1}^K z^\mathcal{K}_{d,v,k} + z^\mathcal{E}_{d} + \sum_{t=1}^T z^\mathcal{T}_{d,v,t}. \]
 
-Coordinate-ascent variational inference is derived from complete conditionals, i.e., the conditional distributions of each variable given the other variables and observations. These conditionals define both the form of each variational factor and their updates. The following are the complete conditional for each of the gamma- and Dirchlet-distributed latent parameters.  The notation $D(i)$ is used for the set of documents sent by entity $i$; $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
+Coordinate-ascent variational inference is derived from complete conditionals, i.e., the conditional distributions of each variable given the other variables and observations. These conditionals define both the form of each variational factor and their updates. The following are the complete conditional for each of the gamma- and Dirchlet-distributed latent parameters.  The notation $D(n)$ is used for the set of documents sent by entity $n$; $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
 \begin{multline}
-\pi_t \g \mathbf{W}, \psi, \phi, \beta, \theta, \epsilon, z \sim \\
+\pi_t \g \mathbf{W}, \psi, \phi, \xi, \beta, \eta, \theta, \epsilon, \zeta, z \sim \\
 	\mbox{Dirichlet}_V\left(\alpha_\pi + \sum_{d=1}^D \langle
 		z^\mathcal{T}_{d,1,t}, \cdots, z^\mathcal{T}_{d,V,t}\rangle
 	\right)
 \label{eq:pi}
 \end{multline}
 \begin{multline}
-\beta_k \g \mathbf{W}, \psi, \pi, \phi, \theta, \epsilon, z \sim \\
+\eta_n \g \mathbf{W}, \psi, \phi, \xi, \beta, \pi, \theta, \epsilon, \zeta, z \sim \\
+	\mbox{Dirichlet}_V\left(\alpha_\eta + \sum_{d\in D(n)} \langle
+		z^\mathcal{E}_{d,v}, \cdots, z^\mathcal{E}_{d,v}\rangle
+	\right)
+\label{eq:eta}
+\end{multline}
+\begin{multline}
+\beta_k \g \mathbf{W}, \psi, \phi, \xi, \pi, \eta, \theta, \epsilon, \zeta, z \sim \\
 	\mbox{Dirichlet}_V\left(\alpha_\beta + \sum_{d=1}^D \langle
 		z^\mathcal{K}_{d,1,k}, \cdots, z^\mathcal{K}_{d,V,k}\rangle
 	\right)
 \label{eq:beta}
 \end{multline}
 \begin{multline}
-\psi_t \g \mathbf{W}, \pi, \phi, \beta, \theta, \epsilon, z \sim \\
+\psi_t \g \mathbf{W}, \phi, \xi, \beta, \pi, \eta, \theta, \epsilon, \zeta, z \sim \\
 	\mbox{Gamma}\left(
 		s_\psi + |D(t)| s_\epsilon,
 		r_\psi + \sum_{d\in D(t)} \epsilon_{d,t}
@@ -62,15 +70,23 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:psi}
 \end{multline}
 \begin{multline}
-\phi_{i,k} \g \mathbf{W}, \psi, \pi, \beta, \theta, \epsilon, z \sim \\
+\xi_n \g \mathbf{W}, \psi, \phi, \beta, \pi, \eta, \theta, \epsilon, \zeta, z \sim \\
 	\mbox{Gamma}\left(
-		s_\phi + |D(i)| s_\theta,
-		r_\phi + \sum_{d\in D(i)} \theta_{d,k}
+		s_\xi + |D(n)| s_\zeta,
+		r_\xi + \sum_{d\in D(n)} \zeta_{d}
+	\right)
+\label{eq:xi}
+\end{multline}
+\begin{multline}
+\phi_{n,k} \g \mathbf{W}, \psi, \xi, \beta, \pi, \eta, \theta, \epsilon, \zeta, z \sim \\
+	\mbox{Gamma}\left(
+		s_\phi + |D(n)| s_\theta,
+		r_\phi + \sum_{d\in D(n)} \theta_{d,k}
 	\right)
 \label{eq:phi}
 \end{multline}
 \begin{multline}
-\theta_{d,k} \g \mathbf{W}, \psi, \pi, \phi \beta, \epsilon, z \sim \\
+\theta_{d,k} \g \mathbf{W}, \psi, \phi, \xi, \beta, \pi, \eta, \epsilon, \zeta, z \sim \\
 	\mbox{Gamma}\left(
 		s_\theta + \sum_{v=1}^V z^\mathcal{K}_{d,v,k},
 		\phi_{a_d,k} + \sum_{v=1}^V \beta_{k,v}
@@ -78,19 +94,27 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:theta}
 \end{multline}
 \begin{multline}
-\epsilon_{d,t} \g \mathbf{W}, \psi, \pi, \phi, \beta, \theta, z \sim \\
+\epsilon_{d,t} \g \mathbf{W}, \psi, \phi, \xi, \beta, \pi, \eta, \theta, \zeta, z \sim \\
 	\mbox{Gamma}\left(
 		s_\epsilon + \sum_{v=1}^V z^\mathcal{T}_{d,v,t},
 		\psi_t + f(i_d, t) \sum_{v=1}^V \pi_{t,v}
 	\right)
 \label{eq:epsilon}
 \end{multline}
+\begin{multline}
+\zeta_{d} \g \mathbf{W}, \psi, \phi, \xi, \beta, \pi, \eta, \theta, \epsilon, z \sim \\
+	\mbox{Gamma}\left(
+		s_\zeta + \sum_{v=1}^V z^\mathcal{E}_{d,v},
+		\xi_{a_d} + \sum_{v=1}^V \eta_{a_d,v}
+	\right)
+\label{eq:zeta}
+\end{multline}
 
 The complete conditional for the auxiliary variables has the form
-$z_{d,v} \g \psi, \pi, \phi, \beta, \theta, \epsilon \sim \mbox{Mult}(w_{d,v}, \omega_{d,v}),$ where
+$z_{d,v} \g \psi, \phi, \xi, \beta, \pi, \eta, \theta, \epsilon, \zeta \sim \mbox{Mult}(w_{d,v}, \omega_{d,v}),$ where
 \begin{multline}
 \omega_{d,v} \propto \langle 
-\theta_{d,1} \beta_{1,v}, \cdots, \theta_{d,K} \beta_{K,v}, \\
+\theta_{d,1} \beta_{1,v}, \cdots, \theta_{d,K} \beta_{K,v}, \zeta_d \eta_{a_d,v}, \\
 f(i_d, 1) \epsilon_{d,1} \pi_{1,v}, \cdots, f(i_d, T) \epsilon_{d,T} \pi_{T,v}\rangle.
 \label{eq:omega}
 \end{multline}
@@ -105,36 +129,46 @@ Given these conditionals, the algorithm sets each parameter to the expected cond
 \small
 \DontPrintSemicolon
 \KwIn{word counts $w$}
-\KwOut{approximate posterior of latent parameters ($\psi$, $\pi$, $\phi$, $\beta$, $\theta$, $\epsilon$) in terms of variational parameters $\lambda$ = $\{\lambda^\psi$, $\lambda^\pi$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\epsilon\}$}
+%($\psi$, $\pi$, $\xi$, $\eta$, $\phi$, $\beta$, $\theta$, $\zeta$, $\epsilon$)
+\KwOut{approximate posterior of latent parameters in terms of variational parameters $\lambda$ = $\{\lambda^\psi$, $\lambda^\pi$, $\lambda^\xi$, $\lambda^\eta$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\zeta$, $\lambda^\epsilon\}$}
 \textbf{Initialize} $\E[\beta]$ to slightly random around uniform \;
-\textbf{Initialize} $\E[\psi]$, $\E[\pi]$, $\E[\psi]$, $\E[\theta]$, $\E[\epsilon]$ to uniform \;
+\textbf{Initialize} $\E[\mbox{all other parameters}]$ to uniform \;
 \For {iteration $m=1:M$}{
-	\textbf{set} $\lambda^\psi$, $\lambda^\pi$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\epsilon$ to respective priors, excluding $\lambda^{\theta,rate}$ and $\lambda^{\epsilon,rate}$, which are set to 0 \;
+	\textbf{set} $\lambda^\psi$, $\lambda^\pi$, $\lambda^\xi$, $\lambda^\eta$, $\lambda^\phi$, $\lambda^\beta$, $\lambda^\theta$, $\lambda^\zeta$, $\lambda^\epsilon$ to respective priors, excluding $\lambda^{\theta,rate}$, $\lambda^{\zeta,rate}$, and $\lambda^{\epsilon,rate}$, which are set to 0 \;
 	\textbf{update} $\lambda^{\theta,rate} \pluseq \sum_V \E[\beta_v]$ \;
 	\For {each document $d=1:D$}{
 		\For {each term $v\in V(d)$\footnotemark}{
-			\textbf{set} $(K+T)$-vector $\omega_{d,v}$ using $\E[\pi]$, $\E[\theta]$, and $\E[\epsilon]$, as shown in Eq.~\ref{eq:omega} \;
+			\textbf{set} $(K+T+1)$-vector $\omega_{d,v}$ as shown in \cref{eq:omega}, using $\E$ of parameters\;
 			\textbf{set} $(K+T)$-vector $\E[z_{d,v}] = w_{d,v} * \omega_{d,v}$ \;
-			\textbf{update} $\lambda^{\theta,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:theta})\;
-			\textbf{update} $\lambda^{\epsilon,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:epsilon})\;
-			\textbf{update} $\lambda^{\beta}_v \pluseq \E[z^\mathcal{K}_{d,v}]$ (Eq.~\ref{eq:beta})\;
-			\textbf{update} $\lambda^{\pi}_v \pluseq \E[z^\mathcal{T}_{d,v}]$ (Eq.~\ref{eq:pi})\;
+			\textbf{update} $\lambda^{\theta,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ [\cref{eq:theta}]\;
+			\textbf{update} $\lambda^{\epsilon,shape}_d \pluseq \E[z^\mathcal{K}_{d,v}]$ [\cref{eq:epsilon}]\;
+			\textbf{update} $\lambda^{\zeta,shape}_d \pluseq \E[z^\mathcal{E}_{d,v}]$ [\cref{eq:zeta}]\;
+
+			\textbf{update} $\lambda^{\beta}_v \pluseq \E[z^\mathcal{K}_{d,v}]$ [\cref{eq:beta}]\;
+			\textbf{update} $\lambda^{\pi}_v \pluseq \E[z^\mathcal{T}_{d,v}]$ [\cref{eq:pi}]\;
+			\textbf{update} $\lambda^{\eta}_v \pluseq \E[z^\mathcal{E}_{d,v}]$ [\cref{eq:eta}]\;
 		}
-		\textbf{update} $\lambda^{\theta,rate}_{d} \pluseq \E[\phi_{a_d}]$ (Eq.~\ref{eq:theta})\;
-		\textbf{update} $\lambda^{\epsilon,rate}_{d} \pluseq \E[\psi]$ (Eq.~\ref{eq:epsilon})\;
-		\BlankLine
+		\textbf{set} $\lambda^{\theta,rate}_{d} = \E[\phi_{a_d}] +\sum_v \E[\beta]$ [\cref{eq:theta}]\;
+		\textbf{set} $\lambda^{\epsilon,rate}_{d} = \E[\psi] + f\sum_v \E[\pi]$ [\cref{eq:epsilon}]\;
+		\textbf{set} $\lambda^{\zeta,rate}_{d} = \E[\xi_{a_d}] + \sum_v\E[\eta]$ [\cref{eq:zeta}]\;
+		
 		\textbf{set} $\E[\theta_d] = \lambda^{\theta,shape}_d / \lambda^{\theta,rate}_d$ \;
 		\textbf{set} $\E[\epsilon_d] = \lambda^{\epsilon,shape}_d / \lambda^{\epsilon,rate}_d$ \;
-		\BlankLine
-		\textbf{update} $\lambda^{\phi,shape}_{a_d} \pluseq s_\theta$ (Eq.~\ref{eq:phi}) \;
-		\textbf{update} $\lambda^{\psi,shape}_{t} \pluseq s_\epsilon \forall t : f(i_d, t) \neq 0$ (Eq.~\ref{eq:psi}) \;
-		\textbf{update} $\lambda^{\phi,rate}_{a_d} \pluseq \theta_d$ (Eq.~\ref{eq:phi}) \;
-		\textbf{update} $\lambda^{\psi,rate} \pluseq \epsilon_d$ (Eq.~\ref{eq:psi}) \;
+		\textbf{set} $\E[\zeta_d] = \lambda^{\zeta,shape}_d / \lambda^{\zeta,rate}_d$ \;
+		
+		\textbf{update} $\lambda^{\phi,shape}_{a_d} \pluseq s_\theta$ [\cref{eq:phi}] \;
+		\textbf{update} $\lambda^{\psi,shape}_{t} \pluseq s_\epsilon \forall t : f(i_d, t) \neq 0$ [\cref{eq:psi}] \;
+		\textbf{update} $\lambda^{\xi,shape}_{a_d} \pluseq s_\eta$ [\cref{eq:xi}] \;
+		\textbf{update} $\lambda^{\phi,rate}_{a_d} \pluseq \theta_d$ [\cref{eq:phi}] \;
+		\textbf{update} $\lambda^{\psi,rate} \pluseq \epsilon_d$ [\cref{eq:psi}] \;
+		\textbf{update} $\lambda^{\xi,rate}_{a_d} \pluseq \zeta_d$ [\cref{eq:xi}] \;
 
 	}
 
 	\textbf{set} $\E[\phi] = \lambda^{\phi,shape} / \lambda^{\phi,rate}$ \;
 	\textbf{set} $\E[\beta_k] = \lambda^{\beta_{k,v}} / \sum_v \lambda^{\beta_k} \forall k$ \;
+	\textbf{set} $\E[\xi] = \lambda^{\xi,shape} / \lambda^{\xi,rate}$ \;
+	\textbf{set} $\E[\eta_n] = \lambda^{\eta_{n,v}} / \sum_v \lambda^{\eta_n} \forall n$ \;
 	\textbf{set} $\E[\psi] = \lambda^{\psi,shape} / \lambda^{\psi,rate}$ \;
 	\textbf{set} $\E[\pi_t] = \lambda^{\pi_{t,v}} / \sum_v \lambda^{\pi_t} \forall t$ \;
 }
