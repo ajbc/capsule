@@ -11,7 +11,7 @@ In this section we develop the Capsule model for detecting and characterizing ev
 
 Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:cartoon}.  We can imagine that there is a stream of messages (or \emph{diplomatic cables}) being sent by this embassy---some might be sent to the US State Department, others to another American embassy like Hong Kong.  An entity will usually talk about certain topics; the Bangkok embassy, for instance, is concerned with topics regarding southeast Asia more generally.
 
-Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities--significant events impact multiple parties simultaneously. The day following the capture of Saigon, the majority of the diplomatic cables sent by the Bangkok embassy and other entities were about Vietnam war refugees.
+Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event will be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities---significant events impact multiple parties simultaneously. The day following the capture of Saigon, for instance, the majority of the diplomatic cables sent by the Bangkok embassy and several other entities were about Vietnam war refugees.
 Thus we imagine that an entity's stream of messages is controlled by what it usually talks about as well as the higher level stream of unobserved events.
 
 % \parhead{Background: Topic Models.} Capsule builds on topic models.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
@@ -26,7 +26,7 @@ message is associated with an entity (or author) $a_d$ and a time (or
 date) interval $i_d$.
 
 We model each message with a bank of Poisson distributions, one per
-term in the vocabulary, $w_{d,v} ~ \textrm{Poisson}(\lambda_{d,v})$.
+term in the vocabulary, $w_{d,v} \sim \textrm{Poisson}(\lambda_{d,v})$.
 The rate $\lambda_{d,v}$ blends the different influences on the
 content of the message, which are defined in terms of different types
 of \textit{topics}. A topic, as in typical topic modeling~\cite{Blei:2003,canny2004gap,Gopalan:2014b}, is
@@ -35,8 +35,8 @@ a distribution over terms.
 Specifically, the message blends general topics about diplomacy (e.g.,
 diplomats, communication) $\beta_k$, an entity topic that is specific
 to the author of the message (e.g., terms about France) $\eta_{a_d}$,\footnote{These entity-specific topics are similar to background topics~\cite{paul2012model}.}
-and an event topic that is specific to the events of the week (e.g.,
-terms about an international crisis) $\pi_{i_d}$. Notice how messages
+and an event topic that is specific to the events of relevant recent weeks (e.g.,
+terms about an international crisis) $\pi_t$. Notice how messages
 share these topics in different configurations: all messages share the
 general topics; messages from the same entity share the entity topics;
 and messages from the same interval share the event topics.
@@ -59,11 +59,11 @@ event & vietnam, evacuation, evacuate, missionary \\
 
 Examples of these three types of topics are in \Cref{tab:3topics}---the general topic 
 relates to planning travel, the entity topic captures words related to the U.S.S.R., and 
-the event topic captures words related to the evacuation of South Vietnam toward the end of the Vietnam War.
+the event topic captures words related to the evacuation of Saigon toward the end of the Vietnam War.
 
 Each message blends its corresponding topics with different
 strengths, which are drawn per message. Each message represents a
-different mix of the events of the week, entity-specific items, and
+different mix of the events of recent weeks, entity-specific items, and
 general diplomacy.
 
 Putting this together, the Poisson rate for term $v$ in document $d$ is
@@ -112,7 +112,7 @@ filter the corpus to find important messages.
 \begin{itemize}[leftmargin=*]
 \item for each time step $t=$~1:$T$,
 	\begin{itemize}[leftmargin=*]
-	\item draw interval description over vocabulary \\$\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw interval description over vocabulary \\(event topic) $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
 	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
 \item for each entity $n=$~1:$N$,
@@ -153,9 +153,9 @@ filter the corpus to find important messages.
 
 
 \parhead{Detecting and characterizing events.} 
-Once we estimate the posterior distribution of the Capsule parameters, we can use the expectations of the latent parameters to explore the original data.  To detect events, we average the per-document event relevancy parameters $\epsilon$ for each document in the interval and multiply it by th interval strength $\psi$:
+Once we estimate the posterior distribution of the Capsule parameters, we can use the expectations of the latent parameters to explore the original data.  To detect events, we average the per-document event relevancy parameters $\epsilon$ for each document in the interval and multiply it by the interval strength $\psi$:
 \begin{equation}
-m_t = \E[\psi_t] \frac{1}{D_t} \sum_{d \in D_t} \E[\epsilon_{d,t},]
+m_t = \E[\psi_t] \frac{1}{\vert D_t \vert} \sum_{d \in D_t} \E[\epsilon_{d,t},]
 \label{eq:eventness}
 \end{equation}
 where $D_t$ is the set of all cables sent in interval $t$. This measure of ``eventness'' provides a scaled estimate of the number of words that are related to an real-world event in that interval.  Figure~\ref{fig:cables_events} shows events detected with this metric.
@@ -171,7 +171,7 @@ that word use from one entity can ``excite'' word use in another, which
 suggests a close relationship to Hawkes processes~\cite{hawkes1971spectra}.
 
 \parhead{Learning the hidden variables.}
-In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---global interval strengths $\psi$, interval descriptions $\pi$, entity concerns $\phi$, and topics $\beta$, as well as document-specific entity concerns $\theta$ and interval relevancy parameters $\epsilon$.
+In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\pi$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
 
 As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{jordan1999introduction},\footnote{Source code is available at https://github.com/?????/capsule.} which is detailed in Appendix~\ref{sec:inference}. This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 

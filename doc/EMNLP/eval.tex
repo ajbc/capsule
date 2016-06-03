@@ -24,7 +24,7 @@
 In this section we explore the performance of Capsule on a collection of U.S. State Department diplomatics cables and on simulated data.
 
 \parhead{Data.}
-The National Archive collects communications between the U.S. Sate department and its embassies.  We obtained a collection of these diplomatic messages from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  The communications in this data set were sent between 1973 and 1978.
+The National Archive collects communications between the U.S. Sate Department and its embassies.  We obtained a collection of these diplomatic messages from the History Lab at Columbia,\footnote{http://history-lab.org} which received them from the Central Foreign Policy Files at the National Archives.  The communications in this data set were sent between 1973 and 1978.
 
 In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  We used a vocabulary of size 6,293 and omitted cables with fewer than three terms, resulting in a collection of 2,139,324 messages sent between 27,134 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
 
@@ -88,7 +88,7 @@ $\epsilon$ & date & entity & subject \\
 
 The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; \Cref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
 
-Another event peaks occurs the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27: Israeli operatives rescued hostages from this incident on July 4th.
+Another event peaks occurs the week of July 2, 1973; the top three words under event its description $\pi$ are \emph{bicentennial}, \emph{hijack}, and \emph{mercenary}.  Top cables under event relevancy $\epsilon$ surround the bicentennial celebration of United States (July 4, 1973) and the Air France hijacking incident that began on June 27; Israeli operatives rescued hostages from this incident on July 4th.
 
 Capsule also identifies events with smaller peaks, such as the death of Mao Tse-tung.  One of the top cables for this event is sent by Kissinger to all post with public affairs guidance: %the subject \emph{Death of Mao Tse Tung -- Public Affairs Guidance}:
 \begin{shaded*} \tt{1.  Missions should avoid all speculation about the 
@@ -169,7 +169,7 @@ We generated twenty data sets, each with 100 time steps, 10 general topics, and 
 \label{fig:sim_eventdetect}
 \end{figure}
 
-To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a method and the simulated ground at every threshold; this generates an curve under which we cam compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC. 
+To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a method and the simulated ground at every threshold; this generates an curve under which we can compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC. 
 
 %^ XXX citation
  
@@ -194,9 +194,9 @@ and its tf-idf variant,
 
 Once events have been identified, our next task is to identify relevant documents; to evaluate this, we calculate precision of recovering the top ten documents.  LDA is useful in finding relevant documents by selecting documents that deviate from the mean in topic space.  Word count deviations for each document (similar to Equations~\ref{eq:wordev} and~\ref{eq:tfidfwordev}) perform close to random for document recovery.
 
-Finding documents based on absolute deviation from the mean works better in LDA topic space, but devnot over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  \Cref{fig:sim_precision} shows precision of recovering the top ten documents.
+Finding documents based on absolute deviation from the mean works better in LDA topic space, but /home/statler/achaney/cables/src/event_detect/scripts/sweep5linearv2/fitnot over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  \Cref{fig:sim_precision} shows precision of recovering the top ten documents.
 
 We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration.  In all cases, we found that the model is not sensitive to decay shape or duration; details are in Appendix~\ref{sec:additional_results}.
 
-\parhead{Comparisons on Cables.}
+\parhead{Comparisons on cables.}
 We ran the word count based approaches on the cables data and found that they were difficult to interpret and did not recover important historical events.  For instance, none detected the evacuation of Saigon, a major historical event in the corpus.  The LDA-based approaches do not yield large gains in run time over Capsule and do not provide the granularity needed to capture substantial events.

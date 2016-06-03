@@ -86,7 +86,7 @@ variables to encode what ``typical business'' means for each embassy,
 how to characterize the events of each week, and which cables discuss
 those events. Given a corpus, the corresponding posterior distribution
 provides a filter on the cables that isolates important moments in the
-diplomatic history. \Cref{fig:cables_events} illustrates this
+diplomatic history. \Cref{fig:cables_events} illustrates the mean of this
 posterior.
 
 Capsule can be used to explore any corpora with the same underlying
@@ -119,7 +119,7 @@ Many existing methods use document terms as features, usually weighted by tf-idf
 Topic models~\cite{Blei:2012} reduce the dimensionality of text data; they have been used to help detect events mentioned in social media posts~\cite{lau2012line,dou2012leadline} and posts relevant to monitored events~\cite{VanDam:2012}.
 We rely on topic models to characterize both typical content and events, but grouped observations can also be summarized directly~\cite{peng2007event,chakrabarti2011event,gao2012joint}.
 
-In addition to text data over time, author~\cite{zhao2007temporal}, news outlet~\cite{wang2007mining}, and spatial information~\cite{Neill:2005,mathioudakis2010identifying,liu2011using} can be used to augment event detection.  Capsule uses author information in order to characterize typical concerns of authors.
+In addition to text data over time, author~\cite{zhao2007temporal}, news outlet~\cite{wang2007mining}, and spatial information~\cite{Neill:2005,mathioudakis2010identifying,liu2011using} can be used to augment event detection.  Capsule uses author information in order to characterize the typical concerns of authors.
 
 Detecting and characterizing relationships~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic} is related to event detection.  When a message recipient is known, Capsule can use a sender-receiver pair in place of an author, but the model could be further tailored for network interactions.
 
