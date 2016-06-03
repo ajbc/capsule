@@ -29,7 +29,7 @@ We model each message with a bank of Poisson distributions, one per
 term in the vocabulary, $w_{d,v} ~ \textrm{Poisson}(\lambda_{d,v})$.
 The rate $\lambda_{d,v}$ blends the different influences on the
 content of the message, which are defined in terms of different types
-of \textit{topics}. A topic, as in typical topic modeling~\cite{Blei:2003}, is
+of \textit{topics}. A topic, as in typical topic modeling~\cite{Blei:2003,canny2004gap,Gopalan:2014b}, is
 a distribution over terms.
 
 Specifically, the message blends general topics about diplomacy (e.g.,
@@ -54,7 +54,7 @@ event & vietnam, evacuation, evacuate, missionary \\
 \bottomrule
 \end{tabular}
 \label{tab:3topics}
-\caption{Top vocabulary terms for examples of each of the three topic varieties.}
+\caption{Top vocabulary terms for examples of each of the three topic varieties; these three types of topics blend to form the distribution of each message.  They come from the model fit we discuss in \Cref{sec:eval}.}
 \end{table}
 
 Examples of these three types of topics are in \Cref{tab:3topics}---the general topic 

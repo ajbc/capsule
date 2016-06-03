@@ -61,7 +61,7 @@ $\epsilon$ & date & entity & subject \\
 \bottomrule
 \end{tabular}
 \label{tab:timor}
-\caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975.}
+\caption{Top documents for the time interval of week December 1, 1975, just prior to the Indonesian invasion of East Timor, which began December 7, 1975; Capsule recovers relevant documents related to this real-world event.}
 \end{table*}
 
 \begin{table*}[htb]
@@ -83,7 +83,7 @@ $\epsilon$ & date & entity & subject \\
 \bottomrule
 \end{tabular}
 \label{tab:saigon}
-\caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975.}
+\caption{Top documents for the time interval of week April 21, 1975, just prior to the fall of Saigon on April 30, 1975; Capsule recovers relevant documents related to this real-world event.}
 \end{table*}
 
 The second tallest peak occurs the week of April 21, 1975, just prior to the fall of Saigon on April 30, 1975; \Cref{tab:saigon} shows the top cables for this event, which reflect the evacuation efforts that occurred during that week.  Unlike the East Timor event, where the most relevant communication exists at an administrative level, the evacuation of Saigon is best captured by individuals seeking help for family and friends.
@@ -130,7 +130,7 @@ hotel, travel, reservation, visit, arrange, schedule \\
 \bottomrule
 \end{tabular}
 \label{tab:topics}
-\caption{Top vocabulary terms for a selection of general topics, one per row, according to topic distributions $\beta_k$.}
+\caption{Top vocabulary terms for a selection of general topics, one per row, according to topic distributions $\beta_k$.  Capsule identifies general diplomatic themes that can be relevant to any entity.}
 \end{table}
 
 \begin{table}
@@ -150,7 +150,7 @@ Ndjamean & chadian, chad, lagos, drought, austerity \\
 \bottomrule
 \end{tabular}
 \label{tab:entities}
-\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\eta_n$.}
+\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\eta_n$.  Capsule identifies entity-specific themes and interests. }
 \end{table}
 
 In addition to events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in \Cref{tab:topics} and entity-exclusive topics are shown in \Cref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
@@ -162,7 +162,7 @@ These exploratory results show that our model is successfully capturing when mul
 \parhead{Simulations.}  We simulated data to provide a quantitative assessment of Capsule.
 We generated twenty data sets, each with 100 time steps, 10 general topics, and 100 entities. Each simulation contained about 55,000 documents and followed the generative process assumed by Capsule, as shown in \Cref{fig:generative-model}.
 
-\begin{figure}[h]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{fig/sim_eventdetect.pdf}
 \caption{Event detection performance on twenty simulated datasets.  Capsule is able to detect events as well as comparison methods, but its performance has higher variance.}
