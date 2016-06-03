@@ -4,8 +4,8 @@ Foreign embassies of the United States government communicate with
 each other and with the U.S. State Department through cabled message.
 The National Archive collects these documents in a running corpus,
 which traces the (unclassified) diplomatic history of the United
-States. For example, it has collected about two
-million cables that were sent between 1973 and 1978.
+States. It has collected, for example, about two
+million cables sent between 1973 and 1978.
 
 Typically, a cable from this collection describes diplomatic ``business as usual,'' such as arrangements for visiting officials, recovery of lost or stolen passports, or obtaining lists of names for meetings and conferences. For example,
 the embassies sent 8,635 cables during the week of April 21, 1975. Here is one,
@@ -63,10 +63,10 @@ to many embassies. (This is described in detail in Section~\ref{sec:model}.)
 
 The figure shows that Capsule detects many of the important moments
 during this five-year span, including Indonesia's invasion of East
-Timor (December 7, 1975), the Air France hijacking and Israeli rescue operation
+Timor (Dec. 7, 1975), the Air France hijacking and Israeli rescue operation
 (June 27--July 4, 1976), and the fall of Saigon (April 30, 1975). It also identifies other moments,
 such as the U.S. sharing lunar rocks with other countries (March 21, 1973) and
-the death of Mao Tse-tung (September 9, 1976). Broadly speaking, Capsule gives a
+the death of Mao Tse-tung (Sept. 9, 1976). Broadly speaking, Capsule gives a
 picture of the diplomatic history of these five years; it identifies
 and characterizes moments and source material that might be of
 interest to a historian.
@@ -90,10 +90,8 @@ diplomatic history. \Cref{fig:cables_events} illustrates this
 posterior.
 
 Capsule can be used to explore any corpora with the same underlying
-structure: text generated over time by known entities.  This includes
-email, social media posts, and news articles.  It could also be used to analyze 
--text discrete data such as consumer or stock purchases where the
-purchasing entity is known.
+structure: text (or other discrete multivariate data) generated over time by known entities.  This includes
+email, consumer behavior, social media posts, and opinion articles.
 
 We present the model in Section~\ref{sec:model}, providing both a formal
 model specification and guidance on how to use its posterior to detect 
@@ -105,7 +103,7 @@ a collection of U.S. State Department cables and on simulated data.
 event detection and other related concepts.
 
 % While Capsule uses text documents and associated metadata as input, event detection is often performed with univariate input data.  In this context, bursts that deviate from typical behavior (e.g., noisy constant or a repeating pattern) can define an event \cite{kleinberg2003bursty,ihler2007learning}; Poisson Processes~\cite{Kingman:1993} are often used to model events under this definition.  Alternatively, events can be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event}.
-In both univariate and multivariate settings, the goal is often the same: analysts want to predict whether or not rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
+In both univariate and multivariate settings, the goal is often that analysts want to predict whether or not rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
 
 Events can also be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event,adams2007bayesian}. Both varieties of events are important, but we focus on temporary shifts away from normal.
 
@@ -116,13 +114,13 @@ A common goal is to identify clusters of documents; these approaches are used on
 In the case of news articles, the task is to create new clusters as novel news stories appear---this does not help disentangle typical content from rare events of interest.
 Social media approaches identify rare events, but the methods are designed for short, noisy documents; they are not appropriate for larger documents that contain information about a variety of subjects.
 
-Many existing methods use document terms as features, frequently weighted by tf-idf value~\cite{fung2005parameter,kumaran2004text,brants2003system,das2011dynamic,zhao2007temporal,zhao2012novel}; here, events are bursts in groups of terms. % Because language is high dimensional, using terms as features limits scalability.
+Many existing methods use document terms as features, usually weighted by tf-idf value~\cite{fung2005parameter,kumaran2004text,brants2003system,das2011dynamic,zhao2007temporal,zhao2012novel}; here, events are bursts in groups of terms. % Because language is high dimensional, using terms as features limits scalability.
 
 Topic models~\cite{Blei:2012} reduce the dimensionality of text data; they have been used to help detect events mentioned in social media posts~\cite{lau2012line,dou2012leadline} and posts relevant to monitored events~\cite{VanDam:2012}.
 We rely on topic models to characterize both typical content and events, but grouped observations can also be summarized directly~\cite{peng2007event,chakrabarti2011event,gao2012joint}.
 
 In addition to text data over time, author~\cite{zhao2007temporal}, news outlet~\cite{wang2007mining}, and spatial information~\cite{Neill:2005,mathioudakis2010identifying,liu2011using} can be used to augment event detection.  Capsule uses author information in order to characterize typical concerns of authors.
 
-Detecting and characterizing relationships~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic} is related to event detection.  When a message recipient is known, Capsule's author input can be replaced with a sender-receiver pair, but the model could be further tailored for interactions within networks.
+Detecting and characterizing relationships~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic} is related to event detection.  When a message recipient is known, Capsule can use a sender-receiver pair in place of an author, but the model could be further tailored for network interactions.
 
 % TODO: cite he2015hawkestopic

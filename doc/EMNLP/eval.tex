@@ -36,6 +36,7 @@ f(i_d, t) =
     0,			& \text{if } t > i_d\\
     \exp\{-(i_d - t) / \tau\},          & \text{otherwise,}
 \end{cases}
+\label{eq:f}
 \end{equation}
 with mean lifetime $\tau=3$.  This mean lifetime indicates that most intervals would no longer be relevant after about three weeks.  With these settings on the cables data, fitting the model takes 2.8 hours per iteration;\footnote{Our algorithm is batch--we consider each data point for every iteration.  Modifying the algorithm to stochastically sample the data would reduce the time required to achieve an equivalent model fit.} results are shown on 15 iterations.
 
@@ -129,7 +130,7 @@ hotel, travel, reservation, visit, arrange, schedule \\
 \bottomrule
 \end{tabular}
 \label{tab:topics}
-\caption{Top vocabulary terms for a selection of topics, one per row, according to topic distributions $\beta_k$.}
+\caption{Top vocabulary terms for a selection of general topics, one per row, according to topic distributions $\beta_k$.}
 \end{table}
 
 \begin{table}
@@ -191,7 +192,7 @@ and its tf-idf variant,
 \label{fig:sim_precision}
 \end{figure}
 
-Once events have been identified, our next task is to identify relevant documents; to evaluate this, we calculate precision of recovering the top ten documents.  LDA is useful in finding relevant documents by selecting documents that deviate from the mean in topic space.  Word count deviations for each document (similar to Equations~\ref{eq:wordev} and~\ref{eq:tfidfwordev}) perform worse close to random for document recovery.
+Once events have been identified, our next task is to identify relevant documents; to evaluate this, we calculate precision of recovering the top ten documents.  LDA is useful in finding relevant documents by selecting documents that deviate from the mean in topic space.  Word count deviations for each document (similar to Equations~\ref{eq:wordev} and~\ref{eq:tfidfwordev}) perform close to random for document recovery.
 
 Finding documents based on absolute deviation from the mean works better in LDA topic space, but devnot over the full vocabulary.  Word count deviations, which performed well for event detection, performed worse than random for document recovery.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  \Cref{fig:sim_precision} shows precision of recovering the top ten documents.
 
