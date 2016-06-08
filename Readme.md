@@ -23,3 +23,7 @@
 - [ ] flush out Poisson process relationship
 
 - [ ] does rate of communication provide information? can this be incorporated into the model?
+
+- [ ] events connected to subsets of entities (and/or multiple events in a single interval)
+
+- [ ] bigram or trigram vocabulary *
