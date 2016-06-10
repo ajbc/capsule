@@ -6,7 +6,7 @@
 
 - [ ] stochastic inference ***
 
-- [ ] limit exponential decay for events ***
+- [X] limit exponential decay for events ***
 
 - [ ] figure out issue of held out log likelihood on cables (event only does better than full) ***
 

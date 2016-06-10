@@ -48,7 +48,7 @@ void print_usage_and_exit() {
 
     printf("\n");
     printf("  --event_dur {d}   event duration; default 7\n");
-    printf("  --event_decay {d} event decay; options: \"exponential\", \"linear\" (default, triangle), \"none\" (square) \n");
+    printf("  --event_decay {d} event decay; options: \"exponential\", \"linear\" (default, triangle), \"step\" (square) \n");
 
     printf("\n");
     printf("  --seed {seed}     the random seed, default from time\n");
@@ -343,8 +343,8 @@ int main(int argc, char* argv[]) {
     if (incl_events) {
         printf("\nevent duration: %d\n", event_dur);
         printf("\nevent decay: %s\n", event_decay.c_str());
-        if (!(event_decay == "none" || event_decay == "linear" || event_decay == "exponential")) {
-            printf("decay shape \"%s\" unknown (options: linear, exponential, none)", event_decay.c_str());
+        if (!(event_decay == "step" || event_decay == "linear" || event_decay == "exponential")) {
+            printf("decay shape \"%s\" unknown (options: linear, exponential, step)", event_decay.c_str());
             exit(-1);
         }
     }
