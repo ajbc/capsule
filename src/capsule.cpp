@@ -101,35 +101,12 @@ void Capsule::learn() {
     bool converged = false;
     bool on_final_pass = false;
 
-    bool damper_entity = false;
-    bool damper_topics = false;
-
     while (!converged) {
         time(&start_time);
         iteration++;
         printf("iteration %d\n", iteration);
 
         reset_helper_params();
-
-        /*if (settings->incl_events && iteration == 1) {
-            if (settings->incl_entity) {
-                damper_entity = true;
-                settings->incl_entity = false;
-            }
-
-            if (settings->incl_topics) {
-                damper_topics = true;
-                settings->incl_topics = false;
-            }
-        } else {
-            if (damper_entity) {
-                settings->incl_entity = true;
-            }
-
-            if (damper_topics) {
-                settings->incl_topics = true;
-            }
-        }*/
 
         set<int> terms;
         set<int> entities;
@@ -957,6 +934,7 @@ double Capsule::f(int doc_date, int event_date) {
             return 0;
         return exp(- (doc_date - event_date) / (settings->event_dur/5.0));
     }
+    return 0; // we should never get here
 }
 
 double Capsule::get_event_strength(int date) {
