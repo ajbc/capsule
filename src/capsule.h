@@ -44,6 +44,7 @@ struct model_settings {
     int    max_iter;
     int    min_iter;
     double likelihood_delta;
+    bool   overwrite;
 
     bool   svi;
     bool   final_pass;
@@ -60,7 +61,7 @@ struct model_settings {
              double api, double abet, double aeta,
              bool topics, bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
-             int iter_max, int iter_min, double delta,
+             int iter_max, int iter_min, double delta, bool overw,
              bool finalpass,
              int sample, double svi_delay, double svi_forget,
              int num_factors) {
@@ -98,6 +99,7 @@ struct model_settings {
         max_iter = iter_max;
         min_iter = iter_min;
         likelihood_delta = delta;
+        overwrite = overw;
 
         final_pass = finalpass;
         sample_size = sample;
@@ -162,6 +164,7 @@ struct model_settings {
         fprintf(file, "\tminimum number of iterations:             %d\n", min_iter);
         fprintf(file, "\tchange in log likelihood for convergence: %f\n", likelihood_delta);
         fprintf(file, "\tfinal pass after convergence:             %s\n", final_pass ? "yes" : "no");
+        fprintf(file, "\tonly keep latest save (overwrite old):    %s\n", overwrite ? "yes" : "no");
 
         if (svi) {
             fprintf(file, "\nStochastic variational inference parameters\n");
@@ -228,6 +231,9 @@ class Capsule {
 
         // random number generator
         gsl_rng* rand_gen;
+
+        // last saved string
+        string last_save;
 
         void initialize_parameters();
         void reset_helper_params();

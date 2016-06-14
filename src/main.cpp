@@ -62,6 +62,7 @@ void print_usage_and_exit() {
     printf("  --converge {c}    the change in log likelihood required for convergence\n");
     printf("                    default 1e-6\n");
     printf("  --final_pass      do a final pass on all data\n");
+    printf("  --overwrite       overwrite old results (only keep latest)\n");
     printf("\n");
 
     printf("  --sample {size}   the stochastic sample size, default 1000\n");
@@ -105,6 +106,7 @@ int main(int argc, char* argv[]) {
     int incl_entity = 1;
     int incl_events = 1;
     bool final_pass = 0;
+    bool overwrite = 0;
 
     int event_dur = 3;
     string event_decay = "linear";
@@ -125,7 +127,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pk:";
+    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pnk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -161,6 +163,7 @@ int main(int argc, char* argv[]) {
         {"delay",           required_argument, NULL, 'e'},
         {"forget",          required_argument, NULL, 'f'},
         {"final_pass",      no_argument, NULL, 'p'},
+        {"overwrite",       no_argument, NULL, 'n'},
         {"K",               required_argument, NULL, 'k'},
         {NULL, 0, NULL, 0}};
 
@@ -261,6 +264,9 @@ int main(int argc, char* argv[]) {
                 break;
             case 'p':
                 final_pass = true;
+                break;
+            case 'n':
+                overwrite = true;
                 break;
             case 'k':
                 k = atoi(optarg);
@@ -375,6 +381,7 @@ int main(int argc, char* argv[]) {
     printf("\tminimum number of iterations:             %d\n", min_iter);
     printf("\tchange in log likelihood for convergence: %f\n", converge_delta);
     printf("\tfinal pass after convergence:             %s\n", final_pass ? "yes" : "no");
+    printf("\tonly keep latest save (overwrite old):    %s\n", overwrite ? "yes" : "no");
 
     if (!batchvi) {
         printf("\nStochastic variational inference parameters\n");
@@ -394,7 +401,7 @@ int main(int argc, char* argv[]) {
         (bool) incl_topics, (bool) incl_entity, (bool) incl_events,
         event_dur, event_decay,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,
-        final_pass, sample_size, svi_delay, svi_forget, k);
+        overwrite, final_pass, sample_size, svi_delay, svi_forget, k);
 
     // read in the data
     printf("********************************************************************************\n");

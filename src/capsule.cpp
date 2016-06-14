@@ -3,6 +3,7 @@
 Capsule::Capsule(model_settings* model_set, Data* dataset) {
     settings = model_set;
     data = dataset;
+    last_save = "";
 
     // phi: entity concerns
     printf("\tinitializing entity concerns (phi)\n");
@@ -554,6 +555,30 @@ void Capsule::save_parameters(string label) {
         }
         fclose(file);
     }
+
+    if (settings->overwrite && last_save != "") {
+        if (settings->incl_topics) {
+            remove((settings->outdir+"/phi-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/beta-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/a_beta-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/theta-"+last_save+".dat").c_str());
+        }
+
+        if (settings->incl_entity) {
+            remove((settings->outdir+"/xi-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/eta-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/a_eta-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/zeta-"+last_save+".dat").c_str());
+        }
+
+        if (settings->incl_events) {
+            remove((settings->outdir+"/psi-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/pi-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/a_pi-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/epsilon-"+last_save+".dat").c_str());
+        }
+    }
+    last_save = label;
 }
 
 void Capsule::update_shape(int doc, int term, int count) {
