@@ -650,7 +650,7 @@ void Capsule::update_psi(int date) {
         double rho = pow(iter_count_date[date] + settings->delay,
             -1 * settings->forget);
         a_psi(date) = (1 - rho) * a_psi_old(date) + rho * a_psi(date);
-        a_psi_old.col(date) = a_psi(date);
+        a_psi_old(date) = a_psi(date);
     }
 
     psi(date) = a_psi(date) / b_psi(date);
@@ -734,7 +734,7 @@ void Capsule::update_pi(int date) {
         double rho = pow(iter_count_date[date] + settings->delay,
             -1 * settings->forget);
         a_pi.row(date) = (1 - rho) * a_pi_old.row(date) + rho * a_pi.row(date);
-        a_pi_old.row(date) = a_beta.row(date);
+        a_pi_old.row(date) = a_pi.row(date);
     }
 
     for (int v = 0; v < data->term_count(); v++) {
