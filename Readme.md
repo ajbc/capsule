@@ -4,7 +4,7 @@
 
 - [ ] Investigate daily model of cables ***
 
-- [ ] stochastic inference ***
+- [X] stochastic inference ***
 
 - [X] limit exponential decay for events ***
 
@@ -26,4 +26,4 @@
 
 - [ ] events connected to subsets of entities (and/or multiple events in a single interval)
 
-- [ ] bigram or trigram vocabulary *
+- [X] bigram or trigram vocabulary *
