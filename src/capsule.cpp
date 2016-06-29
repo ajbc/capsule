@@ -1,4 +1,5 @@
 #include "capsule.h"
+#include <omp.h>
 
 Capsule::Capsule(model_settings* model_set, Data* dataset) {
     settings = model_set;
@@ -117,6 +118,8 @@ void Capsule::learn() {
         time_t sst, st, et;
         time(&sst);
         time(&st);
+
+        #pragma omp parallel for num_threads(10) default(shared) private(doc, term, count, entity, date, st, et)
         for (int i = 0; i < settings->sample_size; i++) {
             if (settings->svi) {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
@@ -131,9 +134,13 @@ void Capsule::learn() {
             }
 
             int entity = data->get_entity(doc);
+
+            #pragma omp critical
             entities.insert(entity);
+
             date = data->get_date(doc);
             for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+                #pragma omp critical
                 dates.insert(d);
                 b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
             }
@@ -141,6 +148,7 @@ void Capsule::learn() {
             // look at all the document's terms
             for (int j = 0; j < data->term_count(doc); j++) {
                 term = data->get_term(doc, j);
+                #pragma omp critical
                 terms.insert(term);
 
                 count = data->get_term_count(doc, j);
@@ -161,7 +169,9 @@ void Capsule::learn() {
             if (settings->incl_entity) {
                 b_zeta(doc) = xi(entity) + accu(eta.row(entity));
                 update_zeta(doc);
+                #pragma omp atomic
                 a_xi(entity) += settings->a_zeta * scale;
+                #pragma omp atomic
                 b_xi(entity) += zeta(doc) * scale;
             }
 
@@ -613,12 +623,14 @@ void Capsule::update_shape(int doc, int term, int count) {
     if (settings->incl_topics) {
         omega_topics /= omega_sum * count;
         a_theta.col(doc) += omega_topics;
+        #pragma omp critical
         a_beta.col(term) += omega_topics * scale;
     }
 
     if (settings->incl_entity) {
         omega_entity /= omega_sum;
         a_zeta(doc) += omega_entity;
+        #pragma omp atomic
         a_eta(entity, term) += omega_entity * scale;
     }
 
@@ -626,6 +638,7 @@ void Capsule::update_shape(int doc, int term, int count) {
         omega_event /= omega_sum * count;
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
+            #pragma omp atomic
             a_pi(d, term) += omega_event[d] * scale;
         }
     }
