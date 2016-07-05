@@ -80,6 +80,7 @@ def main():
 
     for k in range(0, len(pi)):
         #temp = sorted(range(V), key = lambda v: 1./((0.01/Ecdf[k][v]) + (0.99/Fcdf[k][v])), reverse=False)
+        #temp = sorted(range(V), key = lambda v: 1./((0.99/Ecdf[k][v]) + (0.01/Fcdf[k][v])), reverse=False)
         #temp = sorted(range(V), key = lambda v: Fcdf[k][v], reverse=False)
         #temp = sorted(range(V), key = lambda v: Ecdf[k][v], reverse=False)
         #temp = sorted(range(V), key = lambda v: 1./((0.9/Ecdf[k][v]) + (0.1/Fcdf[k][v])), reverse=False)

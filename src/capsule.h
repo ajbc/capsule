@@ -189,7 +189,7 @@ class Capsule {
         fvec psi;     // event strengths
         fvec xi;      // entity strengths
         fmat theta;   // doc topics
-        fmat epsilon; // doc events
+        sp_fmat epsilon; // doc events
         fvec zeta;    // doc entity relevance
         fmat beta;    // topics
         fmat pi;      // event descriptions
@@ -198,13 +198,14 @@ class Capsule {
         fvec logpsi;
         fvec logxi;
         fmat logtheta;
-        fmat logepsilon;
+        sp_fmat logepsilon;
         fvec logzeta;
         fmat logbeta;
         fmat logpi;
         fmat logeta;
 
         // helper parameters
+        sp_fmat event_cells;
         fmat decay;
         fmat logdecay;
         fmat a_phi;
@@ -215,8 +216,8 @@ class Capsule {
         fvec b_xi;
         fmat a_theta;
         fmat b_theta;
-        fmat a_epsilon;
-        fmat b_epsilon;
+        sp_fmat a_epsilon;
+        sp_fmat b_epsilon;
         fvec a_zeta;
         fvec b_zeta;
         fmat a_beta;

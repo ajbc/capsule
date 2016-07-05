@@ -33,7 +33,8 @@ def main():
     print len(vocab)
     betafile = np.loadtxt(sys.argv[2])
 
-    testlambda = np.zeros((100, 6293))
+    testlambda = np.zeros((100, 21945))
+    #testlambda = np.zeros((100, 6293))
     #testlambda = np.zeros((2, 24))
     for v in range(len(betafile)):
         #testlambda[:,int(betafile[v,1])] = betafile[v,2:]

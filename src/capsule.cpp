@@ -1,93 +1,108 @@
 #include "capsule.h"
-#include <omp.h>
+//#include <omp.h>
 
 Capsule::Capsule(model_settings* model_set, Data* dataset) {
     settings = model_set;
     data = dataset;
     last_save = "";
 
-    // phi: entity concerns
-    printf("\tinitializing entity concerns (phi)\n");
-    phi = fmat(settings->k, data->entity_count());
-    logphi = fmat(settings->k, data->entity_count());
-    a_phi = fmat(settings->k, data->entity_count());
-    b_phi = fmat(settings->k, data->entity_count());
+    printf("\tallocating parameters\n");
+    if (settings->incl_topics) {
+        printf("\t\ttopic parameters\n");
+        // beta: global topics
+        printf("\t\t\tglobal topics (beta)\n");
+        beta = fmat(settings->k, data->term_count());
+        logbeta = fmat(settings->k, data->term_count());
+        a_beta = fmat(settings->k, data->term_count());
+        // keep track of old a parameters for SVI
+        a_beta_old = fmat(settings->k, data->term_count());
+        a_beta_old.fill(settings->a_beta);
 
-    // xi: entity strengths
-    printf("\tinitializing entity strengths (xi)\n");
-    xi = fvec(data->entity_count());
-    logxi = fvec(data->entity_count());
-    a_xi = fvec(data->entity_count());
-    b_xi = fvec(data->entity_count());
+        // phi: entity general concerns
+        printf("\t\t\tentity general concerns (phi)\n");
+        phi = fmat(settings->k, data->entity_count());
+        logphi = fmat(settings->k, data->entity_count());
+        a_phi = fmat(settings->k, data->entity_count());
+        b_phi = fmat(settings->k, data->entity_count());
+        // keep track of old a parameters for SVI
+        a_phi_old = fmat(settings->k, data->entity_count());
+        a_phi_old.fill(settings->a_phi);
 
-    // psi: event strengths
-    printf("\tinitializing event strengths (psi)\n");
-    psi = fvec(data->date_count());
-    logpsi = fvec(data->date_count());
-    a_psi = fvec(data->date_count());
-    b_psi = fvec(data->date_count());
+        // theta: doc topics
+        printf("\t\t\tdoc topics (theta)\n");
+        theta = fmat(settings->k, data->doc_count());
+        logtheta = fmat(settings->k, data->doc_count());
+        a_theta = fmat(settings->k, data->doc_count());
+        b_theta = fmat(settings->k, data->doc_count());
+    }
 
-    // theta: doc topics
-    printf("\tinitializing doc topics (theta)\n");
-    theta = fmat(settings->k, data->doc_count());
-    logtheta = fmat(settings->k, data->doc_count());
-    a_theta = fmat(settings->k, data->doc_count());
-    b_theta = fmat(settings->k, data->doc_count());
+    if (settings->incl_events) {
+        printf("\t\tevent parameters\n");
+        // pi: event descriptions
+        printf("\t\t\tevent descriptions (pi)\n");
+        pi = fmat(data->date_count(), data->term_count());
+        logpi = fmat(data->date_count(), data->term_count());
+        a_pi = fmat(data->date_count(), data->term_count());
+        // keep track of old a parameters for SVI
+        a_pi_old = fmat(data->date_count(), data->term_count());
+        a_pi_old.fill(settings->a_pi);
 
-    // zeta: doc entity relvance
-    printf("\tinitializing doc entity relevance (zeta)\n");
-    zeta = fvec(data->doc_count());
-    logzeta = fvec(data->doc_count());
-    a_zeta = fvec(data->doc_count());
-    b_zeta = fvec(data->doc_count());
+        // psi: event strengths
+        printf("\t\t\tevent strengths (psi)\n");
+        psi = fvec(data->date_count());
+        logpsi = fvec(data->date_count());
+        a_psi = fvec(data->date_count());
+        b_psi = fvec(data->date_count());
+        // keep track of old a parameters for SVI
+        a_psi_old = fvec(data->date_count());
+        a_psi_old.fill(settings->a_psi);
 
-    // epsilon: doc events
-    printf("\tinitializing doc events (epsilon)\n");
-    epsilon = fmat(data->date_count(), data->doc_count());
-    logepsilon = fmat(data->date_count(), data->doc_count());
-    a_epsilon = fmat(data->date_count(), data->doc_count());
-    b_epsilon = fmat(data->date_count(), data->doc_count());
+        // epsilon: doc events
+        printf("\t\t\tdoc events (epsilon)\n");
+        epsilon = sp_fmat(data->date_count(), data->doc_count());
+        logepsilon = sp_fmat(data->date_count(), data->doc_count());
+        a_epsilon = sp_fmat(data->date_count(), data->doc_count());
+        b_epsilon = sp_fmat(data->date_count(), data->doc_count());
 
-    // beta: global topics
-    printf("\tinitializing topics (beta)\n");
-    beta = fmat(settings->k, data->term_count());
-    logbeta = fmat(settings->k, data->term_count());
-    a_beta = fmat(settings->k, data->term_count());
+        // decay function, for ease
+        decay = fmat(data->date_count(), data->date_count());
+        logdecay = fmat(data->date_count(), data->date_count());
+    }
 
-    // eta: entity descriptions
-    printf("\tinitializing entity descriptions (eta)\n");
-    eta = fmat(data->entity_count(), data->term_count());
-    logeta = fmat(data->entity_count(), data->term_count());
-    a_eta = fmat(data->entity_count(), data->term_count());
+    if (settings->incl_entity) {
+        printf("\t\tentity parameters\n");
+        // eta: entity descriptions
+        printf("\t\t\tentity descriptions (eta)\n");
+        eta = fmat(data->entity_count(), data->term_count());
+        logeta = fmat(data->entity_count(), data->term_count());
+        a_eta = fmat(data->entity_count(), data->term_count());
+        // keep track of old a parameters for SVI
+        a_eta_old = fmat(data->entity_count(), data->term_count());
+        a_eta_old.fill(settings->a_eta);
 
-    // pi: event descriptions
-    printf("\tinitializing event descriptions (pi)\n");
-    pi = fmat(data->date_count(), data->term_count());
-    logpi = fmat(data->date_count(), data->term_count());
-    a_pi = fmat(data->date_count(), data->term_count());
+        // xi: entity strengths
+        printf("\t\t\tentity strengths (xi)\n");
+        xi = fvec(data->entity_count());
+        logxi = fvec(data->entity_count());
+        a_xi = fvec(data->entity_count());
+        b_xi = fvec(data->entity_count());
+        // keep track of old a parameters for SVI
+        a_xi_old = fvec(data->entity_count());
+        a_xi_old.fill(settings->a_xi);
 
-    // decay function, for ease
-    decay = fmat(data->date_count(), data->date_count());
-    logdecay = fmat(data->date_count(), data->date_count());
-
-    // keep track of old a parameters for SVI
-    a_phi_old = fmat(settings->k, data->entity_count());
-    a_phi_old.fill(settings->a_phi);
-    a_psi_old = fvec(data->date_count());
-    a_psi_old.fill(settings->a_psi);
-    a_xi_old = fvec(data->entity_count());
-    a_xi_old.fill(settings->a_xi);
-    a_beta_old = fmat(settings->k, data->term_count());
-    a_beta_old.fill(settings->a_beta);
-    a_pi_old = fmat(data->date_count(), data->term_count());
-    a_pi_old.fill(settings->a_pi);
-    a_eta_old = fmat(data->entity_count(), data->term_count());
-    a_eta_old.fill(settings->a_eta);
+        // zeta: doc entity relvance
+        printf("\t\t\tdoc entity relevance (zeta)\n");
+        zeta = fvec(data->doc_count());
+        logzeta = fvec(data->doc_count());
+        a_zeta = fvec(data->doc_count());
+        b_zeta = fvec(data->doc_count());
+    }
 
     printf("\tsetting random seed\n");
     rand_gen = gsl_rng_alloc(gsl_rng_taus);
     gsl_rng_set(rand_gen, (long) settings->seed); // init the seed
 
+    printf("\tinitializing parameters\n");
     initialize_parameters();
 
     scale = settings->svi ? float(data->train_doc_count()) / float(settings->sample_size) : 1;
@@ -119,7 +134,7 @@ void Capsule::learn() {
         time(&sst);
         time(&st);
 
-        #pragma omp parallel for num_threads(10) default(shared) private(doc, term, count, entity, date, st, et)
+        //#pragma omp parallel for num_threads(2) default(shared) private(doc, term, count, entity, date, st, et)
         for (int i = 0; i < settings->sample_size; i++) {
             if (settings->svi) {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
@@ -135,20 +150,22 @@ void Capsule::learn() {
 
             int entity = data->get_entity(doc);
 
-            #pragma omp critical
+            //#pragma omp critical
             entities.insert(entity);
 
             date = data->get_date(doc);
-            for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
-                #pragma omp critical
-                dates.insert(d);
-                b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
+            if (settings->incl_events) {
+                for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+                    //#pragma omp critical
+                    dates.insert(d);
+                    b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
+                }
             }
 
             // look at all the document's terms
             for (int j = 0; j < data->term_count(doc); j++) {
                 term = data->get_term(doc, j);
-                #pragma omp critical
+                //#pragma omp critical
                 terms.insert(term);
 
                 count = data->get_term_count(doc, j);
@@ -162,16 +179,18 @@ void Capsule::learn() {
             }
 
             if (settings->incl_events) {
-                b_epsilon.col(doc) += psi(date);
+                for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+                    b_epsilon(d, doc) += psi(date);
+                }
                 update_epsilon(doc, date);
             }
 
             if (settings->incl_entity) {
                 b_zeta(doc) = xi(entity) + accu(eta.row(entity));
                 update_zeta(doc);
-                #pragma omp atomic
+                //#pragma omp atomic
                 a_xi(entity) += settings->a_zeta * scale;
-                #pragma omp atomic
+                //#pragma omp atomic
                 b_xi(entity) += zeta(doc) * scale;
             }
 
@@ -299,7 +318,7 @@ double Capsule::predict(int doc, int term) {
     if (settings->incl_events) {
         int date = data->get_date(doc);
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++)
-            prediction += f(date, d) * epsilon(d) * pi(d,term);
+            prediction += f(date, d) * epsilon(d, doc) * pi(d,term);
     }
 
     return prediction;
@@ -358,6 +377,7 @@ void Capsule::evaluate(string label, bool write_rankings) {
 
 void Capsule::initialize_parameters() {
     if (settings->incl_topics) {
+        printf("\t\ttopic parameters\n");
         // entity concerns
         phi.fill(settings->a_phi / settings->b_phi);
         logphi.fill(gsl_sf_psi(settings->a_phi) - log(settings->b_phi));
@@ -379,6 +399,7 @@ void Capsule::initialize_parameters() {
     }
 
     if (settings->incl_entity) {
+        printf("\t\tentity parameters\n");
         // entity strength
         xi.fill(settings->a_xi / settings->b_xi);
         logxi.fill(gsl_sf_psi(settings->a_xi) - log(settings->b_xi));
@@ -400,13 +421,10 @@ void Capsule::initialize_parameters() {
     }
 
     if (settings->incl_events) {
+        printf("\t\tevent parameters\n");
         // event strength
         psi.fill(settings->a_psi / settings->b_psi);
         logpsi.fill(gsl_sf_psi(settings->a_psi) - log(settings->b_psi));
-
-        // doc events
-        epsilon.fill(settings->a_epsilon / (settings->a_psi / settings->b_psi));
-        logepsilon.fill(gsl_sf_psi(settings->a_theta) - log(settings->a_psi / settings->b_psi));
 
         // event descriptions
         pi.fill(settings->a_pi / 1.0);
@@ -424,6 +442,32 @@ void Capsule::initialize_parameters() {
                 logdecay(i,j) = log(decay(i,j));
             }
         }
+
+        // doc events
+        int date, v = 0;
+        for (int doc = 0; doc < data->doc_count(); doc++) {
+            date = data->get_date(doc);
+            //v += date - max(0, date - settings->event_dur);
+            for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+                v++;
+            }
+        }
+        umat locations = umat(2, v);
+        fcolvec values = fcolvec(v);
+        v = 0;
+        for (int doc = 0; doc < data->doc_count(); doc++) {
+            date = data->get_date(doc);
+            for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
+                locations(0, v) = d;
+                locations(1, v) = doc;
+                values(v) = 1;
+                v++;
+            }
+        }
+        event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
+        //event_cells = sp_fmat(data->date_count(), data->doc_count());
+        epsilon = event_cells * (settings->a_epsilon / (settings->a_psi / settings->b_psi));
+        logepsilon = event_cells * (gsl_sf_psi(settings->a_theta) - log(settings->a_psi / settings->b_psi));
     }
 }
 
@@ -436,8 +480,10 @@ void Capsule::reset_helper_params() {
     b_xi.fill(settings->b_xi);
     a_theta.fill(settings->a_theta);
     b_theta.fill(0.0);
-    a_epsilon.fill(settings->a_epsilon);
-    b_epsilon.fill(0.0);
+    if (settings->incl_events) {
+        a_epsilon = event_cells * settings->a_epsilon;
+        b_epsilon = event_cells * 0.0;
+    }
     a_zeta.fill(settings->a_zeta);
     b_zeta.fill(0.0);
     a_beta.fill(settings->a_beta);
@@ -560,7 +606,8 @@ void Capsule::save_parameters(string label) {
         for (int doc = 0; doc < data->doc_count(); doc++) {
             int date = data->get_date(doc);
             for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
-                fprintf(file, "%d\t%d\t%e\n", doc, d, epsilon(d, doc));
+                double val = epsilon(d, doc);
+                fprintf(file, "%d\t%d\t%e\n", doc, d, val);
             }
         }
         fclose(file);
@@ -623,14 +670,14 @@ void Capsule::update_shape(int doc, int term, int count) {
     if (settings->incl_topics) {
         omega_topics /= omega_sum * count;
         a_theta.col(doc) += omega_topics;
-        #pragma omp critical
+        //#pragma omp critical
         a_beta.col(term) += omega_topics * scale;
     }
 
     if (settings->incl_entity) {
         omega_entity /= omega_sum;
         a_zeta(doc) += omega_entity;
-        #pragma omp atomic
+        //#pragma omp atomic
         a_eta(entity, term) += omega_entity * scale;
     }
 
@@ -638,7 +685,7 @@ void Capsule::update_shape(int doc, int term, int count) {
         omega_event /= omega_sum * count;
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
-            #pragma omp atomic
+            //#pragma omp atomic
             a_pi(d, term) += omega_event[d] * scale;
         }
     }
@@ -884,7 +931,7 @@ double Capsule::elbo_extra() {
     // subtract q
     if (settings->incl_events) {
         rvtotal -= p_dir(pi, a_pi);
-        rvtotal -= p_gamma(epsilon, a_epsilon, b_epsilon);
+        //rvtotal -= p_gamma(epsilon, a_epsilon, b_epsilon);
         rvtotal -= p_gamma(psi, a_psi, b_psi);
     }
 
@@ -903,7 +950,7 @@ double Capsule::elbo_extra() {
     // add p
     if (settings->incl_events) {
         rvtotal += p_dir(pi, settings->a_pi);
-        rvtotal += p_gamma(epsilon, settings->a_epsilon, psi);
+        //rvtotal += p_gamma(epsilon, settings->a_epsilon, psi);
         rvtotal += p_gamma(psi, settings->a_psi, settings->b_psi);
     }
 
@@ -931,7 +978,7 @@ void Capsule::log_convergence(int iteration, double ave_ll, double delta_ll) {
         printf("q entity\tq topics\t\tp entity\tp topics\n");
     else
         printf("q evt desc\t\tq evtent\t\tq entity\tq topics\tp evt desc\tp evtent\t\tp entity\tp topics\n");*/
-    double ee = elbo_extra();
+    double ee = 0;//elbo_extra();
     printf("ll %f\tq/p %f\n", ave_ll, ee);
     fprintf(file, "%d\t%f\t%f\t%f\n", iteration, ave_ll+ee, ave_ll, delta_ll);
     printf("ll: %f\n", ave_ll);
