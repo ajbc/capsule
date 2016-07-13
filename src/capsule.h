@@ -205,7 +205,6 @@ class Capsule {
         fmat logeta;
 
         // helper parameters
-        sp_fmat event_cells;
         fmat decay;
         fmat logdecay;
         fmat a_phi;
@@ -224,8 +223,11 @@ class Capsule {
         fmat a_pi;
         fmat a_eta;
         fmat a_phi_old;
+        fmat b_phi_old;
         fvec a_psi_old;
+        fvec b_psi_old;
         fvec a_xi_old;
+        fvec b_xi_old;
         fmat a_beta_old;
         fmat a_pi_old;
         fmat a_eta_old;

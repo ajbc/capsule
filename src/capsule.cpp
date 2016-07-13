@@ -24,9 +24,11 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
         logphi = fmat(settings->k, data->entity_count());
         a_phi = fmat(settings->k, data->entity_count());
         b_phi = fmat(settings->k, data->entity_count());
-        // keep track of old a parameters for SVI
+        // keep track of old parameters for SVI
         a_phi_old = fmat(settings->k, data->entity_count());
         a_phi_old.fill(settings->a_phi);
+        b_phi_old = fmat(settings->k, data->entity_count());
+        b_phi_old.fill(settings->b_phi);
 
         // theta: doc topics
         printf("\t\t\tdoc topics (theta)\n");
@@ -53,9 +55,11 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
         logpsi = fvec(data->date_count());
         a_psi = fvec(data->date_count());
         b_psi = fvec(data->date_count());
-        // keep track of old a parameters for SVI
+        // keep track of old parameters for SVI
         a_psi_old = fvec(data->date_count());
         a_psi_old.fill(settings->a_psi);
+        b_psi_old = fvec(data->date_count());
+        b_psi_old.fill(settings->b_psi);
 
         // epsilon: doc events
         printf("\t\t\tdoc events (epsilon)\n");
@@ -89,6 +93,8 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
         // keep track of old a parameters for SVI
         a_xi_old = fvec(data->entity_count());
         a_xi_old.fill(settings->a_xi);
+        b_xi_old = fvec(data->entity_count());
+        b_xi_old.fill(settings->b_xi);
 
         // zeta: doc entity relvance
         printf("\t\t\tdoc entity relevance (zeta)\n");
@@ -158,7 +164,8 @@ void Capsule::learn() {
                 for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
                     //#pragma omp critical
                     dates.insert(d);
-                    b_epsilon(d, doc) += decay(date, d) * accu(pi.row(d));
+                    a_epsilon(d, doc) = settings->a_epsilon;
+                    b_epsilon(d, doc) = decay(date, d) * accu(pi.row(d));
                 }
             }
 
@@ -442,6 +449,8 @@ void Capsule::initialize_parameters() {
                 logdecay(i,j) = log(decay(i,j));
             }
         }
+        double vooom = log(exp(1.0));
+        printf("all our base: %f\n", vooom);
 
         // doc events
         int date, v = 0;
@@ -464,8 +473,7 @@ void Capsule::initialize_parameters() {
                 v++;
             }
         }
-        event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
-        //event_cells = sp_fmat(data->date_count(), data->doc_count());
+        sp_fmat event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
         epsilon = event_cells * (settings->a_epsilon / (settings->a_psi / settings->b_psi));
         logepsilon = event_cells * (gsl_sf_psi(settings->a_theta) - log(settings->a_psi / settings->b_psi));
     }
@@ -480,10 +488,6 @@ void Capsule::reset_helper_params() {
     b_xi.fill(settings->b_xi);
     a_theta.fill(settings->a_theta);
     b_theta.fill(0.0);
-    if (settings->incl_events) {
-        a_epsilon = event_cells * settings->a_epsilon;
-        b_epsilon = event_cells * 0.0;
-    }
     a_zeta.fill(settings->a_zeta);
     b_zeta.fill(0.0);
     a_beta.fill(settings->a_beta);
@@ -607,7 +611,7 @@ void Capsule::save_parameters(string label) {
             int date = data->get_date(doc);
             for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
                 double val = epsilon(d, doc);
-                fprintf(file, "%d\t%d\t%e\n", doc, d, val);
+                fprintf(file, "%d\t%d\t%e\t%e\n", doc, d, val, val*decay(date,d));
             }
         }
         fclose(file);
@@ -697,6 +701,8 @@ void Capsule::update_phi(int entity) {
             -1 * settings->forget);
         a_phi.col(entity) = (1 - rho) * a_phi_old.col(entity) + rho * a_phi.col(entity);
         a_phi_old.col(entity) = a_phi.col(entity);
+        b_phi.col(entity) = (1 - rho) * b_phi_old.col(entity) + rho * b_phi.col(entity);
+        b_phi_old.col(entity) = b_phi.col(entity);
     }
 
     for (int k = 0; k < settings->k; k++) {
@@ -711,6 +717,8 @@ void Capsule::update_psi(int date) {
             -1 * settings->forget);
         a_psi(date) = (1 - rho) * a_psi_old(date) + rho * a_psi(date);
         a_psi_old(date) = a_psi(date);
+        b_psi(date) = (1 - rho) * b_psi_old(date) + rho * b_psi(date);
+        b_psi_old(date) = b_psi(date);
     }
 
     psi(date) = a_psi(date) / b_psi(date);
@@ -723,6 +731,8 @@ void Capsule::update_xi(int entity) {
             -1 * settings->forget);
         a_xi(entity) = (1 - rho) * a_xi_old(entity) + rho * a_xi(entity);
         a_xi_old(entity) = a_xi(entity);
+        b_xi(entity) = (1 - rho) * b_xi_old(entity) + rho * b_xi(entity);
+        b_xi_old(entity) = b_xi(entity);
     }
 
     xi(entity) = a_xi(entity) / b_xi(entity);
