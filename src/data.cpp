@@ -56,6 +56,12 @@ void Data::read_training(string counts_filename, string meta_filename) {
         doc_terms[doc].push_back(term);
         doc_term_counts[doc].push_back(count);
     }
+
+    for(vector<int>::iterator it = doc_terms->begin(); it != doc_terms->end(); it++) {
+        int doc = *it;
+        doc_counts_entity[authors[doc]] += 1;
+        doc_counts_date[dates[doc]] += 1;
+    }
 }
 
 void Data::read_validation(string filename) {
@@ -108,6 +114,14 @@ int Data::doc_count(int entity, int date) {
 
 int Data::train_doc_count() {
     return max_train_doc+1;
+}
+
+int Data::train_doc_count_by_entity(int entity) {
+    return doc_counts_entity[entity];
+}
+
+int Data::train_doc_count_by_date(int date) {
+    return doc_counts_date[date];
 }
 
 int Data::term_count() {

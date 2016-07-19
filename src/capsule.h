@@ -275,6 +275,8 @@ class Capsule {
 
         // define how to scale updates (training / sample size) (for SVI)
         double scale;
+        fvec ent_scale;
+        fvec evt_scale;
 
         // counts of number of times an item has been seen in a sample (for SVI)
         map<int,int> iter_count_term;

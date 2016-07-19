@@ -50,6 +50,10 @@ class Data {
         //map<int,int> test_count;
         //map<int,int> test_count_item;
 
+        // counts by entity and date for SVI
+        map<int,int> doc_counts_entity;
+        map<int,int> doc_counts_date;
+
         // simple summaries
         //map<int,float> item_ave_ratings;
         //map<int,float> user_ave_ratings;
@@ -74,6 +78,8 @@ class Data {
         int doc_count();
         int doc_count(int entity, int date);
         int train_doc_count();
+        int train_doc_count_by_entity(int entity);
+        int train_doc_count_by_date(int date);
         int term_count();
         int entity_count();
         int date_count();

@@ -112,6 +112,19 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     initialize_parameters();
 
     scale = settings->svi ? float(data->train_doc_count()) / float(settings->sample_size) : 1;
+    ent_scale = fvec(data->entity_count());
+    evt_scale = fvec(data->date_count());
+    if (settings->svi) {
+        for (int e = 0; e < data->entity_count(); e++) {
+            ent_scale(e) = float(data->train_doc_count_by_entity(e)) / float(settings->sample_size);
+        }
+        for (int d = 0; d < data->date_count(); d++) {
+            evt_scale(d) = float(data->train_doc_count_by_date(d)) / float(settings->sample_size);
+        }
+    } else {
+        ent_scale.fill(1);
+        evt_scale.fill(1);
+    }
 }
 
 void Capsule::learn() {
@@ -196,9 +209,9 @@ void Capsule::learn() {
                 b_zeta(doc) = xi(entity) + accu(eta.row(entity));
                 update_zeta(doc);
                 //#pragma omp atomic
-                a_xi(entity) += settings->a_zeta * scale;
+                a_xi(entity) += settings->a_zeta * ent_scale[entity];
                 //#pragma omp atomic
-                b_xi(entity) += zeta(doc) * scale;
+                b_xi(entity) += zeta(doc) * ent_scale[entity];
             }
 
             if (settings->incl_topics) {
@@ -308,6 +321,8 @@ void Capsule::learn() {
             settings->set_stochastic_inference(false);
             settings->set_sample_size(data->train_doc_count());
             scale = 1;
+            ent_scale.fill(1);
+            evt_scale.fill(1);
         }
     }
 
@@ -449,8 +464,6 @@ void Capsule::initialize_parameters() {
                 logdecay(i,j) = log(decay(i,j));
             }
         }
-        double vooom = log(exp(1.0));
-        printf("all our base: %f\n", vooom);
 
         // doc events
         int date, v = 0;
@@ -682,7 +695,7 @@ void Capsule::update_shape(int doc, int term, int count) {
         omega_entity /= omega_sum;
         a_zeta(doc) += omega_entity;
         //#pragma omp atomic
-        a_eta(entity, term) += omega_entity * scale;
+        a_eta(entity, term) += omega_entity * ent_scale[entity];
     }
 
     if (settings->incl_events) {
@@ -690,7 +703,7 @@ void Capsule::update_shape(int doc, int term, int count) {
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
             //#pragma omp atomic
-            a_pi(d, term) += omega_event[d] * scale;
+            a_pi(d, term) += omega_event[d] * evt_scale[d];
         }
     }
 }
@@ -756,8 +769,8 @@ void Capsule::update_epsilon(int doc, int date) {
         epsilon(d, doc) = a_epsilon(d, doc) / b_epsilon(d, doc);
         logepsilon(d, doc) = gsl_sf_psi(a_epsilon(d, doc)) - log(b_epsilon(d, doc));
 
-        a_psi(d) += settings->a_epsilon * scale;
-        b_psi(d) += epsilon(d, doc) * scale;
+        a_psi(d) += settings->a_epsilon * evt_scale[d];
+        b_psi(d) += epsilon(d, doc) * evt_scale[d];
     }
 }
 
