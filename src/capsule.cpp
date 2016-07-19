@@ -710,11 +710,13 @@ void Capsule::update_shape(int doc, int term, int count) {
 
 void Capsule::update_phi(int entity) {
     if (settings->svi) {
-        double rho = pow(iter_count_entity[entity] + settings->delay,
-            -1 * settings->forget);
-        a_phi.col(entity) = (1 - rho) * a_phi_old.col(entity) + rho * a_phi.col(entity);
+        if (iter_count_entity[entity] > 1) {
+            double rho = pow(iter_count_entity[entity] + settings->delay,
+                -1 * settings->forget);
+            a_phi.col(entity) = (1 - rho) * a_phi_old.col(entity) + rho * a_phi.col(entity);
+            b_phi.col(entity) = (1 - rho) * b_phi_old.col(entity) + rho * b_phi.col(entity);
+        }
         a_phi_old.col(entity) = a_phi.col(entity);
-        b_phi.col(entity) = (1 - rho) * b_phi_old.col(entity) + rho * b_phi.col(entity);
         b_phi_old.col(entity) = b_phi.col(entity);
     }
 
@@ -726,11 +728,13 @@ void Capsule::update_phi(int entity) {
 
 void Capsule::update_psi(int date) {
     if (settings->svi) {
-        double rho = pow(iter_count_date[date] + settings->delay,
-            -1 * settings->forget);
-        a_psi(date) = (1 - rho) * a_psi_old(date) + rho * a_psi(date);
+        if (iter_count_date[date] > 1) {
+            double rho = pow(iter_count_date[date] + settings->delay,
+                -1 * settings->forget);
+            a_psi(date) = (1 - rho) * a_psi_old(date) + rho * a_psi(date);
+            b_psi(date) = (1 - rho) * b_psi_old(date) + rho * b_psi(date);
+        }
         a_psi_old(date) = a_psi(date);
-        b_psi(date) = (1 - rho) * b_psi_old(date) + rho * b_psi(date);
         b_psi_old(date) = b_psi(date);
     }
 
@@ -740,11 +744,13 @@ void Capsule::update_psi(int date) {
 
 void Capsule::update_xi(int entity) {
     if (settings->svi) {
-        double rho = pow(iter_count_entity[entity] + settings->delay,
-            -1 * settings->forget);
-        a_xi(entity) = (1 - rho) * a_xi_old(entity) + rho * a_xi(entity);
+        if (iter_count_entity[entity] > 1) {
+            double rho = pow(iter_count_entity[entity] + settings->delay,
+                -1 * settings->forget);
+            a_xi(entity) = (1 - rho) * a_xi_old(entity) + rho * a_xi(entity);
+            b_xi(entity) = (1 - rho) * b_xi_old(entity) + rho * b_xi(entity);
+        }
         a_xi_old(entity) = a_xi(entity);
-        b_xi(entity) = (1 - rho) * b_xi_old(entity) + rho * b_xi(entity);
         b_xi_old(entity) = b_xi(entity);
     }
 
@@ -776,9 +782,11 @@ void Capsule::update_epsilon(int doc, int date) {
 
 void Capsule::update_beta(int iteration) {
     if (settings->svi) {
-        double rho = pow(iteration + settings->delay,
-            -1 * settings->forget);
-        a_beta = (1 - rho) * a_beta_old + rho * a_beta;
+        if (iteration > 1) {
+            double rho = pow(iteration + settings->delay,
+                -1 * settings->forget);
+            a_beta = (1 - rho) * a_beta_old + rho * a_beta;
+        }
         a_beta_old = a_beta * 1.0;
     }
 
@@ -795,9 +803,11 @@ void Capsule::update_beta(int iteration) {
 
 void Capsule::update_eta(int iteration) {
     if (settings->svi) {
-        double rho = pow(iteration + settings->delay,
-            -1 * settings->forget);
-        a_eta = (1 - rho) * a_eta_old + rho * a_eta;
+        if (iteration > 1) {
+            double rho = pow(iteration + settings->delay,
+                -1 * settings->forget);
+            a_eta = (1 - rho) * a_eta_old + rho * a_eta;
+        }
         a_eta_old = a_eta * 1.0;
     }
 
@@ -814,9 +824,11 @@ void Capsule::update_eta(int iteration) {
 
 void Capsule::update_pi(int date) {
     if (settings->svi) {
-        double rho = pow(iter_count_date[date] + settings->delay,
-            -1 * settings->forget);
-        a_pi.row(date) = (1 - rho) * a_pi_old.row(date) + rho * a_pi.row(date);
+        if (iter_count_date[date] > 1) {
+            double rho = pow(iter_count_date[date] + settings->delay,
+                -1 * settings->forget);
+            a_pi.row(date) = (1 - rho) * a_pi_old.row(date) + rho * a_pi.row(date);
+        }
         a_pi_old.row(date) = a_pi.row(date);
     }
 
