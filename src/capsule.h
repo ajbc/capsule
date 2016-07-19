@@ -117,10 +117,11 @@ struct model_settings {
         sample_size = setting;
     }
 
-    void save(string filename) {
+    void save(string filename, string msg) {
         FILE* file = fopen(filename.c_str(), "w");
 
-        fprintf(file, "data directory: %s\n", datadir.c_str());
+        fprintf(file, "%s\n", msg.c_str());
+        fprintf(file, "\ndata directory: %s\n", datadir.c_str());
 
         fprintf(file, "\nmodel specification includes:\n");
         if (incl_topics)

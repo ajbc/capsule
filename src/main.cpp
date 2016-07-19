@@ -20,6 +20,7 @@ void print_usage_and_exit() {
     printf("\n");
     printf("  --out {dir}       save directory, required\n");
     printf("  --data {dir}      data directory, required\n");
+    printf("  --msg {m}         message to log\n");
 
     printf("\n");
     printf("  --svi             use stochastic VI (instead of batch VI)\n");
@@ -83,6 +84,7 @@ int main(int argc, char* argv[]) {
     // variables to store command line args + defaults
     string out = "";
     string data = "";
+    string msg = "";
     bool verbose = false;
 
     bool svi = false;
@@ -127,12 +129,13 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pnk:";
+    const char* const short_options = "hqo:d:M:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pnk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
         {"out",             required_argument, NULL, 'o'},
         {"data",            required_argument, NULL, 'd'},
+        {"msg",             required_argument, NULL, 'M'},
         {"svi",             no_argument, NULL, 'v'},
         {"batch",           no_argument, NULL, 'b'},
         {"a_phi",           required_argument, NULL, '1'},
@@ -183,6 +186,9 @@ int main(int argc, char* argv[]) {
                 break;
             case 'd':
                 data = optarg;
+                break;
+            case 'M':
+                msg = optarg;
                 break;
             case 'v':
                 svi = true;
@@ -442,7 +448,7 @@ int main(int argc, char* argv[]) {
         settings.set_sample_size(dataset->doc_count());
     printf("sample size %d\n", settings.sample_size);
 
-    settings.save(out + "/settings.txt");
+    settings.save(out + "/settings.txt", msg);
 
     // TODO: make this/evaluate below optional (--test_only, --no_test)
     printf("********************************************************************************\n");
