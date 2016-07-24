@@ -7,7 +7,11 @@ import numpy as np
 doc_db = sys.argv[1]
 data_dir = sys.argv[2]
 fit_dir = sys.argv[3]
-iter_id = int(sys.argv[4])
+
+if sys.argv[4] == 'final':
+    iter_id = 'final'
+else:
+    iter_id = '%04d' % int(sys.argv[4])
 
 N_terms = 10
 N_docs = 10
@@ -30,8 +34,8 @@ for line in open(os.path.join(data_dir, "entities.tsv")):
     entity_names[int(idx)] = name
 
 # entity topics
-fout = open(os.path.join(fit_dir, "topics_entity_%04d.dat" % iter_id), 'w+')
-for line in open(os.path.join(fit_dir, "eta-%04d.dat" % iter_id)):
+fout = open(os.path.join(fit_dir, "topics_entity_%s.dat" % iter_id), 'w+')
+for line in open(os.path.join(fit_dir, "eta-%s.dat" % iter_id)):
     entity, terms = line.strip().split('\t', 1)
 
     terms = dict(zip(vocab, [float(t) for t in terms.split('\t')]))
@@ -46,7 +50,9 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
     fit_id, dt = line.strip().split('\t')
     if fit_id == 'id':
         continue
-    date_map[int(fit_id)] = dt
+    tv =dt.split('-')
+    date_map[int(fit_id)] = date(int(tv[0]), int(tv[1]),  int(tv[2]))
+    #date_map[int(fit_id)] = dt #weekly
 
 # WARNING: this requires daily time intervals
 def get_date(time):
@@ -55,8 +61,8 @@ def get_date(time):
     return date_map[time]
 
 # event topics
-fout = open(os.path.join(fit_dir, "topics_events_%04d.dat" % iter_id), 'w+')
-for line in open(os.path.join(fit_dir, "pi-%04d.dat" % iter_id)):
+fout = open(os.path.join(fit_dir, "topics_events_%s.dat" % iter_id), 'w+')
+for line in open(os.path.join(fit_dir, "pi-%s.dat" % iter_id)):
     time, terms = line.strip().split('\t', 1)
     time = int(time)
 
@@ -68,8 +74,8 @@ for line in open(os.path.join(fit_dir, "pi-%04d.dat" % iter_id)):
 fout.close()
 
 # general topics
-beta = np.loadtxt(os.path.join(fit_dir, "beta-%04d.dat" % iter_id))[:,1:].T
-fout = open(os.path.join(fit_dir, "topics_general_%04d.dat" % iter_id), 'w+')
+beta = np.loadtxt(os.path.join(fit_dir, "beta-%s.dat" % iter_id))[:,1:].T
+fout = open(os.path.join(fit_dir, "topics_general_%s.dat" % iter_id), 'w+')
 for k in range(len(beta)):
     terms = dict(zip(vocab, beta[k]))
     topterms = sorted(terms, key=lambda t: -terms[t])[:N_terms]
