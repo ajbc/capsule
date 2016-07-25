@@ -38,6 +38,16 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
         b_theta = fmat(settings->k, data->doc_count());
     }
 
+    if (settings->incl_intercept) {
+        iota = fvec(data->term_count());
+        a_iota = fvec(data->term_count());
+        b_iota = fvec(data->term_count());
+        a_iota_old = fvec(data->term_count());
+        a_iota_old.fill(settings->a_iota);
+        b_iota_old = fvec(data->term_count());
+        b_iota_old.fill(settings->b_iota);
+    }
+
     if (settings->incl_events) {
         printf("\t\tevent parameters\n");
         // pi: event descriptions
@@ -222,6 +232,10 @@ void Capsule::learn() {
             }
         }
 
+        if (settings->incl_intercept) {
+            update_iota(iteration);
+        }
+
         set<int>::iterator it;
         for (it = entities.begin(); it != entities.end(); it++) {
             entity = *it;
@@ -331,6 +345,9 @@ void Capsule::learn() {
 
 double Capsule::predict(int doc, int term) {
     double prediction = 0;
+    if (settings->incl_intercept)
+        prediction += iota(term);
+
     if (settings->incl_topics)
         prediction += accu(theta.col(doc) % beta.col(term));
 
@@ -398,6 +415,10 @@ void Capsule::evaluate(string label, bool write_rankings) {
 /* PRIVATE */
 
 void Capsule::initialize_parameters() {
+    if (settings->incl_intercept) {
+        iota.fill(settings->a_iota / settings->b_iota);
+    }
+
     if (settings->incl_topics) {
         printf("\t\ttopic parameters\n");
         // entity concerns
@@ -499,6 +520,8 @@ void Capsule::reset_helper_params() {
     b_psi.fill(settings->b_psi);
     a_xi.fill(settings->a_xi);
     b_xi.fill(settings->b_xi);
+    a_iota.fill(settings->a_iota);
+    b_iota.fill(settings->b_iota);
     a_theta.fill(settings->a_theta);
     b_theta.fill(0.0);
     a_zeta.fill(settings->a_zeta);
@@ -510,6 +533,17 @@ void Capsule::reset_helper_params() {
 
 void Capsule::save_parameters(string label) {
     FILE* file;
+
+    if (settings->incl_intercept) {
+        // write out iota
+        file = fopen((settings->outdir+"/iota-"+label+".dat").c_str(), "w");
+        for (int term = 0; term < data->term_count(); term++) {
+            fprintf(file, "%d\t%e\t%e\t%e\n", term, iota(term), a_iota(term), b_iota(term));
+        }
+        fclose(file);
+
+
+    }
 
     if (settings->incl_topics) {
         int k;
@@ -636,6 +670,7 @@ void Capsule::save_parameters(string label) {
             remove((settings->outdir+"/beta-"+last_save+".dat").c_str());
             remove((settings->outdir+"/a_beta-"+last_save+".dat").c_str());
             remove((settings->outdir+"/theta-"+last_save+".dat").c_str());
+            remove((settings->outdir+"/iota-"+last_save+".dat").c_str());
         }
 
         if (settings->incl_entity) {
@@ -663,6 +698,10 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     fvec omega_topics, omega_event;
     double omega_entity = 0;
+    if (settings->incl_intercept) {
+        omega_sum += iota(term);
+    }
+
     if (settings->incl_topics) {
         omega_topics = exp(logtheta.col(doc) + logbeta.col(term));
         omega_sum += accu(omega_topics);
@@ -683,6 +722,11 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     if (omega_sum == 0)
         return;
+
+    if (settings->incl_intercept) {
+        a_iota(term) += (iota(term) / omega_sum) * scale;
+        b_iota(term) += 1 * scale;
+    }
 
     if (settings->incl_topics) {
         omega_topics /= omega_sum * count;
@@ -750,6 +794,19 @@ void Capsule::update_xi(int entity) {
 
     xi(entity) = a_xi(entity) / b_xi(entity);
     logxi(entity) = gsl_sf_psi(a_xi(entity)) - log(b_xi(entity));
+}
+
+void Capsule::update_iota(int iteration) {
+    if (settings->svi) {
+        double rho = pow(iteration + settings->delay,
+            -1 * settings->forget);
+        a_iota = (1 - rho) * a_iota_old + rho * a_iota;
+        a_iota_old = a_iota * 1.0;
+        b_iota = (1 - rho) * b_iota_old + rho * b_iota;
+        b_iota_old = b_iota * 1.0;
+    }
+
+    iota = a_iota / b_iota;
 }
 
 void Capsule::update_theta(int doc) {
@@ -963,6 +1020,8 @@ double Capsule::elbo_extra() {
         rvtotal -= p_gamma(zeta, a_zeta, b_zeta);
         rvtotal -= p_gamma(xi, a_xi, b_xi);
     }
+
+    // TODO: add incl_intercept
 
     if (settings->incl_topics) {
         rvtotal -= p_dir(beta, a_beta);
