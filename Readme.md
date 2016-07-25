@@ -4,11 +4,11 @@
 
 - [ ] Investigate daily model of cables ***
 
-- [ ] stochastic inference ***
+- [X] stochastic inference ***
 
 - [X] limit exponential decay for events ***
 
-- [ ] figure out issue of held out log likelihood on cables (event only does better than full) ***
+- [X] figure out issue of held out log likelihood on cables (event only does better than full) ***
 
 - [ ] explore alternative measure of eventness, possibly using pi
 
@@ -26,4 +26,4 @@
 
 - [ ] events connected to subsets of entities (and/or multiple events in a single interval)
 
-- [ ] bigram or trigram vocabulary *
+- [X] bigram or trigram vocabulary *
