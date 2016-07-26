@@ -385,7 +385,7 @@ int main(int argc, char* argv[]) {
         printf("\tbeta     (%.2f, 1.0)\n", a_beta);
     }
     if (incl_intercept) {
-        printf("\tiota    (%.2f, %.2f)\n", a_iota, b_iota);
+        printf("\tiota     (%.2f, %.2f)\n", a_iota, b_iota);
     }
     if (incl_entity) {
         printf("\txi       (%.2f, %.2f)\n", a_xi, b_xi);

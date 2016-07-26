@@ -39,6 +39,7 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
     }
 
     if (settings->incl_intercept) {
+        printf("\t\tintercept parameters\n");
         iota = fvec(data->term_count());
         a_iota = fvec(data->term_count());
         b_iota = fvec(data->term_count());
@@ -724,26 +725,28 @@ void Capsule::update_shape(int doc, int term, int count) {
         return;
 
     if (settings->incl_intercept) {
-        a_iota(term) += (iota(term) / omega_sum) * scale;
-        b_iota(term) += 1 * scale;
+        //#pragma omp critical
+        a_iota(term) += (iota(term) / omega_sum) * count * scale;
+        //#pragma omp critical
+        b_iota(term) += count * scale;
     }
 
     if (settings->incl_topics) {
-        omega_topics /= omega_sum * count;
+        omega_topics *= count / omega_sum;
         a_theta.col(doc) += omega_topics;
         //#pragma omp critical
         a_beta.col(term) += omega_topics * scale;
     }
 
     if (settings->incl_entity) {
-        omega_entity /= omega_sum;
+        omega_entity *= count / omega_sum;
         a_zeta(doc) += omega_entity;
         //#pragma omp atomic
         a_eta(entity, term) += omega_entity * ent_scale[entity];
     }
 
     if (settings->incl_events) {
-        omega_event /= omega_sum * count;
+        omega_event *= count / omega_sum;
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
             //#pragma omp atomic
@@ -801,9 +804,9 @@ void Capsule::update_iota(int iteration) {
         double rho = pow(iteration + settings->delay,
             -1 * settings->forget);
         a_iota = (1 - rho) * a_iota_old + rho * a_iota;
-        a_iota_old = a_iota * 1.0;
+        a_iota_old = a_iota + 0.0;
         b_iota = (1 - rho) * b_iota_old + rho * b_iota;
-        b_iota_old = b_iota * 1.0;
+        b_iota_old = b_iota + 0.0;
     }
 
     iota = a_iota / b_iota;
@@ -855,7 +858,7 @@ void Capsule::update_eta(int iteration) {
         double rho = pow(iteration + settings->delay,
             -1 * settings->forget);
         a_eta = (1 - rho) * a_eta_old + rho * a_eta;
-        a_eta_old = a_eta * 1.0;
+        a_eta_old = a_eta + 0.0;
     }
 
     for (int n = 0; n < data->entity_count(); n++) {

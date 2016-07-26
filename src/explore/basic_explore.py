@@ -57,7 +57,8 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
 # WARNING: this requires daily time intervals
 def get_date(time):
     if time not in date_map:
-        date_map[time] = get_date(time-1) + timedelta(days=1)
+        #date_map[time] = get_date(time-1) + timedelta(days=1)
+        date_map[time] = get_date(time-1) + timedelta(days=7)
     return date_map[time]
 
 # event topics

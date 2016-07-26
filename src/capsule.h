@@ -156,7 +156,7 @@ struct model_settings {
             fprintf(file, "\tbeta     (%.2f, 1.0)\n", a_beta);
         }
         if (incl_intercept) {
-            fprintf(file, "\tiota    (%.2f, %.2f)\n", a_iota, b_iota);
+            fprintf(file, "\tiota     (%.2f, %.2f)\n", a_iota, b_iota);
         }
         if (incl_entity) {
             fprintf(file, "\txi       (%.2f, %.2f)\n", a_xi, b_xi);
