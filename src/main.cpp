@@ -36,8 +36,6 @@ void print_usage_and_exit() {
     printf("  --a_xi {a}        shape hyperparamter to xi (entity strength); default 0.3\n");
     printf("  --b_xi {b}        rate hyperparamter to xi (entity strength); default 0.3\n");
     printf("  --a_theta {a}     shape hyperparamter to theta (doc topics); default 0.3\n");
-    printf("  --a_iota {a}      shape hyperparamter to iota (intercept); default 0.3\n");
-    printf("  --b_iota {b}      rate hyperparamter to iota (intercept); default 0.3\n");
     printf("  --a_epsilon {a}   shape hyperparamter to epsilon (doc events); default 0.3\n");
     printf("  --a_zeta {a}      shape hyperparamter to epsilon (doc entity relevancy); default 0.3\n");
     printf("  --a_beta {a}      shape hyperparamter to beta (topics); default 0.3\n");
@@ -46,7 +44,6 @@ void print_usage_and_exit() {
 
     printf("\n");
     printf("  --no_topics       don't consider entity topics aspect of factorization\n");
-    printf("  --no_intercept    don't consider term intercept aspect of factorization\n");
     printf("  --no_entity       don't consider entity concern aspect of factorization\n");
     printf("  --no_events       don't consider event aspect of factorization\n");
 
@@ -100,8 +97,6 @@ int main(int argc, char* argv[]) {
     double a_xi = 0.3;
     double b_xi = 0.3;
     double a_theta = 0.3;
-    double a_iota = 0.3;
-    double b_iota = 0.3;
     double a_epsilon = 0.3;
     double a_zeta = 0.3;
     double a_beta = 0.3;
@@ -110,7 +105,6 @@ int main(int argc, char* argv[]) {
 
     // these are really bools, but typed as integers to play nice with getopt
     int incl_topics = 1;
-    int incl_intercept = 1;
     int incl_entity = 1;
     int incl_events = 1;
     bool final_pass = 0;
@@ -135,7 +129,7 @@ int main(int argc, char* argv[]) {
     int    k = 100;
 
     // ':' after a character means it takes an argument
-    const char* const short_options = "hqo:d:M:vb1:2:3:4:5:6:7:A:B:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pnk:";
+    const char* const short_options = "hqo:d:M:vb1:2:3:4:5:6:7:8:9:0:i:l:r:y:s:w:j:g:x:m:c:a:e:f:pnk:";
     const struct option long_options[] = {
         {"help",            no_argument,       NULL, 'h'},
         {"verbose",         no_argument,       NULL, 'q'},
@@ -151,15 +145,12 @@ int main(int argc, char* argv[]) {
         {"a_xi",            required_argument, NULL, '5'},
         {"b_xi",            required_argument, NULL, '6'},
         {"a_theta",         required_argument, NULL, '7'},
-        {"a_iota",          required_argument, NULL, 'A'},
-        {"b_iota",          required_argument, NULL, 'B'},
         {"a_epsilon",       required_argument, NULL, '8'},
         {"a_zeta",          required_argument, NULL, '9'},
         {"a_beta",          required_argument, NULL, '0'},
         {"a_pi",            required_argument, NULL, 'i'},
         {"a_eta",           required_argument, NULL, 'l'},
         {"no_topics",       no_argument, &incl_topics, 0},
-        {"no_intercept",    no_argument, &incl_intercept, 0},
         {"no_entity",       no_argument, &incl_entity, 0},
         {"no_events",       no_argument, &incl_events, 0},
         {"event_dur",       required_argument, NULL, 'r'},
@@ -225,12 +216,6 @@ int main(int argc, char* argv[]) {
                 break;
             case '7':
                 a_theta = atof(optarg);
-                break;
-            case 'A':
-                a_iota = atof(optarg);
-                break;
-            case 'B':
-                b_iota = atof(optarg);
                 break;
             case '8':
                 a_epsilon = atof(optarg);
@@ -358,8 +343,6 @@ int main(int argc, char* argv[]) {
     printf("\nmodel specification includes:\n");
     if (incl_topics)
         printf("\ttopic factors\n");
-    if (incl_intercept)
-        printf("\tterm intercepts\n");
     if (incl_entity)
         printf("\tentity factors\n");
     if (incl_events)
@@ -383,9 +366,6 @@ int main(int argc, char* argv[]) {
         printf("\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
         printf("\ttheta    (%.2f, ---)\n", a_theta);
         printf("\tbeta     (%.2f, 1.0)\n", a_beta);
-    }
-    if (incl_intercept) {
-        printf("\tiota     (%.2f, %.2f)\n", a_iota, b_iota);
     }
     if (incl_entity) {
         printf("\txi       (%.2f, %.2f)\n", a_xi, b_xi);
@@ -423,8 +403,8 @@ int main(int argc, char* argv[]) {
 
     model_settings settings;
     settings.set(verbose, out, data, svi, a_phi, b_phi, a_psi, b_psi, a_xi, b_xi,
-        a_iota, b_iota, a_theta, a_epsilon, a_zeta, a_pi, a_beta, a_eta,
-        (bool) incl_topics, (bool) incl_intercept, (bool) incl_entity, (bool) incl_events,
+        a_theta, a_epsilon, a_zeta, a_pi, a_beta, a_eta,
+        (bool) incl_topics, (bool) incl_entity, (bool) incl_events,
         event_dur, event_decay,
         seed, save_freq, eval_freq, conv_freq, max_iter, min_iter, converge_delta,
         overwrite, final_pass, sample_size, svi_delay, svi_forget, k);

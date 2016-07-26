@@ -10,6 +10,7 @@ Data::Data() {
 void Data::read_training(string counts_filename, string meta_filename) {
     //printf("%s\n", counts_filename.c_str());
     int doc, term, count, author, date;
+    total_term_count = 0;
 
     // read in metadata
     FILE* fileptr = fopen(meta_filename.c_str(), "r");
@@ -36,6 +37,8 @@ void Data::read_training(string counts_filename, string meta_filename) {
             train_docs.push_back(doc);
             train_terms.push_back(term);
             train_counts.push_back(count);
+            total_term_count += count;
+            vocab_counts[term] += count;
             train_set.insert(DocTerm(doc, term));
             if (doc > max_doc)
                 max_doc = doc;
@@ -142,6 +145,14 @@ int Data::get_entity(int doc) {
 
 int Data::get_date(int doc) {
     return dates[doc];
+}
+
+int Data::vocab_count(int term) {
+    return vocab_counts[term];
+}
+
+int Data::total_terms() {
+    return total_term_count;
 }
 
 int Data::term_count(int doc) {

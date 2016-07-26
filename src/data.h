@@ -27,6 +27,9 @@ class Data {
         int max_entity;
         int max_date;
 
+        map<int,int> vocab_counts;
+        int total_term_count;
+
         map<int,int> authors;
         map<int,int> dates;
         map<pair<int, int>,int> doc_counts;
@@ -83,6 +86,8 @@ class Data {
         int term_count();
         int entity_count();
         int date_count();
+        int vocab_count(int term);
+        int total_terms();
 
         int term_count(int doc);
         int get_term(int doc, int i);
