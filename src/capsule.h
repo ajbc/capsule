@@ -233,6 +233,7 @@ class Capsule {
         fmat a_beta_old;
         fmat a_pi_old;
         fmat a_eta_old;
+        sp_fmat event_cells;
 
         // random number generator
         gsl_rng* rand_gen;

@@ -190,9 +190,10 @@ void Capsule::learn() {
             date = data->get_date(doc);
             if (settings->incl_events) {
                 for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
-                    if (settings->svi)
+                    if (settings->svi) {
                         dates.insert(d);
-                    a_epsilon(d, doc) = settings->a_epsilon;
+                        a_epsilon(d, doc) = settings->a_epsilon;
+                    }
                     b_epsilon(d, doc) = decay(date, d) * accu(pi.row(d));
                 }
             }
@@ -504,9 +505,10 @@ void Capsule::initialize_parameters() {
                 v++;
             }
         }
-        sp_fmat event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
+        event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
         epsilon = event_cells * (settings->a_epsilon / (settings->a_psi / settings->b_psi));
         logepsilon = event_cells * (gsl_sf_psi(settings->a_theta) - log(settings->a_psi / settings->b_psi));
+        b_epsilon = event_cells * 1.0; //placeholder to create the correct shape matrix (a_eps is done in reset)
     }
 }
 
@@ -524,6 +526,9 @@ void Capsule::reset_helper_params() {
     a_beta.fill(settings->a_beta);
     a_pi.fill(settings->a_pi);
     a_eta.fill(settings->a_eta);
+    if (!settings->svi) {
+        a_epsilon = event_cells * settings->a_epsilon;
+    }
 }
 
 void Capsule::save_parameters(string label) {
