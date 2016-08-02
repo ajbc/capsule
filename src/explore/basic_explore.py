@@ -50,15 +50,15 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
     fit_id, dt = line.strip().split('\t')
     if fit_id == 'id':
         continue
-    tv =dt.split('-')
-    date_map[int(fit_id)] = date(int(tv[0]), int(tv[1]),  int(tv[2]))
-    #date_map[int(fit_id)] = dt #weekly
+    #tv =dt.split('-')
+    #date_map[int(fit_id)] = date(int(tv[0]), int(tv[1]),  int(tv[2]))
+    date_map[int(fit_id)] = dt #weekly
 
 # WARNING: this requires daily time intervals
 def get_date(time):
     if time not in date_map:
-        date_map[time] = get_date(time-1) + timedelta(days=1)
-        #date_map[time] = get_date(time-1) + timedelta(days=7)
+        #date_map[time] = get_date(time-1) + timedelta(days=1)
+        date_map[time] = get_date(time-1) + timedelta(days=7)
     return date_map[time]
 
 # event topics

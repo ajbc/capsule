@@ -432,7 +432,8 @@ void Capsule::initialize_parameters() {
                     beta(k, v) = (settings->a_beta +
                         gsl_rng_uniform_pos(rand_gen));
                 }
-                logbeta(k, v) = gsl_sf_psi(beta(k, v));
+                if (beta(k, v) != 0)
+                    logbeta(k, v) = gsl_sf_psi(beta(k, v));
             }
             logbeta.row(k) -= log(accu(beta.row(k)));
             beta.row(k) /= accu(beta.row(k));
