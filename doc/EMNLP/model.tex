@@ -36,7 +36,7 @@ Specifically, the message blends general topics about diplomacy (e.g.,
 diplomats, communication) $\beta_k$, an entity topic that is specific
 to the author of the message (e.g., terms about France) $\eta_{a_d}$,\footnote{These entity-specific topics are similar to background topics~\cite{paul2012model}.}
 and an event topic that is specific to the events of relevant recent weeks (e.g.,
-terms about an international crisis) $\pi_t$. Notice how messages
+terms about an international crisis) $\gamma_t$. Notice how messages
 share these topics in different configurations: all messages share the
 general topics; messages from the same entity share the entity topics;
 and messages from the same interval share the event topics.
@@ -68,7 +68,7 @@ general diplomacy.
 
 Putting this together, the Poisson rate for term $v$ in document $d$ is
 \begin{align}
-  \lambda_{d,v} = \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v},
+  \lambda_{d,v} = \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v},
 \label{eq:poisrate}
 \end{align} where $\theta_d$ corresponds to strength of general diplomacy, $\zeta_d$ corresponds to strength of entity-specific concerns, and $\epsilon_d$ corresponds to strength of events; $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we find that exponential decay, as in \Cref{eq:f}, performs well.
 
@@ -94,13 +94,13 @@ filter the corpus to find important messages.
 
 % Similar to topic modeling, we represent the contents of each document in topic space; each document $d$ has a $(K+1)$-dimensional latent parameter $\theta_d$ to describe the particular contents of that document.  Unlike traditional topic models, each document $d$'s topics depend on the concerns of the author $a_d$; each document topic $\theta_{d,k}$ is drawn from a gamma distribution parameterized by the corresponding author concerns $\phi_{a_d,k}$: $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$.
 
-% To represent events, we consider discrete intervals of time.  Each interval $t$ has a corresponding interval strength $\psi_t$ and description $\pi_t$.  Event strengths are a single value for each interval $t$, and are drawn from a gamma distribution: $\psi_{n,k} \sim \mbox{Gamma}(s_\psi, r_\psi)$.  These strengths indicate how important the interval is in determining message content.  Interval descriptions are similar to topics: each description is a $V$-dimensional vector drawn from a Dirichlet distribution over the vocabulary terms, or $\pi_k \sim \mbox{Dirichlet}_V (\alpha_\pi).$
+% To represent events, we consider discrete intervals of time.  Each interval $t$ has a corresponding interval strength $\psi_t$ and description $\gamma_t$.  Event strengths are a single value for each interval $t$, and are drawn from a gamma distribution: $\psi_{n,k} \sim \mbox{Gamma}(s_\psi, r_\psi)$.  These strengths indicate how important the interval is in determining message content.  Interval descriptions are similar to topics: each description is a $V$-dimensional vector drawn from a Dirichlet distribution over the vocabulary terms, or $\gamma_k \sim \mbox{Dirichlet}_V (\alpha_\gamma).$
 
 % Just as we describe each document $d$ in terms of relevant topics with the $\theta_d$ parameters, we also describe the relevancy of each time interval with the $\epsilon_d$ parameters.  These interval relevancy parameters are drawn from gamma distributions and depend on the overall strength $\psi$ of the corresponding interval; for interval $t$ and document $d$ (written at time $i_d$), we have $\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$.
 
-% Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document word counts came to be.  For document $d$ and vocabulary term $v$, we generate the word counts form a Poisson distribution parameterized by the documents topics $\theta_d$ and relevant events $\epsilon$, as well as global topic $\beta$ and event descriptions $\pi$:
+% Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document word counts came to be.  For document $d$ and vocabulary term $v$, we generate the word counts form a Poisson distribution parameterized by the documents topics $\theta_d$ and relevant events $\epsilon$, as well as global topic $\beta$ and event descriptions $\gamma$:
 % \begin{equation}
-% w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta^{(a_d)}_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}\right),
+% w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta^{(a_d)}_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v}\right),
 % \label{eq:generateData}
 % \end{equation}
 % where $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we consider step functions, linear decay, and exponential decay.  Figure~\ref{fig:generative-model} gives the full generative process for Capsule.
@@ -112,7 +112,7 @@ filter the corpus to find important messages.
 \begin{itemize}[leftmargin=*]
 \item for each time step $t=$~1:$T$,
 	\begin{itemize}[leftmargin=*]
-	\item draw interval description over vocabulary \\(event topic) $\pi_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw interval description over vocabulary \\(event topic) $\gamma_t \sim \mbox{Dirichlet}_V (\alpha)$
 	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
 \item for each entity $n=$~1:$N$,
@@ -137,11 +137,11 @@ filter the corpus to find important messages.
 		\end{itemize}
 	\item for each time $t=$~1:$T$,
 		\begin{itemize}[leftmargin=*]
-			\item draw local interval relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$ 
+			\item draw local interval relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{t})$ 
 		\end{itemize}
 	\item for each vocabulary term $v=$~1:$V$,
 		\begin{itemize}[leftmargin=*]
-			\item set $\lambda_{d,v} = \\ \theta_d^\top\beta_v  + \zeta_d \eta_{a_d} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \pi_{t,v}$
+			\item set $\lambda_{d,v} = \\ \theta_d^\top\beta_v  + \zeta_d \eta_{a_d} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v}$
 			\item draw word counts $w_{d,v} \sim \mbox{Poisson}\left(\lambda_{d,v}\right)$
 		\end{itemize}
 	\end{itemize}
@@ -160,7 +160,7 @@ m_t = \E[\psi_t] \frac{1}{\vert D_t \vert} \sum_{d \in D_t} \E[\epsilon_{d,t},]
 \end{equation}
 where $D_t$ is the set of all cables sent in interval $t$. This measure of ``eventness'' provides a scaled estimate of the number of words that are related to an real-world event in that interval.  Figure~\ref{fig:cables_events} shows events detected with this metric.
 
-Given an identified event, we can characterize it in terms of its top terms under $\pi$, but we can also use event relevancy parameters $\epsilon$ to sort documents; Section~\ref{sec:eval} explores relevant documents for events found in the National Archive diplomatic cables data.
+Given an identified event, we can characterize it in terms of its top terms under $\gamma$, but we can also use event relevancy parameters $\epsilon$ to sort documents; Section~\ref{sec:eval} explores relevant documents for events found in the National Archive diplomatic cables data.
 In addition to detecting and characterizing events, Capsule can be used to explore entity concerns and the general themes in a given collection.\footnote{Upon publication, we will release code for a pipeline to visualize and explore a corpus, given a Capsule fit.}
 
 There are connections between Capsule and recent work on Poisson
@@ -171,7 +171,7 @@ that word use from one entity can ``excite'' word use in another, which
 suggests a close relationship to Hawkes processes~\cite{hawkes1971spectra}.
 
 \parhead{Learning the hidden variables.}
-In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\pi$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
+In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\gamma$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
 
 As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{jordan1999introduction},\footnote{Source code is available at https://github.com/?????/capsule.} which is detailed in Appendix~\ref{sec:inference}. This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
