@@ -25,8 +25,6 @@ struct model_settings {
     double b_xi;
     double a_theta;
 
-    double a_iota;
-    double b_iota;
     double a_epsilon;
     double a_zeta;
     double a_pi;
@@ -34,7 +32,6 @@ struct model_settings {
     double a_eta;
 
     bool incl_topics;
-    bool incl_intercept;
     bool incl_entity;
     bool incl_events;
 
@@ -61,10 +58,9 @@ struct model_settings {
 
     void set(bool print, string out, string data, bool use_svi,
              double aphi, double bphi, double apsi, double bpsi, double axi, double bxi,
-             double aiot, double biot,
              double athe, double aeps, double azet,
              double api, double abet, double aeta,
-             bool topics, bool interc, bool entity, bool event, int dur, string decay,
+             bool topics, bool entity, bool event, int dur, string decay,
              long rand, int savef, int evalf, int convf,
              int iter_max, int iter_min, double delta, bool overw,
              bool finalpass,
@@ -83,8 +79,6 @@ struct model_settings {
         b_psi     = bpsi;
         a_xi      = axi;
         b_xi      = bxi;
-        a_iota    = aiot;
-        b_iota    = biot;
         a_theta   = athe;
         a_epsilon = aeps;
         a_zeta    = azet;
@@ -93,7 +87,6 @@ struct model_settings {
         a_eta     = aeta;
 
         incl_topics = topics;
-        incl_intercept = interc;
         incl_entity = entity;
         incl_events = event;
 
@@ -134,8 +127,6 @@ struct model_settings {
         fprintf(file, "\nmodel specification includes:\n");
         if (incl_topics)
             fprintf(file, "\ttopic factors\n");
-        if (incl_intercept)
-            fprintf(file, "\tterm intercepts\n");
         if (incl_entity)
             fprintf(file, "\tentity factors\n");
         if (incl_events)
@@ -154,9 +145,6 @@ struct model_settings {
             fprintf(file, "\tphi      (%.2f, %.2f)\n", a_phi, b_phi);
             fprintf(file, "\ttheta    (%.2f, ---)\n", a_theta);
             fprintf(file, "\tbeta     (%.2f, 1.0)\n", a_beta);
-        }
-        if (incl_intercept) {
-            fprintf(file, "\tiota    (%.2f, %.2f)\n", a_iota, b_iota);
         }
         if (incl_entity) {
             fprintf(file, "\txi       (%.2f, %.2f)\n", a_xi, b_xi);
@@ -211,7 +199,6 @@ class Capsule {
         fmat logphi;  // log variants of above
         fvec logpsi;
         fvec logxi;
-        fvec iota;
         fmat logtheta;
         sp_fmat logepsilon;
         fvec logzeta;
@@ -228,8 +215,6 @@ class Capsule {
         fvec b_psi;
         fvec a_xi;
         fvec b_xi;
-        fvec a_iota;
-        fvec b_iota;
         fmat a_theta;
         fmat b_theta;
         sp_fmat a_epsilon;
@@ -245,11 +230,10 @@ class Capsule {
         fvec b_psi_old;
         fvec a_xi_old;
         fvec b_xi_old;
-        fvec a_iota_old;
-        fvec b_iota_old;
         fmat a_beta_old;
         fmat a_pi_old;
         fmat a_eta_old;
+        sp_fmat event_cells;
 
         // random number generator
         gsl_rng* rand_gen;
@@ -266,7 +250,6 @@ class Capsule {
         void update_phi(int entity);
         void update_psi(int date);
         void update_xi(int entity);
-        void update_iota(int iteration);
         void update_theta(int doc);
         void update_epsilon(int doc, int date);
         void update_zeta(int doc);

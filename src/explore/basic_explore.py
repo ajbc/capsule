@@ -57,7 +57,8 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
 # WARNING: this requires daily time intervals
 def get_date(time):
     if time not in date_map:
-        date_map[time] = get_date(time-1) + timedelta(days=1)
+        #date_map[time] = get_date(time-1) + timedelta(days=1)
+        date_map[time] = get_date(time-1) + timedelta(days=7)
     return date_map[time]
 
 # event topics
@@ -236,15 +237,3 @@ for line in open(os.path.join(fit_dir, 'theta-%04d.dat' % iter_id)):
 
 
 '''
-fout = open(os.path.join(fit_dir, "topics_term_intercept_%s.dat" % iter_id), 'w+')
-terms = []
-for line in open(os.path.join(fit_dir, "iota-%s.dat" % iter_id)):
-    term, val, a, bs= line.strip().split('\t')
-    terms.append(float(val))
-terms = dict(zip(vocab, terms))
-topterms = sorted(terms, key=lambda t: -terms[t])
-for term in topterms:
-    fout.write("%s\n" % term)
-fout.close()
-
-## Events

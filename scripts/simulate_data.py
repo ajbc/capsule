@@ -1,22 +1,20 @@
 import numpy as np
 import sys
-##########np.random.seed(238956)#13)
-#np.random.seed(int(sys.argv[1]))
-np.random.seed(int(sys.argv[3]))
+np.random.seed(int(sys.argv[2]))
 
-D = int(sys.argv[9]) # number of days
+D = 100 # number of days
 N = 10 # number of entities
-cable_rate = 100
-K = int(sys.argv[4]) # latent components
+cable_rate = 200
+K = 10 # latent components
 V = 1000 # vocabulary size
-alpha = float(sys.argv[8]) # controls proportion; bigger means more even topics, smaller means less even
-shp = float(sys.argv[5]) # bigger => bigger mean
-rte = float(sys.argv[6]) # bigger => smaller mean, lower variance
-lcl_shp = float(sys.argv[7]) # was 0.1
+alpha = 0.01 # controls proportion; bigger means more even topics, smaller means less even
+shp = 1.0 # bigger => bigger mean
+rte = 1.0 # bigger => smaller mean, lower variance
+lcl_shp = 0.1 # local document proportions
 
-dur = int(sys.argv[1]) # duration of event
+dur = 3 # duration of event
 n_freq = np.random.dirichlet(alpha=np.ones(N)*50.) # proportion of messages
-shape = sys.argv[2] # option: step, linear, exp
+shape = sys.argv[1] # option: step, linear, exp
 if shape not in ["step", "linear", "exp"]:
     print "bad decay shape"
     sys.exit(-1)
@@ -32,8 +30,12 @@ for k in range(K):
     topics.append(np.random.dirichlet(alpha=np.ones(V)*alpha))
 
 concerns = []
+senderconcerns = []
+sendertopics = []
 for n in range(N):
     concerns.append(np.random.gamma(shp, 1./rte, K))
+    senderconcerns.append(np.random.gamma(shp, 1./rte, 1))
+    sendertopics.append(np.random.dirichlet(alpha=np.ones(V)*alpha))
 
 cables = np.random.poisson(cable_rate, D)
 senders = []
@@ -54,6 +56,7 @@ fout7 = open("local_concerns.tsv", 'w+')
 fout8 = open("local_events.tsv", 'w+')
 fout7.write("doc\ttopic\tvalue\n")
 fout8.write("doc\tevent\tvalue\n")
+fout10 = open("eventness.dat",  'w+')
 
 fout5.write("day\tstrength\n")
 fout3.write("day\tterm\tvalue\n")
@@ -77,6 +80,8 @@ for k in range(K):
 fout6.close()
 
 doc = 0
+eventness = np.zeros(D)
+eventness_denom = np.zeros(D)
 for i in range(D):
     print "DAY", i, "***********"
     print "# of cables for today:", cables[i]
@@ -89,24 +94,24 @@ for i in range(D):
         while notdone:
             # draw local event and entity params
             theta = np.random.gamma(lcl_shp, 1.0/concerns[sender])
+            zeta = np.random.gamma(lcl_shp, 1.0/senderconcerns[sender])
             epsilon = np.random.gamma(lcl_shp, 1.0/eventStren)
-
-            #TODO: write out
-
+            feps = epsilon
             mean = np.zeros(V)
-            if shape != "exp":
-                for j in range(max(i-dur+1,0),i+1):
-                    if shape == "linear":
-                        f = 1 - ((0.0+i-j)/dur)
-                    else:
+            denom = 0
+            for d in range(D):
+                f = 0.0
+                if i >= d and i < d + dur:
+                    if shape == 'exp':
+                        f = np.exp(- (i - d) / (dur/5.0));
+                    if shape == "step":
                         f = 1.0
-                    #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
-                    mean += eventDescr[j] * f * epsilon[j]
-            else:
-                for j in range(0,i+1):
-                    f = np.exp(-(0.0+i-j)/dur)
-                    #print '\tadding in %e x event %d (day %d, duration %d)' % (f, j, i, dur)
-                    mean += eventDescr[j] * f * epsilon[j]
+                    if shape == "linear":
+                        f = (1.0-(0.0+i-d)/dur);
+                feps[d] = epsilon[d] * f
+                denom += f
+                mean += eventDescr[d] * feps[d]
+            mean += zeta * sendertopics[sender]
             mean += np.array(np.matrix(theta) * np.matrix(topics))[0]
             content = np.zeros(V)
             redo_count = 0
@@ -118,15 +123,14 @@ for i in range(D):
                 #print "doc", doc, "words", np.count_nonzero(content)
             if redo_count < 10:
                 notdone = False
+        eventness += feps / (feps.sum() + theta.sum() + zeta)
+        eventness_denom += denom
 
         for k in range(K):
             fout7.write('%d\t%d\t%e\n' % (doc, k, theta[k]))
-        if shape == "exp":
-            for j in range(0,i+1):
-                fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
-        else:
-            for j in range(max(i-dur+1,0),i+1):
-                fout8.write('%d\t%d\t%e\n' % (doc, j, epsilon[j]))
+        for d in range(D):
+            if feps[d] != 0:
+                fout8.write('%d\t%d\t%e\t%e\n' % (doc, d, epsilon[d], feps[d]))
 
         for t in range(V):
             if content[t] == 0:
@@ -140,6 +144,10 @@ for i in range(D):
                 fout2a.write("%d\t%d\t%d\n" % (doc, t, content[t]))
 
         doc += 1
+
+for date in range(len(eventness)):
+    fout10.write("%d\t%f\n" % (date, eventness[date] / eventness_denom[date]))
+fout10.close()
 
 fout.close()
 fout2a.close()

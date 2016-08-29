@@ -1,4 +1,3 @@
-#CC = g++ -O3 -larmadillo -lgsl -Wall -fopenmp
 CC = g++ -O3 -larmadillo -lgsl -Wall
 
 LSOURCE = main.cpp utils.cpp data.cpp capsule.cpp

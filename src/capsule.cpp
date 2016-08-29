@@ -38,16 +38,6 @@ Capsule::Capsule(model_settings* model_set, Data* dataset) {
         b_theta = fmat(settings->k, data->doc_count());
     }
 
-    if (settings->incl_intercept) {
-        iota = fvec(data->term_count());
-        a_iota = fvec(data->term_count());
-        b_iota = fvec(data->term_count());
-        a_iota_old = fvec(data->term_count());
-        a_iota_old.fill(settings->a_iota);
-        b_iota_old = fvec(data->term_count());
-        b_iota_old.fill(settings->b_iota);
-    }
-
     if (settings->incl_events) {
         printf("\t\tevent parameters\n");
         // pi: event descriptions
@@ -147,6 +137,21 @@ void Capsule::learn() {
     bool converged = false;
     bool on_final_pass = false;
 
+    int doc, term, count, entity, date;
+
+    set<int> terms;
+    set<int> entities;
+    set<int> dates;
+    if (!settings->svi) {
+        printf("itemizing terms, entities, and dates\n");
+        for (term = 0; term < data->term_count(); term++)
+            terms.insert(term);
+        for (entity = 0; entity < data->entity_count(); entity++)
+            entities.insert(entity);
+        for (date = 0; date < data->date_count(); date++)
+            dates.insert(date);
+    }
+
     while (!converged) {
         time(&start_time);
         iteration++;
@@ -154,16 +159,16 @@ void Capsule::learn() {
 
         reset_helper_params();
 
-        set<int> terms;
-        set<int> entities;
-        set<int> dates;
-        int doc, term, count, entity, date;
+        if (settings->svi) {
+            terms.clear();
+            entities.clear();
+            dates.clear();
+        }
 
         time_t sst, st, et;
         time(&sst);
         time(&st);
 
-        //#pragma omp parallel for num_threads(2) default(shared) private(doc, term, count, entity, date, st, et)
         for (int i = 0; i < settings->sample_size; i++) {
             if (settings->svi) {
                 doc = gsl_rng_uniform_int(rand_gen, data->train_doc_count());
@@ -179,15 +184,16 @@ void Capsule::learn() {
 
             int entity = data->get_entity(doc);
 
-            //#pragma omp critical
-            entities.insert(entity);
+            if (settings->svi)
+                entities.insert(entity);
 
             date = data->get_date(doc);
             if (settings->incl_events) {
                 for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
-                    //#pragma omp critical
-                    dates.insert(d);
-                    a_epsilon(d, doc) = settings->a_epsilon;
+                    if (settings->svi) {
+                        dates.insert(d);
+                        a_epsilon(d, doc) = settings->a_epsilon;
+                    }
                     b_epsilon(d, doc) = decay(date, d) * accu(pi.row(d));
                 }
             }
@@ -195,8 +201,8 @@ void Capsule::learn() {
             // look at all the document's terms
             for (int j = 0; j < data->term_count(doc); j++) {
                 term = data->get_term(doc, j);
-                //#pragma omp critical
-                terms.insert(term);
+                if (settings->svi)
+                    terms.insert(term);
 
                 count = data->get_term_count(doc, j);
                 update_shape(doc, term, count);
@@ -218,9 +224,7 @@ void Capsule::learn() {
             if (settings->incl_entity) {
                 b_zeta(doc) = xi(entity) + accu(eta.row(entity));
                 update_zeta(doc);
-                //#pragma omp atomic
                 a_xi(entity) += settings->a_zeta * ent_scale[entity];
-                //#pragma omp atomic
                 b_xi(entity) += zeta(doc) * ent_scale[entity];
             }
 
@@ -230,10 +234,6 @@ void Capsule::learn() {
                     b_phi(k, entity) += theta(k, doc) * scale;
                 }
             }
-        }
-
-        if (settings->incl_intercept) {
-            update_iota(iteration);
         }
 
         set<int>::iterator it;
@@ -345,8 +345,6 @@ void Capsule::learn() {
 
 double Capsule::predict(int doc, int term) {
     double prediction = 0;
-    if (settings->incl_intercept)
-        prediction += iota(term);
 
     if (settings->incl_topics)
         prediction += accu(theta.col(doc) % beta.col(term));
@@ -415,10 +413,6 @@ void Capsule::evaluate(string label, bool write_rankings) {
 /* PRIVATE */
 
 void Capsule::initialize_parameters() {
-    if (settings->incl_intercept) {
-        iota.fill(settings->a_iota / settings->b_iota);
-    }
-
     if (settings->incl_topics) {
         printf("\t\ttopic parameters\n");
         // entity concerns
@@ -432,9 +426,14 @@ void Capsule::initialize_parameters() {
         // topics
         for (int k = 0; k < settings->k; k++) {
             for (int v = 0; v < data->term_count(); v++) {
-                beta(k, v) = (settings->a_beta +
-                    gsl_rng_uniform_pos(rand_gen));
-                logbeta(k, v) = gsl_sf_psi(beta(k, v));
+                if (k == 0) {
+                    beta(k, v) = (float)data->term_count(v) / (float)data->total_terms();
+                } else {
+                    beta(k, v) = (settings->a_beta +
+                        gsl_rng_uniform_pos(rand_gen));
+                }
+                if (beta(k, v) != 0)
+                    logbeta(k, v) = gsl_sf_psi(beta(k, v));
             }
             logbeta.row(k) -= log(accu(beta.row(k)));
             beta.row(k) /= accu(beta.row(k));
@@ -507,9 +506,10 @@ void Capsule::initialize_parameters() {
                 v++;
             }
         }
-        sp_fmat event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
+        event_cells = sp_fmat(locations, values, data->date_count(), data->doc_count());
         epsilon = event_cells * (settings->a_epsilon / (settings->a_psi / settings->b_psi));
         logepsilon = event_cells * (gsl_sf_psi(settings->a_theta) - log(settings->a_psi / settings->b_psi));
+        b_epsilon = event_cells * 1.0; //placeholder to create the correct shape matrix (a_eps is done in reset)
     }
 }
 
@@ -520,8 +520,6 @@ void Capsule::reset_helper_params() {
     b_psi.fill(settings->b_psi);
     a_xi.fill(settings->a_xi);
     b_xi.fill(settings->b_xi);
-    a_iota.fill(settings->a_iota);
-    b_iota.fill(settings->b_iota);
     a_theta.fill(settings->a_theta);
     b_theta.fill(0.0);
     a_zeta.fill(settings->a_zeta);
@@ -529,21 +527,13 @@ void Capsule::reset_helper_params() {
     a_beta.fill(settings->a_beta);
     a_pi.fill(settings->a_pi);
     a_eta.fill(settings->a_eta);
+    if (!settings->svi) {
+        a_epsilon = event_cells * settings->a_epsilon;
+    }
 }
 
 void Capsule::save_parameters(string label) {
     FILE* file;
-
-    if (settings->incl_intercept) {
-        // write out iota
-        file = fopen((settings->outdir+"/iota-"+label+".dat").c_str(), "w");
-        for (int term = 0; term < data->term_count(); term++) {
-            fprintf(file, "%d\t%e\t%e\t%e\n", term, iota(term), a_iota(term), b_iota(term));
-        }
-        fclose(file);
-
-
-    }
 
     if (settings->incl_topics) {
         int k;
@@ -670,7 +660,6 @@ void Capsule::save_parameters(string label) {
             remove((settings->outdir+"/beta-"+last_save+".dat").c_str());
             remove((settings->outdir+"/a_beta-"+last_save+".dat").c_str());
             remove((settings->outdir+"/theta-"+last_save+".dat").c_str());
-            remove((settings->outdir+"/iota-"+last_save+".dat").c_str());
         }
 
         if (settings->incl_entity) {
@@ -698,9 +687,6 @@ void Capsule::update_shape(int doc, int term, int count) {
 
     fvec omega_topics, omega_event;
     double omega_entity = 0;
-    if (settings->incl_intercept) {
-        omega_sum += iota(term);
-    }
 
     if (settings->incl_topics) {
         omega_topics = exp(logtheta.col(doc) + logbeta.col(term));
@@ -723,30 +709,22 @@ void Capsule::update_shape(int doc, int term, int count) {
     if (omega_sum == 0)
         return;
 
-    if (settings->incl_intercept) {
-        a_iota(term) += (iota(term) / omega_sum) * scale;
-        b_iota(term) += 1 * scale;
-    }
-
     if (settings->incl_topics) {
-        omega_topics /= omega_sum * count;
+        omega_topics *= count / omega_sum;
         a_theta.col(doc) += omega_topics;
-        //#pragma omp critical
         a_beta.col(term) += omega_topics * scale;
     }
 
     if (settings->incl_entity) {
-        omega_entity /= omega_sum;
+        omega_entity *= count / omega_sum;
         a_zeta(doc) += omega_entity;
-        //#pragma omp atomic
         a_eta(entity, term) += omega_entity * ent_scale[entity];
     }
 
     if (settings->incl_events) {
-        omega_event /= omega_sum * count;
+        omega_event *= count / omega_sum;
         for (int d = max(0, date - settings->event_dur + 1); d <= date; d++) {
             a_epsilon(d, doc) += omega_event[d];
-            //#pragma omp atomic
             a_pi(d, term) += omega_event[d] * evt_scale[d];
         }
     }
@@ -796,19 +774,6 @@ void Capsule::update_xi(int entity) {
     logxi(entity) = gsl_sf_psi(a_xi(entity)) - log(b_xi(entity));
 }
 
-void Capsule::update_iota(int iteration) {
-    if (settings->svi) {
-        double rho = pow(iteration + settings->delay,
-            -1 * settings->forget);
-        a_iota = (1 - rho) * a_iota_old + rho * a_iota;
-        a_iota_old = a_iota * 1.0;
-        b_iota = (1 - rho) * b_iota_old + rho * b_iota;
-        b_iota_old = b_iota * 1.0;
-    }
-
-    iota = a_iota / b_iota;
-}
-
 void Capsule::update_theta(int doc) {
     for (int k = 0; k < settings->k; k++) {
         theta(k, doc) = a_theta(k, doc) / b_theta(k, doc);
@@ -855,7 +820,7 @@ void Capsule::update_eta(int iteration) {
         double rho = pow(iteration + settings->delay,
             -1 * settings->forget);
         a_eta = (1 - rho) * a_eta_old + rho * a_eta;
-        a_eta_old = a_eta * 1.0;
+        a_eta_old = a_eta + 0.0;
     }
 
     for (int n = 0; n < data->entity_count(); n++) {
@@ -1020,8 +985,6 @@ double Capsule::elbo_extra() {
         rvtotal -= p_gamma(zeta, a_zeta, b_zeta);
         rvtotal -= p_gamma(xi, a_xi, b_xi);
     }
-
-    // TODO: add incl_intercept
 
     if (settings->incl_topics) {
         rvtotal -= p_dir(beta, a_beta);
