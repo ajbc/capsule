@@ -2,17 +2,24 @@ import sys, os
 import numpy as np
 from collections import defaultdict
 
-fit_dir = sys.argv[1]
+dat_dir = sys.argv[1]
+fit_dir = sys.argv[2]
 
-if sys.argv[2] == 'final':
+if sys.argv[3] == 'final':
     iter_id = 'final'
 else:
-    iter_id = '%04d' % int(sys.argv[2])
+    iter_id = '%04d' % int(sys.argv[3])
 
 epsilon = np.loadtxt(os.path.join(fit_dir, 'epsilon-%s.dat' % iter_id))
 theta = np.loadtxt(os.path.join(fit_dir, 'theta-%s.dat' % iter_id))[:,1:]
 zeta = np.loadtxt(os.path.join(fit_dir, 'zeta-%s.dat' % iter_id))[:,1:]
 
+Nwords = defaultdict(int)
+for line in open(os.path.join(dat_dir, "train.tsv")):
+    doc, term, count = [int(t) for t in line.strip().split('\t')]
+    Nwords[doc] += count
+
+#cumulative = np.zeros(max(Nwords.keys())+1) # event only
 cumulative = np.sum(theta,1) + np.sum(zeta,1)
 for doc, time, eps, feps in epsilon:
     cumulative[int(doc)] += feps
@@ -20,12 +27,23 @@ for doc, time, eps, feps in epsilon:
 
 eventness = defaultdict(float)
 dc = defaultdict(float)
+eventness2 = defaultdict(float)
+dc2 = defaultdict(float)
+eventness3 = defaultdict(float)
+dc3 = defaultdict(float)
 for doc, time, eps, feps in epsilon:
     eventness[int(time)] += feps / cumulative[int(doc)]
     dc[int(time)] += feps / eps
+    eventness2[int(time)] += (feps / cumulative[int(doc)]) * Nwords[int(doc)]
+    dc2[int(time)] += (feps / eps) * Nwords[int(doc)]
+    eventness3[int(time)] += feps
+    dc3[int(time)] += 1.0
 
 for time in eventness:
-    print time, eventness[time], dc[time], (eventness[time]/dc[time])
+    #print time, eventness[time], dc[time], (eventness[time]/dc[time]), (
+    print time, (eventness[time]/dc[time]), (eventness2[time]/dc2[time]), (eventness3[time]/dc3[time])
+
+
 
 '''
 i0  284 5.076742e-01    4.167243e-02
