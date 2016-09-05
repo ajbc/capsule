@@ -48,13 +48,13 @@ and messages from the same interval share the event topics.
 \toprule
 topic type & top terms \\
 \midrule
-general & plan, visit, arrival, itinerary, visitor\\
-entity & soviet, moscow, embasy, ussr, meet \\
-event & vietnam, evacuation, evacuate, missionary \\
+general & visit, hotel, schedule, arrival \\
+entity & soviet, moscow, ussr, agreement \\
+event & saigon, evacuation, vietnam, help \\
 \bottomrule
 \end{tabular}
-\label{tab:3topics}
 \caption{Top vocabulary terms for examples of each of the three topic varieties; these three types of topics blend to form the distribution of each message.  They come from the model fit we discuss in \Cref{sec:eval}.}
+\label{tab:3topics}
 \end{table}
 
 Examples of these three types of topics are in \Cref{tab:3topics}---the general topic 
@@ -77,12 +77,15 @@ the topics. The distributions of general and entity topic strengths are defined
 hierarchically by entity, capturing the different topics that each
 entity tends to discuss.  The prior on the entity strength is
 also defined hierarchically; different weeks are more or less
-``eventful.'' The full generative process is in \Cref{fig:generative-model}.
+``eventful.'' The graphical model is shown in \Cref{fig:graphicalmodel} and the generative process is in \Cref{fig:generative-model}.
 
-Given a collection of messages, posterior inference uncovers the
-different types of topics and how each message exhibits them. We will
-see below, how inferences about the event strengths enable us to
-filter the corpus to find important messages.
+\begin{figure}[bt]
+\centering
+\includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
+\caption{The graphical model for Capsule.  Observed words $w$ depend on general topics $\beta$, entity-specific topics $\eta$, and event topics $\gamma$, as well as document representations $\theta$, $\xi$, and $\epsilon$.  Variables $\phi$ and $\zeta$ represent entity concerns (with general topics and entity-specific topics, respectively) and $\psi$ represents the event strength of a given time interval.  Hyper-parameters are indicated by black squares, but not labeled for visual simplicity.}
+\label{fig:graphicalmodel}
+\end{figure}
+
 
 %%%%%%
 % As in topic modeling, we represent the general topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$ 
@@ -106,13 +109,14 @@ filter the corpus to find important messages.
 % where $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we consider step functions, linear decay, and exponential decay.  Figure~\ref{fig:generative-model} gives the full generative process for Capsule.
 
 
-\begin{figure}[htb]
-\begin{mdframed}
+\begin{figure}[!ht]
+\begin{mdframed}[userdefinedwidth=3.0in,align=center]
 \small
 \begin{itemize}[leftmargin=*]
 \item for each time step $t=$~1:$T$,
 	\begin{itemize}[leftmargin=*]
-	\item draw interval description over vocabulary \\(event topic) $\gamma_t \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw interval description over vocabulary \\
+	(event topic) $\gamma_t \sim \mbox{Dirichlet}_V (\alpha)$
 	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
 	\end{itemize}
 \item for each entity $n=$~1:$N$,
@@ -122,13 +126,13 @@ filter the corpus to find important messages.
 	\end{itemize}
 \item for each topic $k=$~1:$K$,
 	\begin{itemize}[leftmargin=*]
-	\item draw general topic distribution over vocabulary \\$\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
+	\item draw general topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
 	\item for each entity $n=$~1:$N$,
 		\begin{itemize}[leftmargin=*]
 		\item draw general entity concern \\$\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
 		\end{itemize}
 	\end{itemize}
-\item for each document $d=$~1:$D$ sent at time $i_d$ by author $a_d$,
+\item for each document $d=$~1:$D$ sent at time $i_d$ by\\author $a_d$,
 	\begin{itemize}[leftmargin=*]
 	\item draw local entity concern \\$\zeta_{d} \sim \mbox{Gamma}(s_\zeta, \xi_{a_d})$
 	\item for each topic $k=$~1:$K$,
@@ -141,8 +145,8 @@ filter the corpus to find important messages.
 		\end{itemize}
 	\item for each vocabulary term $v=$~1:$V$,
 		\begin{itemize}[leftmargin=*]
-			\item set $\lambda_{d,v} = \\ \theta_d^\top\beta_v  + \zeta_d \eta_{a_d} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v}$
-			\item draw word counts $w_{d,v} \sim \mbox{Poisson}\left(\lambda_{d,v}\right)$
+			\item set $\lambda_{d,v} = \theta_d^\top\beta_v  + \zeta_d \eta_{a_d} +$\\$ \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v}$
+			\item draw word counts \\$w_{d,v} \sim \mbox{Poisson}\left(\lambda_{d,v}\right)$
 		\end{itemize}
 	\end{itemize}
 \end{itemize}
@@ -151,17 +155,10 @@ filter the corpus to find important messages.
 \label{fig:generative-model}
 \end{figure}
 
-
-\parhead{Detecting and characterizing events.} 
-Once we estimate the posterior distribution of the Capsule parameters, we can use the expectations of the latent parameters to explore the original data.  To detect events, we average the per-document event relevancy parameters $\epsilon$ for each document in the interval and multiply it by the interval strength $\psi$:
-\begin{equation}
-m_t = \E[\psi_t] \frac{1}{\vert D_t \vert} \sum_{d \in D_t} \E[\epsilon_{d,t},]
-\label{eq:eventness}
-\end{equation}
-where $D_t$ is the set of all cables sent in interval $t$. This measure of ``eventness'' provides a scaled estimate of the number of words that are related to an real-world event in that interval.  Figure~\ref{fig:cables_events} shows events detected with this metric.
-
-Given an identified event, we can characterize it in terms of its top terms under $\gamma$, but we can also use event relevancy parameters $\epsilon$ to sort documents; Section~\ref{sec:eval} explores relevant documents for events found in the National Archive diplomatic cables data.
-In addition to detecting and characterizing events, Capsule can be used to explore entity concerns and the general themes in a given collection.\footnote{Upon publication, we will release code for a pipeline to visualize and explore a corpus, given a Capsule fit.}
+Given a collection of messages, posterior inference uncovers the
+different types of topics and how each message exhibits them. We will
+see below, how inferences about the event strengths enable us to
+filter the corpus to find important messages.
 
 There are connections between Capsule and recent work on Poisson
 processes. In particular, we can interpret Capsule as a collection of
@@ -170,20 +167,32 @@ measures. Further, marginalizing out the event strength prior reveals
 that word use from one entity can ``excite'' word use in another, which
 suggests a close relationship to Hawkes processes~\cite{hawkes1971spectra}.
 
+
+\parhead{Detecting and characterizing events.} 
+Once we estimate the posterior distribution of the Capsule parameters, described in the following section, we can use the expectations of the latent parameters to explore the original data.  To detect events, we consider the proportion of the document about event $j$, and take a weighted average of these proportions:
+\begin{equation*}
+m_j = \frac{1}{\sum_{d} f(i_d, j)} \sum_{d}\frac{\varepsilon_{d,j}}{\zeta_d + \sum_{t} \varepsilon_{d,t} + \sum_{k} \E[\theta_{d,k}] },
+\label{eq:eventness}
+\end{equation*}
+where $\varepsilon_{d,t} = f(i_d, t) \E[\epsilon_{d,t}]$.
+This measure of ``eventness'' provides an estimate of the proportion of words that are related to a real-world event in that interval.  Figure~\ref{fig:cables_events} shows events detected with this metric.
+
+Given an identified event, we can characterize it in terms of its top terms under $\gamma$, but we can also use weighted event relevancy parameters $\varepsilon_{d,t}$ to sort documents; \Cref{sec:eval} explores relevant documents for events found in the National Archive diplomatic cables data.
+In addition to detecting and characterizing events, Capsule can be used to explore entity concerns and the general themes in a given collection.
+
+To make Capsule more accessible, we developed an open source tool for visualizing its results.\footnote{Source code: \url{https://github.com/ajbc/capsule-viz}; demo: \url{http://www.princeton.edu/~achaney/capsule/}.}  Our tool creates a navigator of the documents and latent parameters, allowing users to explore events, entities, topics, and the original documents.  Figure~\ref{fig:viz} shows several screenshots of this browsing interface.
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{fig/viz.png}
+\caption{Screenshots of Capsule visualization of US State Department cables.  Top-left: events over time (similar to \Cref{fig:cables_events}).  Right-top: entities shown on a map.  Bottom: time interval summary, including top terms, relevant documents, and text scraped from Wikipedia.}
+\label{fig:viz}
+\end{figure}
+
+
 \parhead{Learning the hidden variables.}
 In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\gamma$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{jordan1999introduction},\footnote{Source code is available at https://github.com/?????/capsule.} which is detailed in Appendix~\ref{sec:inference}. This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999},\footnote{Source code is available at \url{https://github.com/ajbc/capsule}.} which is detailed in \Cref{sec:inference}.\footnote{Appendices are located in the supplemental materials document.} This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
 
-
-% \parhead{Visualization.}
-% Capsule is a high-level statistical tool. In order to understand and explore its results, a user must scrutinize numerical distributions.
-% To make Capsule more accessible, we developed an open source tool for visualizing its results.\footnote{Source code: https://github.com/?????/capsule-viz.}  Our tool creates a navigator of the documents and latent parameters, allowing users to explore events, entities, topics, and the original documents.  Figure~\ref{fig:viz} shows several screenshots of this browsing interface.
-
-% \begin{figure}
-% \centering
-% \includegraphics[width=\linewidth]{fig/viz.png}
-% \caption{Screenshots of Capsule visualization of US State Department cables.  Left: top words in a topic (manually labeled topic title).  Center-top: events over time (height is volume of messages sent, color is probability of an event occurring).  Center-bottom: topics for an event on <date TODO: cyprus coup?>.  Right-top: cyprus entity topics? TODO.  Right-bottom: entities shown on a map.}
-% \label{fig:viz}
-% \end{figure}
 

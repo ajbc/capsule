@@ -1,0 +1,150 @@
+0,Capsule,AUC,0.879596
+0,Event Only,AUC,0.720202
+0,random (1k ave),AUC,0.691515
+0,word.outlier,AUC,0.722828
+0,word.outlier.tfidf,AUC,0.724040
+0,total.word.dev,AUC,0.710707
+0,total.tfidf.dev,AUC,0.704444
+0,ave.word.dev,AUC,0.690303
+0,ave.tfidf.dev,AUC,0.693333
+0,doc.outlier,AUC,0.722222
+0,doc.outlier.tfidf,AUC,0.719596
+0,total.doc.dev,AUC,0.714545
+0,total.doc.tfidf.dev,AUC,0.698788
+0,ave.doc.dev,AUC,0.720202
+0,ave.doc.tfidf.dev,AUC,0.695354
+1,Capsule,AUC,0.885455
+1,Event Only,AUC,0.722828
+1,random (1k ave),AUC,0.671515
+1,word.outlier,AUC,0.691313
+1,word.outlier.tfidf,AUC,0.678182
+1,total.word.dev,AUC,0.728081
+1,total.tfidf.dev,AUC,0.710505
+1,ave.word.dev,AUC,0.685657
+1,ave.tfidf.dev,AUC,0.666465
+1,doc.outlier,AUC,0.693333
+1,doc.outlier.tfidf,AUC,0.677778
+1,total.doc.dev,AUC,0.738990
+1,total.doc.tfidf.dev,AUC,0.714141
+1,ave.doc.dev,AUC,0.719394
+1,ave.doc.tfidf.dev,AUC,0.685859
+2,Capsule,AUC,0.894141
+2,Event Only,AUC,0.735758
+2,random (1k ave),AUC,0.721414
+2,word.outlier,AUC,0.705859
+2,word.outlier.tfidf,AUC,0.706061
+2,total.word.dev,AUC,0.787273
+2,total.tfidf.dev,AUC,0.774141
+2,ave.word.dev,AUC,0.740000
+2,ave.tfidf.dev,AUC,0.730303
+2,doc.outlier,AUC,0.714545
+2,doc.outlier.tfidf,AUC,0.705455
+2,total.doc.dev,AUC,0.754949
+2,total.doc.tfidf.dev,AUC,0.752121
+2,ave.doc.dev,AUC,0.765253
+2,ave.doc.tfidf.dev,AUC,0.745253
+3,Capsule,AUC,0.860606
+3,Event Only,AUC,0.753333
+3,random (1k ave),AUC,0.717374
+3,word.outlier,AUC,0.689293
+3,word.outlier.tfidf,AUC,0.685051
+3,total.word.dev,AUC,0.729697
+3,total.tfidf.dev,AUC,0.711515
+3,ave.word.dev,AUC,0.674949
+3,ave.tfidf.dev,AUC,0.663636
+3,doc.outlier,AUC,0.678788
+3,doc.outlier.tfidf,AUC,0.677778
+3,total.doc.dev,AUC,0.726061
+3,total.doc.tfidf.dev,AUC,0.694545
+3,ave.doc.dev,AUC,0.710505
+3,ave.doc.tfidf.dev,AUC,0.662020
+4,Capsule,AUC,0.902222
+4,Event Only,AUC,0.730909
+4,random (1k ave),AUC,0.676566
+4,word.outlier,AUC,0.686465
+4,word.outlier.tfidf,AUC,0.684040
+4,total.word.dev,AUC,0.729091
+4,total.tfidf.dev,AUC,0.690909
+4,ave.word.dev,AUC,0.682424
+4,ave.tfidf.dev,AUC,0.669495
+4,doc.outlier,AUC,0.669293
+4,doc.outlier.tfidf,AUC,0.663434
+4,total.doc.dev,AUC,0.727273
+4,total.doc.tfidf.dev,AUC,0.691919
+4,ave.doc.dev,AUC,0.720202
+4,ave.doc.tfidf.dev,AUC,0.673333
+5,Capsule,AUC,0.877374
+5,Event Only,AUC,0.713131
+5,random (1k ave),AUC,0.641616
+5,word.outlier,AUC,0.684646
+5,word.outlier.tfidf,AUC,0.683434
+5,total.word.dev,AUC,0.697172
+5,total.tfidf.dev,AUC,0.687071
+5,ave.word.dev,AUC,0.676566
+5,ave.tfidf.dev,AUC,0.665859
+5,doc.outlier,AUC,0.688485
+5,doc.outlier.tfidf,AUC,0.694141
+5,total.doc.dev,AUC,0.702626
+5,total.doc.tfidf.dev,AUC,0.691717
+5,ave.doc.dev,AUC,0.710303
+5,ave.doc.tfidf.dev,AUC,0.686869
+6,Capsule,AUC,0.876566
+6,Event Only,AUC,0.725859
+6,random (1k ave),AUC,0.677980
+6,word.outlier,AUC,0.710303
+6,word.outlier.tfidf,AUC,0.703434
+6,total.word.dev,AUC,0.733939
+6,total.tfidf.dev,AUC,0.722020
+6,ave.word.dev,AUC,0.704646
+6,ave.tfidf.dev,AUC,0.686061
+6,doc.outlier,AUC,0.703030
+6,doc.outlier.tfidf,AUC,0.693535
+6,total.doc.dev,AUC,0.692323
+6,total.doc.tfidf.dev,AUC,0.668485
+6,ave.doc.dev,AUC,0.721616
+6,ave.doc.tfidf.dev,AUC,0.672525
+7,Capsule,AUC,0.880404
+7,Event Only,AUC,0.738384
+7,random (1k ave),AUC,0.675556
+7,word.outlier,AUC,0.706869
+7,word.outlier.tfidf,AUC,0.706465
+7,total.word.dev,AUC,0.734949
+7,total.tfidf.dev,AUC,0.710707
+7,ave.word.dev,AUC,0.681010
+7,ave.tfidf.dev,AUC,0.674949
+7,doc.outlier,AUC,0.690707
+7,doc.outlier.tfidf,AUC,0.692929
+7,total.doc.dev,AUC,0.756162
+7,total.doc.tfidf.dev,AUC,0.711919
+7,ave.doc.dev,AUC,0.720000
+7,ave.doc.tfidf.dev,AUC,0.686465
+8,Capsule,AUC,0.858788
+8,Event Only,AUC,0.690303
+8,random (1k ave),AUC,0.710303
+8,word.outlier,AUC,0.740606
+8,word.outlier.tfidf,AUC,0.735152
+8,total.word.dev,AUC,0.795758
+8,total.tfidf.dev,AUC,0.784040
+8,ave.word.dev,AUC,0.767677
+8,ave.tfidf.dev,AUC,0.747273
+8,doc.outlier,AUC,0.769091
+8,doc.outlier.tfidf,AUC,0.757374
+8,total.doc.dev,AUC,0.782626
+8,total.doc.tfidf.dev,AUC,0.776364
+8,ave.doc.dev,AUC,0.772727
+8,ave.doc.tfidf.dev,AUC,0.757980
+9,Capsule,AUC,0.898182
+9,Event Only,AUC,0.737172
+9,random (1k ave),AUC,0.686869
+9,word.outlier,AUC,0.690707
+9,word.outlier.tfidf,AUC,0.690909
+9,total.word.dev,AUC,0.701010
+9,total.tfidf.dev,AUC,0.695152
+9,ave.word.dev,AUC,0.691313
+9,ave.tfidf.dev,AUC,0.680000
+9,doc.outlier,AUC,0.700404
+9,doc.outlier.tfidf,AUC,0.701818
+9,total.doc.dev,AUC,0.716566
+9,total.doc.tfidf.dev,AUC,0.696970
+9,ave.doc.dev,AUC,0.725051
+9,ave.doc.tfidf.dev,AUC,0.693333
