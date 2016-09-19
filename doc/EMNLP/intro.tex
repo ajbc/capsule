@@ -113,28 +113,69 @@ articles.
 % I prefer having this as a stand-alone section
 
 %\parhead{Related work.}
-We first review previous work on automatic
-event detection and other related concepts.
+
+We first review previous work on automatic event detection and other
+related concepts, to contextualize our approach in general and Capsule
+in particular.
 
 % While Capsule uses text documents and associated metadata as input, event detection is often performed with univariate input data.  In this context, bursts that deviate from typical behavior (e.g., noisy constant or a repeating pattern) can define an event \cite{kleinberg2003bursty,ihler2007learning}; Poisson Processes~\cite{Kingman:1993} are often used to model events under this definition.  Alternatively, events can be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event}.
-In both univariate and multivariate settings, the goal is often that analysts want to predict whether or not rare events will occur~\cite{weiss1998learning,das2008anomaly}.  Capsule, in contrast, is designed to help analysts explore and understand the original data: our goal is interpretability, not prediction.
 
-Events can also be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event,adams2007bayesian}. Both varieties of events are important, but we focus on temporary shifts away from normal.
+In both univariate and multivariate settings, analysts often want to
+predict whether or not rare events will
+occur~\cite{weiss1998learning,das2008anomaly}. In contrast, Capsule is
+intended to help analysts explore and understand their data; our goal
+is human interpretability rather than prediction or forecasting.
+
+Events can be construed as either anomalies---temporary deviations
+from usual behavior---or ``changepoints'' that mark persistent shifts
+in usual behavior~\cite{guralnik1999event,adams2007bayesian}. We focus
+on events as anomalies.
 
 % Text is often used in event detection, as it is an abundant source of data.
 % In some applications, documents themselves are considered to be observed events~\cite{mccallum1998comparison,peng2007event}, or events are predetermined and tracked through the documents~\cite{yang2000improving,VanDam:2012}.  We are interested in detecting \emph{unobserved} events which can be characterized by patterns in the data.
-%\newpage % note:when using hyperref, references can be split between pages!
-A common goal is to identify clusters of documents; these approaches are used on news articles~\cite{zhao2012novel,zhao2007temporal,zhang2002novelty,li2005probabilistic,wang2007mining,allan1998line} and social media posts~\cite{VanDam:2012,lau2012line,jackoway2011identification,sakaki2010earthquake,reuter2012event,becker2010learning,sayyadi2009event}.
-In the case of news articles, the task is to create new clusters as novel news stories appear---this does not help disentangle typical content from rare events of interest.
-Social media approaches identify rare events, but the methods are designed for short, noisy documents; they are not appropriate for larger documents that contain information about a variety of subjects.
+%\newpage % note:when using hyperref, references can be split between
+%pages!
 
-Many existing methods use document terms as features, usually weighted by tf-idf value~\cite{fung2005parameter,kumaran2004text,brants2003system,das2011dynamic,zhao2007temporal,zhao2012novel}; here, events are bursts in groups of terms. % Because language is high dimensional, using terms as features limits scalability.
+Event detection in the context of news
+articles~\cite{zhao2012novel,zhao2007temporal,zhang2002novelty,li2005probabilistic,wang2007mining,allan1998line}
+and social media
+posts~\cite{VanDam:2012,lau2012line,jackoway2011identification,sakaki2010earthquake,reuter2012event,becker2010learning,sayyadi2009event}
+usually means identifying clusters of documents. For news, the goal is
+to create new clusters as novel stories appear, without distinguishing
+between typical content and rare events; for social media, the goal is
+to identify rare events, but the resultant methods are intended for
+short documents, and are not appropriate for longer documents that
+contain information about a variety of subjects.
 
-Topic models~\cite{Blei:2012} reduce the dimensionality of text data; they have been used to help detect events mentioned in social media posts~\cite{lau2012line,dou2012leadline} and posts relevant to monitored events~\cite{VanDam:2012}.
-We rely on topic models to characterize both typical content and events, but grouped observations can also be summarized directly~\cite{peng2007event,chakrabarti2011event,gao2012joint}.
+Many existing methods for detecting events from text focus on
+individual vocabulary terms, often weighted by tf-idf
+values~\cite{fung2005parameter,kumaran2004text,brants2003system,das2011dynamic,zhao2007temporal,zhao2012novel}.
+We characterize events by bursts in groups of terms.
+% Because language is high dimensional, using terms as features limits
+% scalability.
 
-In addition to text data over time, author~\cite{zhao2007temporal}, news outlet~\cite{wang2007mining}, and spatial information~\cite{Neill:2005,mathioudakis2010identifying,liu2011using} can be used to augment event detection.  Capsule uses author information in order to characterize the typical concerns of authors.
+Although groups of terms can be summarized
+directly~\cite{peng2007event,chakrabarti2011event,gao2012joint}, topic
+models~\cite{Blei:2012} provide a way to automatically identify groups
+of related terms and reduce the dimensionality of text
+data. Researchers have previously used topic models to detect events
+mentioned in social media posts~\cite{lau2012line,dou2012leadline} and
+to find posts relevant to particular, monitored
+events~\cite{VanDam:2012}. Capsule uses topics to characterize both
+typical diplomatic content and potentially significant events.
 
-Detecting and characterizing relationships~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic} is related to event detection.  When a message recipient is known, Capsule can use a sender-receiver pair in place of an author, but the model could be further tailored for network interactions.
+In addition to modeling text over time, researchers have also used
+spatial
+information~\cite{Neill:2005,mathioudakis2010identifying,liu2011using}
+and information about authors~\cite{zhao2007temporal} and news
+outlets~\cite{wang2007mining} to enhance event detection. We rely on
+author information to characterize diplomatic ``business as usual''
+for each embassy.
+
+Event detection is closely related to detecting and characterizing
+relationships between
+entities~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic}. Capsule
+can trivially use sender--receiver pairs instead of authors, and the
+model specification can be tailored to reflect network structure.
 
 % TODO: cite he2015hawkestopic
