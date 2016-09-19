@@ -42,12 +42,6 @@ we think of the event as another probability distribution over
 vocabulary terms, then each entity's stream of cables reflects its
 typical concerns, as well as any significant events.
 
-%As in most topic models, we
-%operationalize a topic as probability distribution over vocabulary
-%terms (the set of unique words in the cables)---each term is
-%associated with each topic, but with a different probability.
-
-
 
 % \parhead{Background: Topic Models.} Capsule builds on topic models.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
@@ -66,6 +60,12 @@ The rate $\lambda_{d,v}$ blends the different influences on the
 content of the message, which are defined in terms of different types
 of \textit{topics}. A topic, as in typical topic modeling~\cite{Blei:2003,canny2004gap,Gopalan:2014b}, is
 a distribution over terms.
+
+%As in most topic models, we
+%operationalize a topic as probability distribution over vocabulary
+%terms (the set of unique words in the cables)---each term is
+%associated with each topic, but with a different probability.
+
 
 Specifically, the message blends general topics about diplomacy (e.g.,
 diplomats, communication) $\beta_k$, an entity topic that is specific
