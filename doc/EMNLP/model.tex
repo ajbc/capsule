@@ -45,67 +45,98 @@ typical concerns, as well as any significant events.
 
 % \parhead{Background: Topic Models.} Capsule builds on topic models.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
-% Topic models are often applied to provide a structure for an otherwise unstructured collection of documents.  Documents, however, are often accompanied by metadata, such as the date written or author attribution; this information is not exploited by traditional topic models.  The Capsule model uses both author and date information to identify and characterize events that influence the content of the collection.
+% Topic models are often applied to provide a structure for an
+% otherwise unstructured collection of documents.  Documents, however,
+% are often accompanied by metadata, such as the date written or
+% author attribution; this information is not exploited by traditional
+% topic models.  The Capsule model uses both author and date
+% information to identify and characterize events that influence the
+% content of the collection.
 
-\parhead{Model Specification.}
-We now define Capsule in detail. Our data are \textit{entities}
-sending \textit{messages} over \textit{time}. The observed variables
-are $w_{d,v}$, the number of times term $v$ occurs in message $d$. The
-message is associated with an entity (or author) $a_d$ and a time (or
-date) interval $i_d$.
+\subsection{Model Specification}
 
-We model each message with a bank of Poisson distributions, one per
-term in the vocabulary, $w_{d,v} \sim \textrm{Poisson}(\lambda_{d,v})$.
-The rate $\lambda_{d,v}$ blends the different influences on the
-content of the message, which are defined in terms of different types
-of \textit{topics}. A topic, as in typical topic modeling~\cite{Blei:2003,canny2004gap,Gopalan:2014b}, is
-a distribution over terms.
+We now define the Capsule model. Our data come from \emph{entities}
+(e.g., embassies) who send \emph{messages} (e.g., diplomatic cables)
+over \emph{time}; specifically, we observe the number of times
+$n_{dv}$ that each vocabulary term $v$ occurs in each message
+$d$. Each message is associated with an author entity $a_d$ and a time
+interval $t_d$ within which that message was sent.
 
-%As in most topic models, we
-%operationalize a topic as probability distribution over vocabulary
-%terms (the set of unique words in the cables)---each term is
-%associated with each topic, but with a different probability.
+We model each message with a bank of Poisson distributions---one for
+each vocabulary term:
+\begin{align}
+  n_{dv} \sim \textrm{Poisson}\left(\lambda_{dv}\right).
+\end{align}
+The rate $\lambda_{dv}$ blends the different influences on message
+content. Specifically, it blends three types of \emph{topics},
+intended to capture ``business-as-usual'' discussion and content
+related to significant events.
 
+We operationalize each topic as a specialized probability distribution
+over vocabulary terms (the set of unique words in the corpus of
+messages), as is common in topic
+models~\cite{Blei:2003,canny2004gap,Gopalan:2014b}---i.e., each term
+is associated with each topic, but with a different probability.
 
-Specifically, the message blends general topics about diplomacy (e.g.,
-diplomats, communication) $\beta_k$, an entity topic that is specific
-to the author of the message (e.g., terms about France) $\eta_{a_d}$,\footnote{These entity-specific topics are similar to background topics~\cite{paul2012model}.}
-and an event topic that is specific to the events of relevant recent weeks (e.g.,
-terms about an international crisis) $\gamma_t$. Notice how messages
-share these topics in different configurations: all messages share the
-general topics; messages from the same entity share the entity topics;
-and messages from the same interval share the event topics.
+Each message blends 1) general topics $\mathbold{\beta}_1, \ldots,
+\mathbold{\beta}_K$ about diplomacy (e.g., terms about diplomats,
+terms about communication), 2) an entity topic $\mathbold{\eta}_{a_d}$
+specific to the author of that message (e.g., terms about
+Asia),\footnote{The entity-specific topics play a similar role to the
+  background topics first introduced by Paul and
+  Dredze~\shortcite{paul2012model}.} and 3) event topics
+$\mathbold{\gamma}_1, \ldots, \mathbold{\gamma}_T$ that are specific
+to the events in recent time intervals (e.g., terms about a coup,
+terms about the death of a dignitary).
+
+Examples of these three types of topics are in
+table~\ref{tab:3topics}. The general topic relates to planning travel,
+the entity topic captures words related to the U.S.S.R., and the event
+topic captures words related to the evacuation of Saigon toward the
+end of the Vietnam War.
 
 \begin{table}
 \centering
 \small
 \begin{tabular}{cc}
 \toprule
-topic type & top terms \\
+Topic Type & Top Terms \\
 \midrule
-general & visit, hotel, schedule, arrival \\
-entity & soviet, moscow, ussr, agreement \\
-event & saigon, evacuation, vietnam, help \\
+General & visit, hotel, schedule, arrival \\
+Entity & soviet, moscow, ussr, agreement \\
+Event & saigon, evacuation, vietnam, help \\
 \bottomrule
 \end{tabular}
-\caption{Top vocabulary terms for examples of each of the three topic varieties; these three types of topics blend to form the distribution of each message.  They come from the model fit we discuss in \Cref{sec:eval}.}
+\caption{The four highest-probability vocabulary terms for examples of
+  each of the three types of topics. These example topics come from
+  the analysis that we describe in section~\ref{sec:eval}.}
 \label{tab:3topics}
 \end{table}
 
-Examples of these three types of topics are in \Cref{tab:3topics}---the general topic
-relates to planning travel, the entity topic captures words related to the U.S.S.R., and
-the event topic captures words related to the evacuation of Saigon toward the end of the Vietnam War.
-
-Each message blends its corresponding topics with different
-strengths, which are drawn per message. Each message represents a
-different mix of the events of recent weeks, entity-specific items, and
-general diplomacy.
-
-Putting this together, the Poisson rate for term $v$ in document $d$ is
+The messages share the three types of topics in different ways: all
+messages share the general topics, messages written by a single entity
+share an entity topic, and messages in the same time interval use the
+event topics in similar ways. Each message blends its corresponding
+topics with a set of message-specific strengths. As a result, each
+message captures a different mix of general diplomacy discussion,
+entity-specific terms, and recent events. Specifically, the Poisson
+rate for vocabulary term $v$ in message $d$ is
 \begin{align}
-  \lambda_{d,v} = \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v},
+  \lambda_{dv} &= \sum_{k=1}^K \theta_{dk} \beta_{kv}  + \zeta_d
+  \eta_{a_dv} + {}\notag \\
+  &\quad
+  \sum_{t=1}^T f(t_d, t)\, \epsilon_{dt} \gamma_{tv},
+%  \lambda_{dv} = \sum_{k=1}^K \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v},
 \label{eq:poisrate}
-\end{align} where $\theta_d$ corresponds to strength of general diplomacy, $\zeta_d$ corresponds to strength of entity-specific concerns, and $\epsilon_d$ corresponds to strength of events; $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we find that exponential decay, as in \Cref{eq:f}, performs well.
+\end{align}
+where $\theta_{dk}$ is message $d$'s strength for general topic $k$,
+$\zeta_{d}$ is message $d$'s strength for $a_d$'s entity topic, and
+$\epsilon_{dt}$ is message $d$'s strength for event topic
+$t$. Function $f(\cdot)$ ensures that the events influences decay over
+time. We find that an exponential decay function, as in
+equation~\ref{eq:f}, works well in practice.
+
+%ONLY GOT TO HERE; HAVEN'T EDITED BELOW THIS
 
 We place gamma priors on the topic strengths and Dirichlet priors on
 the topics. The distributions of general and entity topic strengths are defined
