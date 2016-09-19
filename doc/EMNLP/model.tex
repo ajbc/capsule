@@ -1,18 +1,53 @@
 %!TEX root = emnlp2016.tex
 
-In this section we develop the Capsule model for detecting and characterizing events.  Capsule relies on text data sent between entities over time, and builds on topics models. We first give the intuition on Capsule, then formally specify the model.  We also describe how to explore a corpus using Capsule and how we learn its hidden variables.
+In this section, we present the Capsule model for detecting and
+characterizing significant diplomatic events. We first provide the
+intuition behind Capsule, and then formally specify the model. We also
+explain how to use Capsule to explore a corpus and how to learn the
+posterior distribution of the latent variables.
 
 \begin{figure}
 \centering
 \includegraphics[width=\linewidth]{fig/cartoon.pdf}
-\caption{Cartoon intuition of Capsule; the $y$ axis is the stacked proportion of messages about various subjects during a given time interval.  The Bangkok embassy, Honk Kong embassy, and State Department all have typical concerns about which they usually send messages.  When an events occurs at time $t$, the stream of message content alters to include the event, then fades back to ``business as usual.''  Capsule discovers entities' typical concerns as well as the event occurrence and content.}
+\caption{Cartoon intuition. The $y$-axis represents the stacked
+  proportions of cables about various topics, while the $x$-axis
+  represents time. The Bangkok embassy, Honk Kong embassy, and
+  U.S. State Department all have typical diplomatic business, about
+  which they usually send cables. When an event occurs during time
+  interval $t$, the cables alter to cover the event before returning
+  to ``business as usual.'' Capsule discovers the embassies' typical
+  concerns, as well as the timing and content of events.}
 \label{fig:cartoon}
 \end{figure}
 
-Consider an entity like the Bangkok American embassy, shown in Figure~\ref{fig:cartoon}.  We can imagine that there is a stream of messages (or \emph{diplomatic cables}) being sent by this embassy---some might be sent to the US State Department, others to another American embassy like Hong Kong.  An entity will usually talk about certain topics; the Bangkok embassy, for instance, is concerned with topics regarding southeast Asia more generally.
+Consider an entity like the Bangkok embassy, as illustrated in
+figure~\ref{fig:cartoon}. We can imagine that this entity sends a
+stream of diplomatic cables over time---some to the U.S. State
+Department, others to other American embassies, such as the one in
+Hong Kong. Embassies usually write cables that describe typical
+diplomatic business. For example, the Bangkok embassy might write
+about topics regarding southeast Asia more generally. We can think of
+a topic as being a probability distribution over vocabulary terms.
 
-Now imagine that at a particular time $t$, an event occurs, such as the capture of Saigon during the Vietnam war.  We do not directly observe that events occur, but we do observe the message stream.  Using this stream, each event will be described as a distribution over the vocabulary, similar to how topics are distributions over these same terms.  When an event occurs, the message content changes for multiple entities---significant events impact multiple parties simultaneously. The day following the capture of Saigon, for instance, the majority of the diplomatic cables sent by the Bangkok embassy and several other entities were about Vietnam war refugees.
-Thus we imagine that an entity's stream of messages is controlled by what it usually talks about as well as the higher level stream of unobserved events.
+Now imagine that an event, such as the capture of Saigon during the
+Vietnam war, occurs during a particular time interval $t$. We cannot
+directly observe the occurrence of this event, but we can observe the
+stream of cables and the event's impact on it. When the event occurs,
+multiple entities deviate from their usual topics of discussion
+simultaneously, before returning to their usual behavior, as depicted
+in figure~\ref{fig:cartoon}. For example, the day after the capture of
+Saigon, the majority of the diplomatic cables written by the Bangkok
+embassy and several other entities were about Vietnam war refugees. If
+we think of the event as another probability distribution over
+vocabulary terms, then each entity's stream of cables reflects its
+typical concerns, as well as any significant events.
+
+%As in most topic models, we
+%operationalize a topic as probability distribution over vocabulary
+%terms (the set of unique words in the cables)---each term is
+%associated with each topic, but with a different probability.
+
+
 
 % \parhead{Background: Topic Models.} Capsule builds on topic models.  Topic models are algorithms for discovering the main themes in a large collection of documents; each document can then be summarized in terms of the global themes.  More formally, a topic $k$ is a probability distribution over the set of vocabulary words.  Each document $d$ is represented as a distribution over topics $\theta_d$.  Thus we can imagine that when we generate a document, we first pick which topics are relevant (and in what proportions).  Under the LDA topic model~\cite{Blei:2003}, we know the number of words in each document.  Then, for each word, we select a single topic from this distribution over topics, and finally select a vocabulary term from the corresponding topic's distribution over the vocabulary.  Alternatively, we can cast topic modeling as factorization, such as in Poisson factorization~\cite{Gopalan:2014b}, and draw a word count for each term in the vocabulary.
 
@@ -57,8 +92,8 @@ event & saigon, evacuation, vietnam, help \\
 \label{tab:3topics}
 \end{table}
 
-Examples of these three types of topics are in \Cref{tab:3topics}---the general topic 
-relates to planning travel, the entity topic captures words related to the U.S.S.R., and 
+Examples of these three types of topics are in \Cref{tab:3topics}---the general topic
+relates to planning travel, the entity topic captures words related to the U.S.S.R., and
 the event topic captures words related to the evacuation of Saigon toward the end of the Vietnam War.
 
 Each message blends its corresponding topics with different
@@ -88,7 +123,7 @@ also defined hierarchically; different weeks are more or less
 
 
 %%%%%%
-% As in topic modeling, we represent the general topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$ 
+% As in topic modeling, we represent the general topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$
 
 % In addition to using these general topics to represent entity concerns, each entity $n$ has its own exclusive topic $\beta^{(n)}_{0}$, which can be appended as a bias row to the general topics $\beta$.  These entity-specific topics are drawn from a Dirichlet, just as the general topics, and are similar to
 % background topics~\cite{paul2012model}.  Without these entity topics, entity-specific stop words (e.g. ``Parisian'' for the Paris embassy) would dominate the general topics.
@@ -141,7 +176,7 @@ also defined hierarchically; different weeks are more or less
 		\end{itemize}
 	\item for each time $t=$~1:$T$,
 		\begin{itemize}[leftmargin=*]
-			\item draw local interval relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{t})$ 
+			\item draw local interval relevancy \\$\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{t})$
 		\end{itemize}
 	\item for each vocabulary term $v=$~1:$V$,
 		\begin{itemize}[leftmargin=*]
@@ -168,7 +203,7 @@ that word use from one entity can ``excite'' word use in another, which
 suggests a close relationship to Hawkes processes~\cite{hawkes1971spectra}.
 
 
-\parhead{Detecting and characterizing events.} 
+\parhead{Detecting and characterizing events.}
 Once we estimate the posterior distribution of the Capsule parameters, described in the following section, we can use the expectations of the latent parameters to explore the original data.  To detect events, we consider the proportion of the document about event $j$, and take a weighted average of these proportions:
 \begin{equation*}
 m_j = \frac{1}{\sum_{d} f(i_d, j)} \sum_{d}\frac{\varepsilon_{d,j}}{\zeta_d + \sum_{t} \varepsilon_{d,t} + \sum_{k} \E[\theta_{d,k}] },
@@ -193,6 +228,4 @@ To make Capsule more accessible, we developed an open source tool for visualizin
 \parhead{Learning the hidden variables.}
 In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\gamma$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999},\footnote{Source code is available at \url{https://github.com/ajbc/capsule}.} which is detailed in \Cref{sec:inference}.\footnote{Appendices are located in the supplemental materials document.} This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  
-
-
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999},\footnote{Source code is available at \url{https://github.com/ajbc/capsule}.} which is detailed in \Cref{sec:inference}.\footnote{Appendices are located in the supplemental materials document.} This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.
