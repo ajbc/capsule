@@ -54,6 +54,7 @@ typical concerns, as well as any significant events.
 % content of the collection.
 
 \subsection{Model Specification}
+\label{sec:model_spec}
 
 We now define the Capsule model. Our data come from \emph{entities}
 (e.g., embassies) who send \emph{messages} (e.g., diplomatic cables)
@@ -78,6 +79,24 @@ messages), as is common in topic
 models~\cite{Blei:2003,canny2004gap,Gopalan:2014b}---i.e., each term
 is associated with each topic, but with a different probability.
 
+\begin{table}
+\centering
+\small
+\begin{tabular}{cc}
+\toprule
+Topic Type & Top Terms \\
+\midrule
+General & visit, hotel, schedule, arrival \\
+Entity & soviet, moscow, ussr, agreement \\
+Event & saigon, evacuation, vietnam, help \\
+\bottomrule
+\end{tabular}
+\caption{The highest-probability vocabulary terms for examples of the
+  three types of topics (general, entity, and event). These examples
+  come from the analysis that we describe section~\ref{sec:eval}.}
+\label{tab:3topics}
+\end{table}
+
 Each message blends 1) general topics $\mathbold{\beta}_1, \ldots,
 \mathbold{\beta}_K$ about diplomacy (e.g., terms about diplomats,
 terms about communication), 2) an entity topic $\mathbold{\eta}_{a_d}$
@@ -95,24 +114,6 @@ the entity topic captures words related to the U.S.S.R., and the event
 topic captures words related to the evacuation of Saigon toward the
 end of the Vietnam War.
 
-\begin{table}
-\centering
-\small
-\begin{tabular}{cc}
-\toprule
-Topic Type & Top Terms \\
-\midrule
-General & visit, hotel, schedule, arrival \\
-Entity & soviet, moscow, ussr, agreement \\
-Event & saigon, evacuation, vietnam, help \\
-\bottomrule
-\end{tabular}
-\caption{The four highest-probability vocabulary terms for examples of
-  each of the three types of topics. These example topics come from
-  the analysis that we describe in section~\ref{sec:eval}.}
-\label{tab:3topics}
-\end{table}
-
 The messages share the three types of topics in different ways: all
 messages share the general topics, messages written by a single entity
 share an entity topic, and messages in the same time interval use the
@@ -126,79 +127,68 @@ rate for vocabulary term $v$ in message $d$ is
   \eta_{a_dv} + {}\notag \\
   &\quad
   \sum_{t=1}^T f(t_d, t)\, \epsilon_{dt} \gamma_{tv},
-%  \lambda_{dv} = \sum_{k=1}^K \theta_d^\top\beta_v  + \zeta_d \eta_{a_d,v} + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v},
 \label{eq:poisrate}
 \end{align}
 where $\theta_{dk}$ is message $d$'s strength for general topic $k$,
 $\zeta_{d}$ is message $d$'s strength for $a_d$'s entity topic, and
-$\epsilon_{dt}$ is message $d$'s strength for event topic
-$t$. Function $f(\cdot)$ ensures that the events influences decay over
+$\epsilon_{dt}$ is message $d$'s strength for event topic $t$. The
+function $f(\cdot)$ ensures that the events influences decay over
 time. We find that an exponential decay function, as in
 equation~\ref{eq:f}, works well in practice.
 
-%ONLY GOT TO HERE; HAVEN'T EDITED BELOW THIS
+We place hierarchical gamma priors over the message-specific
+strengths, introducing entity-specific strengths $\mathbold{\phi}_1,
+\ldots, \mathbold{\phi}_A$ and $\xi_1, \ldots, \xi_A$ that allow
+different entities to focus on different topics and event strengths
+$\psi_1, \ldots, \psi_T$ that allow different time intervals to be
+more or less ``eventful.'' We place Dirichlet priors over the
+topics. The graphical model is in figure~\ref{fig:graphicalmodel} and
+the generative process is in figure~\ref{fig:generative-model}.
 
-We place gamma priors on the topic strengths and Dirichlet priors on
-the topics. The distributions of general and entity topic strengths are defined
-hierarchically by entity, capturing the different topics that each
-entity tends to discuss.  The prior on the entity strength is
-also defined hierarchically; different weeks are more or less
-``eventful.'' The graphical model is shown in \Cref{fig:graphicalmodel} and the generative process is in \Cref{fig:generative-model}.
-
+% NEED TO REMAKE THIS to use A rathre than N and n rather than w
 \begin{figure}[bt]
 \centering
 \includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
-\caption{The graphical model for Capsule.  Observed words $w$ depend on general topics $\beta$, entity-specific topics $\eta$, and event topics $\gamma$, as well as document representations $\theta$, $\xi$, and $\epsilon$.  Variables $\phi$ and $\zeta$ represent entity concerns (with general topics and entity-specific topics, respectively) and $\psi$ represents the event strength of a given time interval.  Hyper-parameters are indicated by black squares, but not labeled for visual simplicity.}
+\caption{Graphical model for Capsule. Observed word counts depend on
+  general topics $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$,
+  entity topics $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$, and
+  event topics $\mathbold{\gamma}_1, \ldots, \mathbold{\gamma}_T$, as
+  well as message-specific strengths $\mathbold{\theta}_d$, $\zeta_d$,
+  and $\mathbold{\epsilon}_d$.  Variables $\mathbold{\phi}_1, \ldots,
+  \mathbold{\phi}_A$ and $\xi_1, \ldots, \xi_A$ represent
+  entity-specific strengths, while $\psi_1, \ldots, \psi_T$ allow time
+  intervals to be more or less ``eventful.'' Black squares denote
+  hyperparameters (unlabeled for visual simplicity).}
 \label{fig:graphicalmodel}
 \end{figure}
-
-
-%%%%%%
-% As in topic modeling, we represent the general topics of conversation with a $K\times V$ matrix $\beta$, where $K$ is a low dimensional number of topics that we wish to capture, and $V$ is the size of our vocabulary; each row $\beta_k$ is normalized such that it represents the probability of seeing vocabulary word $v$ when discussing topic $k$.  As a generative process, we draw these general topics from a Dirichlet distribution, or $\beta_k \sim \mbox{Dirichlet}_V (\alpha_\beta).$
-
-% In addition to using these general topics to represent entity concerns, each entity $n$ has its own exclusive topic $\beta^{(n)}_{0}$, which can be appended as a bias row to the general topics $\beta$.  These entity-specific topics are drawn from a Dirichlet, just as the general topics, and are similar to
-% background topics~\cite{paul2012model}.  Without these entity topics, entity-specific stop words (e.g. ``Parisian'' for the Paris embassy) would dominate the general topics.
-
-% The concerns of author $n$ are represented with $\phi_n$, a $(K+1)$-dimensional topic vector, where each element is drawn from a gamma distribution, or $\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi),$\footnote{We use the shape-rate parameterization for all Gamma distributions.} and the first element of the concern vector $\phi_{n,0}$ describes how much the entity $n$ relies on its exclusive topic $\beta^{(n)}_0$
-
-% Similar to topic modeling, we represent the contents of each document in topic space; each document $d$ has a $(K+1)$-dimensional latent parameter $\theta_d$ to describe the particular contents of that document.  Unlike traditional topic models, each document $d$'s topics depend on the concerns of the author $a_d$; each document topic $\theta_{d,k}$ is drawn from a gamma distribution parameterized by the corresponding author concerns $\phi_{a_d,k}$: $\theta_{d,k} \sim \mbox{Gamma}(s_\theta, \phi_{a_d,k})$.
-
-% To represent events, we consider discrete intervals of time.  Each interval $t$ has a corresponding interval strength $\psi_t$ and description $\gamma_t$.  Event strengths are a single value for each interval $t$, and are drawn from a gamma distribution: $\psi_{n,k} \sim \mbox{Gamma}(s_\psi, r_\psi)$.  These strengths indicate how important the interval is in determining message content.  Interval descriptions are similar to topics: each description is a $V$-dimensional vector drawn from a Dirichlet distribution over the vocabulary terms, or $\gamma_k \sim \mbox{Dirichlet}_V (\alpha_\gamma).$
-
-% Just as we describe each document $d$ in terms of relevant topics with the $\theta_d$ parameters, we also describe the relevancy of each time interval with the $\epsilon_d$ parameters.  These interval relevancy parameters are drawn from gamma distributions and depend on the overall strength $\psi$ of the corresponding interval; for interval $t$ and document $d$ (written at time $i_d$), we have $\epsilon_{d,t} \sim \mbox{Gamma}(s_\epsilon, \psi_{i_d,t})$.
-
-% Conditional on the hidden variables and the author and time metadata, Capsule is a model of how document word counts came to be.  For document $d$ and vocabulary term $v$, we generate the word counts form a Poisson distribution parameterized by the documents topics $\theta_d$ and relevant events $\epsilon$, as well as global topic $\beta$ and event descriptions $\gamma$:
-% \begin{equation}
-% w_{d,v} \sim \mbox{Poisson}\left(\theta_d^\top\beta^{(a_d)}_v + \sum_{t=1}^T f(i_d, t) \epsilon_{d,t} \gamma_{t,v}\right),
-% \label{eq:generateData}
-% \end{equation}
-% where $f$ is some function of decay.  This function is important because events should not remain at their full strength indefinitely, but should decay over time.  In our experiments, we consider step functions, linear decay, and exponential decay.  Figure~\ref{fig:generative-model} gives the full generative process for Capsule.
-
 
 \begin{figure}[!ht]
 \begin{mdframed}[userdefinedwidth=3.0in,align=center]
 \small
 \begin{itemize}[leftmargin=*]
-\item for each time step $t=$~1:$T$,
+\item for each time interval $t = 1, \ldots, T$,
 	\begin{itemize}[leftmargin=*]
-	\item draw interval description over vocabulary \\
-	(event topic) $\gamma_t \sim \mbox{Dirichlet}_V (\alpha)$
-	\item draw interval strength \\$\psi_{t} \sim \mbox{Gamma}(s_\psi, r_\psi)$
+	\item draw event topic\\ $\mathbold{\gamma}_t \sim
+          \textrm{Dirichlet}_V(\alpha, \ldots, \alpha)$
+	\item draw event strength \\$\psi_{t} \sim \textrm{Gamma}\,(s, r)$
 	\end{itemize}
-\item for each entity $n=$~1:$N$,
+\item for each entity $a = 1, \ldots, A$,
 	\begin{itemize}[leftmargin=*]
-	\item draw entity-specific topics over vocabulary \\$\eta_n \sim \mbox{Dirichlet}_V (\alpha)$
-	\item draw entity-specific topic strength \\$\xi_{n} \sim \mbox{Gamma}(s_\xi, r_\xi)$
+	\item draw entity topic \\$\mathbold{\eta}_a \sim
+          \textrm{Dirichlet}_V (\alpha, \ldots, \alpha)$
+	\item draw entity-specific strength \\$\xi_{a} \sim \textrm{Gamma}\,(s, r)$
 	\end{itemize}
-\item for each topic $k=$~1:$K$,
+\item for $k= 1, \ldots, K$,
 	\begin{itemize}[leftmargin=*]
-	\item draw general topic distribution over vocabulary $\beta_k \sim \mbox{Dirichlet}_V (\alpha)$
-	\item for each entity $n=$~1:$N$,
+	\item draw general topic\\ $\mathbold{\beta}_k \sim
+          \textrm{Dirichlet}_V (\alpha, \ldots, \alpha)$
+	\item for each entity $a=1, \ldots, A$,
 		\begin{itemize}[leftmargin=*]
-		\item draw general entity concern \\$\phi_{n,k} \sim \mbox{Gamma}(s_\phi, r_\phi)$
+		\item draw entity-specific strength \\$\phi_{ak} \sim \textrm{Gamma}\,(s, r)$
 		\end{itemize}
 	\end{itemize}
-\item for each document $d=$~1:$D$ sent at time $i_d$ by\\author $a_d$,
+\item for each message $d= 1, \ldots, D$, sent at time interval $t_d$
+  by author entity $a_d$,
 	\begin{itemize}[leftmargin=*]
 	\item draw local entity concern \\$\zeta_{d} \sim \mbox{Gamma}(s_\zeta, \xi_{a_d})$
 	\item for each topic $k=$~1:$K$,
@@ -221,17 +211,20 @@ also defined hierarchically; different weeks are more or less
 \label{fig:generative-model}
 \end{figure}
 
-Given a collection of messages, posterior inference uncovers the
-different types of topics and how each message exhibits them. We will
-see below, how inferences about the event strengths enable us to
-filter the corpus to find important messages.
+Given a corpus of messages, learning the posterior distribution of the
+latent variables uncovers the three types of topics, the message- and
+entity-specific strengths, and the event strengths. In section~\ref{},
+we explain how an analyst can use the event strengths as a filter that
+isolates potentially significant messages.
 
-There are connections between Capsule and recent work on Poisson
-processes. In particular, we can interpret Capsule as a collection of
-related discrete time Poisson processes with random intensity
-measures. Further, marginalizing out the event strength prior reveals
-that word use from one entity can ``excite'' word use in another, which
-suggests a close relationship to Hawkes processes~\cite{hawkes1971spectra}.
+% HMW: I moved the paragraph about Hawkes processes to related work.
+
+\subsection{Learning the Posterior Distribution}
+
+
+In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\gamma$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
+
+As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999},\footnote{Source code is available at \url{https://github.com/ajbc/capsule}.} which is detailed in \Cref{sec:inference}.\footnote{Appendices are located in the supplemental materials document.} This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.
 
 
 \parhead{Detecting and characterizing events.}
@@ -254,9 +247,3 @@ To make Capsule more accessible, we developed an open source tool for visualizin
 \caption{Screenshots of Capsule visualization of US State Department cables.  Top-left: events over time (similar to \Cref{fig:cables_events}).  Right-top: entities shown on a map.  Bottom: time interval summary, including top terms, relevant documents, and text scraped from Wikipedia.}
 \label{fig:viz}
 \end{figure}
-
-
-\parhead{Learning the hidden variables.}
-In order to use the Capsule model to explore the observed documents, we must compute the posterior distribution.  Conditional on the observed word counts $w$, our goal is to compute the posterior values of the hidden parameters---general topics $\beta$, entity topics $\eta$, event topics $\gamma$, entity concerns $\phi$ (for general topics) and $\xi$ (for their own topic), overall event strengths $\psi$, and document-specific strengths for general topics $\theta$, entity topics $\zeta$, and event topics $\epsilon$.
-
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; approximating it is our central statistical and computational problem.  We develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999},\footnote{Source code is available at \url{https://github.com/ajbc/capsule}.} which is detailed in \Cref{sec:inference}.\footnote{Appendices are located in the supplemental materials document.} This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.

@@ -178,4 +178,15 @@ entities~\cite{schein2015bayesian,linderman2014discovering,das2011dynamic}. Caps
 can trivially use sender--receiver pairs instead of authors, and the
 model specification can be tailored to reflect network structure.
 
+Finally, there are connections between Capsule and recent work on
+Poisson processes. In particular, we can interpret Capsule as a
+collection of related discrete-time Poisson processes with random
+intensity measures. Further, marginalizing out the event strengths
+% IS THIS RIGHT?
+(described in section~\ref{sec:model_spec}) reveals that the use of a
+vocabulary term by one embassy can ``excite'' the use of that term by
+another. This suggests a close relationship to Hawkes
+processes~\cite{hawkes1971spectra}.
+
+
 % TODO: cite he2015hawkestopic
