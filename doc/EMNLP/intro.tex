@@ -64,7 +64,7 @@ cables from the National Archives' corpus. The \mbox{$y$-axis}
 represents ``eventness,'' a loose measure of how strongly a week's
 cables deviate from typical diplomatic ``business as usual'' to
 discuss some matter that is common to many embassies. (We describe
-this measure of ``eventness'' in detail in section~\ref{sec:model}.)
+this measure of ``eventness'' in detail in \cref{sec:model}.)
 
 % THIS PARAGRAPH IS UNTOUCHED...
 The figure shows that Capsule detects many of the important moments
@@ -96,17 +96,16 @@ the cables that isolates important moments in diplomatic
 history. \Cref{fig:cables_events} depicts the mean of this posterior
 distribution.
 
-We present the Capsule model in section~\ref{sec:model}, providing
-both a formal model specification and guidance on how to use the model
-to detect and characterize real-world events. In
-section~\ref{sec:valid}, we validate Capsule using simulated data, and
-in section~\ref{sec:eval}, we use it to analyze over two million
-U.S. State Department cables. Although we describe Capsule in the
-context of diplomatic cables, it is suitable for exploring any corpus
-with the same underlying structure: text (or other discrete
-multivariate data) generated over time by known entities. This
-includes email, consumer behavior, social media posts, and opinion
-articles.
+We present the Capsule model in \cref{sec:model}, providing both a
+formal model specification and guidance on how to use the model to
+detect and characterize real-world events. In \cref{sec:valid}, we
+validate Capsule using simulated data, and in \cref{sec:eval},
+we use it to analyze over two million U.S. State Department
+cables. Although we describe Capsule in the context of diplomatic
+cables, it is suitable for exploring any corpus with the same
+underlying structure: text (or other discrete multivariate data)
+generated over time by known entities. This includes email, consumer
+behavior, social media posts, and opinion articles.
 
 \section{Related Work}
 
@@ -183,7 +182,7 @@ Poisson processes. In particular, we can interpret Capsule as a
 collection of related discrete-time Poisson processes with random
 intensity measures. Further, marginalizing out the event strengths
 % IS THIS RIGHT?
-(described in section~\ref{sec:model_spec}) reveals that the use of a
+(described in \cref{sec:model_spec}) reveals that the use of a
 vocabulary term by one embassy can ``excite'' the use of that term by
 another. This suggests a close relationship to Hawkes
 processes~\cite{hawkes1971spectra}.
