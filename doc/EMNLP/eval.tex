@@ -1,34 +1,68 @@
 %!TEX root = emnlp2016.tex
 
-
-In this section we explore the performance of Capsule on simulated data and a collection of over 2 million U.S. State Department diplomatic cables from the 1970s.
-
-
-\subsection{Results on Simulated Data}
+\section{Model Validation}
 \label{sec:valid}
-Prior to exploring Capsule results on data of historical interest, we provide a quantitative assessment of the model on simulated data.
 
-We generated ten data sets, each with 100 time steps, 10 general topics, and 100 entities. Each simulation contained about 20,000 documents and followed the generative process assumed by Capsule, as shown in \Cref{fig:generative-model}.
+%In this section we explore the performance of Capsule on simulated data and a collection of over 2 million U.S. State Department diplomatic cables from the 1970s.
+
+
+%\subsection{Results on Simulated Data}
+
+Before using Capsule to explore a corpus of real messages (described
+in \cref{sec:eval}), we provide a quantitative validation of the model
+using simulated data.
+
+We used the generative process in \cref{fig:generative-model} to
+create ten data sets, each with 100 time intervals, ten general
+topics, ten entities, and roughly 20,000 messages. For each data set,
+we constructed a ranked list of the $m$ most eventful time intervals,
+for $m = 1, \ldots, T$, using the ``eventness'' measure described in
+\cref{sec:detecting}.
+
+We then compared Capsule's ability to detect significant ``events'' in
+these data sets to that of several baselines, including an
+``event-only'' version of Capsule that retains only the third term in
+\cref{eq:poisrate}. We used this baseline to explicitly test whether
+modeling ``business as usual'' discussion makes it easier to detect
+significant events. The other two baselines involved computing the
+sum, over all vocabulary terms and messages, of the absolute
+difference between the number of times $n_{dv}$ that vocabulary term
+$v$ occurs in message $d$ and the average number of times vocabulary
+term $v$ occurs in any message. We experimented with including and
+omitting tf-idf term weights:
+\begin{equation}
+  \sum_{v=1}^V \textrm{tf-idf}\,(v) \left(\sum_{d=1}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
+  n_{dv} \right\rvert\right)
+\label{eq:tfidfwordev}
+\end{equation}
+and
+\begin{equation}
+  \sum_{v=1}^V \sum_{d=1}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
+  n_{dv} \right\rvert.
+\label{eq:wordev}
+\end{equation}
+We also considered baselines that involved deviations on the entity
+and document level, but found that they were not competitive. We also
+found that topic-based approaches~\cite{dou2012leadline} do not work
+well for event detection because their reduced dimensionality is too
+coarse to provide a meaningful signal.
 
 To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a method and the simulated ground at every threshold; this generates an curve under which we can compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC:
 \begin{equation}
 \frac{\sum_{i=1}^T \vert \mbox{Truth}_i \cap \mbox{Model}_i \vert}{\sum_{i=1}^T i},
 \end{equation}
-where $\mbox{Model}_i$ is a set of the top $i$ most eventful intervals according to the model, and $\mbox{Truth}_i$ is the known set of the top $i$ most eventful intervals.  As the data is simulated, we can order all intervals by their known ``eventness''---this metric captures how well the model recovers the true ordering.
+where $\mbox{Model}_i$ is a set of the top $i$ most eventful intervals
+according to the model, and $\mbox{Truth}_i$ is the known set of the
+top $i$ most eventful intervals.
 
-The most successful of the baseline methods for event detection were based on absolute error in word count relative to the mean.  This can be computed for all words:
-\begin{equation}
-	\sum_{v=1}^V\left[\sum_{d=1}^D \mbox{abs}\left( w_{d,v} - \frac{1}{\vert D \vert}\sum_{d=1}^D w_{d,v} \right) \right],
-\label{eq:wordev}
-\end{equation}
-and can also be weighted by tf-idf,
-\begin{equation}
-	\sum_{v=1}^V\mbox{tf-idf}(v)\left[\sum_{d=1}^D \mbox{abs}\left( w_{d,v} - \frac{1}{\vert D \vert}\sum_{d=1}^D w_{d,v} \right) \right].
-\label{eq:tfidfwordev}
-\end{equation}
-We also considered metrics that computed deviations on the entity and document level, but the simplest overall metrics performed best.
+\Cref{fig:sim_eventdetect} shows that Capsule outperforms the
+baselines at event detection.\footnote{The model was
+  set with the same number of topics $K=10$ and exponential decay $f$
+  used to simulate the data.  More details on the decay function
+  surround its formal definition in \Cref{eq:f}.}
 
-\Cref{fig:sim_eventdetect} shows that Capsule\footnote{The model was set with the same number of topics $K=10$ and exponential decay $f$ used to simulate the data.  More details on the decay function surround its formal definition in \Cref{eq:f}.} outperforms these approaches for event detection.  We also consider an ``event only'' model---this is a model that only uses the interval-related subset of Capsule's parameters; comparing to this shows that is it important to model ``business as usual'' for improved event detection.  LDA based approaches like average deviation from mean in topic space (\cite{dou2012leadline}) do not perform well for event detection as deviations in topic space are too coarse to provide a meaningful signal.
+
+
 
 \begin{figure}[ht]
 \centering
@@ -37,9 +71,19 @@ We also considered metrics that computed deviations on the entity and document l
 \label{fig:sim_eventdetect}
 \end{figure}
 
-Once events have been identified, our next task is to identify relevant documents; to evaluate this, we calculate precision of recovering the top $N$ documents.  Both Capsule and its event-only partial model outperform all comparison methods in terms of document recovery.  For Capsule, average precision at 10 documents was 0.44; the event-only model had average precision of 0.09.  LDA performed slightly worse than the event-only model, and the other comparison methods (similar to Equations~\ref{eq:wordev} and~\ref{eq:tfidfwordev}) recovered zero relevant documents--equivalent to random.
+Once events have been identified, our next task is to identify
+relevant documents; to evaluate this, we calculate precision of
+recovering the top $N$ documents.  Both Capsule and its event-only
+partial model outperform all comparison methods in terms of document
+recovery.  For Capsule, average precision at 10 documents was 0.44;
+the event-only model had average precision of 0.09.  LDA performed
+slightly worse than the event-only model, and the other comparison
+methods (similar to Equations~\ref{eq:wordev}
+and~\ref{eq:tfidfwordev}) recovered zero relevant
+documents--equivalent to random.
 
 
+% I think this paragraph should be moved to the model section.
 As described in \Cref{sec:additional_results}, we assessed the sensitivity of our model to different settings of event duration $\tau$ three different decay functions $f$: exponential, linear, and step functions.  We found that fitting Capsule with an exponential decay function, or
 \begin{equation}
 f(i_d, t) =
@@ -53,22 +97,51 @@ provided the best performance and the most interpretable results.
 
 
 
+\section{Exploratory Analysis}
+\label{sec:eval}
 
+Capsule is intended to help analysts explore and understand their
+data. In this section, we demonstrate its capabilities by analyzing a
+corpus of over two million U.S. State Department cables from the
+1970s.
 
-\subsection{Results on U.S. State Department Diplomatic Cables}
+\subsection{Data}
 
-As Capsule is intended to be used to explore large collections of documents, we must demonstrate its use in that context.  This sections describes and explores the application of Capsule to a real-world collection of diplomatic messages.
+The National Archive collects diplomatic cables sent between the
+U.S. State Department and its foreign embassies. We obtained a subset
+of this corpus from the Central Foreign Policy Files at the National
+Archives, via the History Lab at Columbia
+University.\footnote{http://history-lab.org} The subset contains over
+two million cables sent between 1973 and 1978. In addition to the text
+of the cables, each message is labeled with its author (e.g., the
+U.S. State Department, a particular embassy, or a named individual),
+its recipients (often several), and the date the cable was sent. We
+used a vocabulary of 6,293 terms and omitted cables with fewer than
+three terms, resulting in 2,021,852 cables sent between 22,961
+entities. We used weekly time intervals, as few cables were sent on
+the weekends.
 
-\parhead{Data.}
-The National Archive collects communications between the U.S. Sate Department and its embassies.  We obtained a collection of these diplomatic messages from the History Lab at Columbia,\footnote{\url{http://history-lab.org}} which received them from the Central Foreign Policy Files at the National Archives.  The communications in this data set were sent between 1973 and 1978.
+\subsection{Model Settings}
 
-In addition to the text of the cables themselves, each document is supplemented with information about who sent the cable (e.g., the State Department, the U.S. Embassy in Saigon, or an individual by name), who received the cable (often multiple entities), and the date the cable was sent.  We used a vocabulary of size 6,293 and omitted cables with fewer than three terms, resulting in a collection of 2,021,852 messages sent between 22,961 entities.  We selected a weekly duration for the time intervals, as few cables were sent on the weekends.
+% what top-level shape/rate parameters did we use?
 
-\parhead{Model Settings.}
-We fit Capsule with $K=100$ general topics and using the exponential decay $f$, shown in \Cref{eq:f}, with event duration $\tau=4$.  With these settings on the cables data, fitting the model takes about one hour per iteration.\footnote{Our algorithm is batch--we consider each data point for every iteration.  Modifying the algorithm to stochastically sample the data would reduce the time required to achieve an equivalent model fit.}
+We ran our approximate inference algorithm for Capsule to obtain a
+fitted variational distribution. We used $K=100$ general topics, the
+exponential decay function in \cref{eq:f} with $\tau=4$, and top-level
+hyperparameters $s=r=0.3$. With these settings, a single iteration of
+the algorithm took about an hour.\footnote{Each iteration of our
+  algorithm considers all messages. Modifying it to stochastically
+  sample the data would reduce the time required to obtain an
+  equivalent fitted variational distribution.}
 
-\parhead{Quantitative Results.}
-The History Lab at Columbia provided a list of 39 real-world events in the time period covered by the cables data; they validated that these events were present in at least one of six reputable collections of events, such as the Office of the Historian list of milestones.\footnote{\url{https://history.state.gov/milestones/1969-1976}}
+\subsection{Quantitative Results}
+
+The History Lab at Columbia University provided us with a list of
+thirty-nine real-world events during that took place between 1973 and
+1978. These events are present in at least one of six reputable
+collections of historic events, such as the Office of the Historian's
+Milestones in the History of U.S. Foreign
+Relations.\footnote{\url{https://history.state.gov/milestones/1969-1976}}
 
 We ran Capsule and baseline comparison methods to recover these events, and used the nDCG metric to evaluate the methods.  The nDCG metric is discounted cumulative gain,
 \begin{equation}
@@ -117,20 +190,28 @@ Event Only & -1.79e7 & -- \\
 \label{table:cables:ll}
 \end{table*}
 
-\parhead{Model Exploration.}
-The evaluations to this point are useful in validating that Capsule captures its intended constructs, but the objective of the model is not prediction; rather, it is to be used as a scaffold to explore large collections of documents.  We now turn to exploring the cables data using Capsule.
+\subsection{Exploration}
 
-We begin our exploration by detecting events using Capsule.  With \Cref{eq:eventness} as our metric of ``eventness,'' we consider this metric over time, which is shown in \Cref{fig:cables_events}.  Here, high values---often peaks---correspond to real-worlds events, several of which are labeled.
+Having validated that Capsule can detect real-world events, we now
+turn to our primary goal---using Capsule to explore and understand a
+corpus of messages.
 
-One of the tallest peak occurs the week of December 1, 1975, during which the United Nations General Assembly (UNGA) discussed omnibus decolonization.
-% just prior to the Indonesian invasion of East Timor, which began December 7, 1975.
-As discussed in \Cref{sec:model}, we sort documents by their weighted event relevancy parameters $f(i_d,t) \epsilon_{d,t}$ to find cables that reflect an event.  \Cref{tab:decol} shows the top cables for this discussion.  Capsule accurately identifies this real-world event and recovers relevant cables.
+\Cref{fig:cables_events} shows the ``eventness'' measure described in
+\cref{sec:detecting} over time. High values---which are often
+anomalous peaks---correspond to real-world events. One of the tallest
+peaks occurs during the week of December 1, 1975, when the United
+Nations General Assembly (UNGA) discussed omnibus decolonization. As
+described in \cref{sec:detecting}, we can characterize this event by
+computing $f(t_d, t)\,\E[\epsilon_{dt}]$ for each message $d$ and then
+sorting the messages accordingly. \Cref{tab:decol} lists the
+top-ranked cables.
+
 \begin{table*}[tb]
 \small
 \centering
 \begin{tabular}{cccl}
 \toprule
-$f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
+$f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
 \midrule
 4.60 & 1975-12-05 & Canberra & 30th UNGA: Item 23, Guam, Obmibus Decolonization and ... \\
 4.26 & 1975-12-05 & Mexico & 30th UNGA-Item 23: Guam, Omnibus Decolonization and ... \\
@@ -139,8 +220,10 @@ $f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
 4.08 & 1975-12-04 & Monrovia & 30th UNGA: Item 23: Resolutions on decolonization and A...\\
 \bottomrule
 \end{tabular}
-\caption{Top documents for the time interval of week December 1, 1975, when the UN discussed decolonization resolutions; Capsule recovers relevant documents related to this real-world event.  Typos intentionally copied from original data.  }
-
+\caption{Top-ranked cables for the week of December 1, 1975, when the
+  United Nations General Assembly discussed decolonization
+  resolutions. Capsule accurately recovers cables related to this
+  real-world event. Typos are intentionally copied from the data.}
 \label{tab:decol}
 \end{table*}
 
@@ -149,7 +232,7 @@ $f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
 \centering
 \begin{tabular}{cccl}
 \toprule
-$f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
+$f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
 \midrule
 5.06 & 1975-05-15 & Sofia & Seizure of US merchant vessel by Cambodian forces \\
 5.05 & 1975-05-15 & Dar es Salaam & Seizure of U.S.~merchant vessel by Cambodian forces \\
@@ -158,13 +241,19 @@ $f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
 4.59 & 1975-05-15 & State & eizure of US merchant Vessel by Cambodian forces \\
 \bottomrule
 \end{tabular}
-\caption{Top documents for the week during which the S.S.~Mayaguez was captured.  Capsule identifies documents relevant to the real-world event.  Typos intentionally copied from original data.  }
-
+\caption{Top-ranked cables for the week of May 12, 1975, when the
+  S.S.~Mayaguez, an American merchant vessel, was captured. Capsule
+  accurately recovers cables related to this real-world event. Typos
+  are intentionally copied from the data.}
 \label{tab:mayaguez}
 \end{table*}
 
-Another notable event was the seizure of the S.S.~Mayaguez, an American merchant vessel, in May of 1975---at the end of the Vietnam War.  The top documents for this week
-are shown in \Cref{tab:mayaguez}.  We can inspect individual documents to confirm their relevancy and learn more about the events.  For instance, the content of the most relevant document, according to Capsule, is as follows.
+Another notable event was the seizure of the S.S.~Mayaguez, an
+American merchant vessel, during May, 1975, at the end of the Vietnam
+War. The top-ranked cables for this event are in
+\cref{tab:mayaguez}. We can examine the individual cables to confirm
+their relevancy and learn more about the event. For example, here is
+the most relevant cable, according to Capsule:
 \begin{shaded*} \tt{In absence of MFA Chief of Eighth Department Avramov, I
 informed American desk officer Yankov of circumstances surrounding seizure
 and recovery of merchant ship Mayaguez and its crew.  Yankov promised to
