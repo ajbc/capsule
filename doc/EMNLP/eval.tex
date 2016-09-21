@@ -179,7 +179,8 @@ were able to recover them.
 
 Specifically, we used each method to construct a ranked list of time
 intervals. Then, for each method, we computed the discounted
-cumulative gain (DCG):
+cumulative gain (DCG), which, in this context, is equivalent to
+computing
 \begin{equation}
   \sum_{e=1}^{39} \frac{1}{\log{\left(\textrm{rank}\left(e, L_T^{\textrm{method}}\right)\right)}},
 \end{equation}
@@ -189,7 +190,7 @@ L_T^{\textrm{method}}\right)$ is the rank of the $e^{\textrm{th}}$
 real-world event in $L_T^{\textrm{method}}$. Finally, we divided the
 DCG by the ideal DCG---i.e., $\sum_{e=1}^{39}
 \frac{1}{\log{\left(e\right)}}$---to obtain the normalized
-DCG. \Cref{table:cables:ndcg} shows that Capsule outperforms the
+DCG (nDCG). \Cref{table:cables:ndcg} shows that Capsule outperforms the
 baselines.
 
 \begin{table*}[t]
@@ -210,22 +211,22 @@ Single term maximum unweighted deviation & 0.555 \\
 \label{table:cables:ndcg}
 \end{table*}
 
-Additionally, we computed held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
-\begin{table}[bt]
-\centering
-\begin{tabular}{l c c}
-\toprule
-\textbf{Model} & \textbf{LL, 10 iter.} & \textbf{LL, final} \\
-\midrule
-Full Capsule & -1.62e7 & -1.52e7 \\
-Entity Topics Only & -1.64e7 & -- \\
-General Topics Only & -1.71e7 & -1.53e7 \\
-Event Only & -1.79e7 & -- \\
-\bottomrule
-\end{tabular}
-\caption{Log likelihood (LL) computed on validation data at 10 iterations and at convergence---the event only and entity only models are small enough that they converge with very few iterations. The full Capsule model achieves the lowest log likelihood in both cases.}
-\label{table:cables:ll}
-\end{table}
+%Additionally, we computed held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
+%\begin{table}[bt]
+%\centering
+%\begin{tabular}{l c c}
+%\toprule
+%\textbf{Model} & \textbf{LL, 10 iter.} & \textbf{LL, final} \\
+%\midrule
+%Full Capsule & -1.62e7 & -1.52e7 \\
+%Entity Topics Only & -1.64e7 & -- \\
+%General Topics Only & -1.71e7 & -1.53e7 \\
+%Event Only & -1.79e7 & -- \\
+%\bottomrule
+%\end{tabular}
+%\caption{Log likelihood (LL) computed on validation data at 10 iterations and at convergence---the event only and entity only models are small enough that they converge with very few iterations. The full Capsule model achieves the lowest log likelihood in both cases.}
+%\label{table:cables:ll}
+%\end{table}
 
 \subsection{Exploration}
 
