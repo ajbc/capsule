@@ -15,6 +15,7 @@ four baseline methods. We also compared the methods' abilities to
 identify the most relevant messages for each event.
 
 \subsection{Detecting Events}
+\label{sec:detecting_events}
 
 For each data set, we ordered the time intervals from most to least
 eventful, using the ``eventness'' measure described in
@@ -40,7 +41,7 @@ appropriately, and the posterior expected values of the latent variables.
 For our second baseline, we drew inspiration from previous work on
 event detection in the context of news articles, and focused on each
 time interval's deviation in term counts from the
-average. Specifically, we ordered the time intervals $t=1, \ldots, T$
+average. Specifically, we ordered the time intervals $1, \ldots, T$
 for each simulated data set according to this measure:
 \begin{equation}
   m_t = \sum_{v=1}^V \sum_{\substack{d=1\\t_d \!=\! t}}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
@@ -154,8 +155,6 @@ the weekends.
 
 \subsection{Model Settings}
 
-% what top-level shape/rate parameters did we use?
-
 We ran our approximate inference algorithm for Capsule to obtain a
 fitted variational distribution. We used $K=100$ general topics, the
 exponential decay function in \cref{eq:f} with $\tau=4$, and top-level
@@ -165,33 +164,39 @@ the algorithm took about an hour.\footnote{Each iteration of our
   sample the data would reduce the time required to obtain an
   equivalent fitted variational distribution.}
 
-\subsection{Quantitative Results}
+\subsection{Detecting Well-Known Events}
 
-Similar to the validation on simulated data discussed in \cref{sec:valid},
-we can validate Capsule on this real-world data.  Here, we focus on event detection
-and held-out data likelihood.
-
-The History Lab at Columbia University provided us with a list of
-thirty-nine well-known real-world events during that took place between 1973 and
-1978. These events are present in at least one of six reputable
+To evaluate Capsule's ability to detect well-known events, we used a
+list, provided to us by the History Lab at the University of Columbia,
+of thirty-nine real-world events that took place between 1973 and
+1978. Each event is present in at least one of six reputable
 collections of historic events, such as the Office of the Historian's
 Milestones in the History of U.S. Foreign
 Relations.\footnote{\url{https://history.state.gov/milestones/1969-1976}}
+We treated this list as ``ground truth'' and assessed how well Capsule
+and each of the baselines described in \cref{sec:detecting_events}
+were able to recover them.
 
-We ran Capsule and baseline comparison methods to recover these events, and used the nDCG metric to evaluate the methods.  The nDCG metric is discounted cumulative gain,
+Specifically, we used each method to construct a ranked list of time
+intervals. Then, for each method, we computed the discounted
+cumulative gain (DCG):
 \begin{equation}
-\mbox{DCG} = \sum_{j=1}^T \frac{\mathbf{1}[\mbox{interval at rank $j$ in known events}]}{\log j},
+  \sum_{e=1}^{39} \frac{1}{\log{\left(\textrm{rank}\left(e, L_T^{\textrm{method}}\right)\right)}},
 \end{equation}
-divided by the ideal DCG value, or
-\begin{equation}
-\mbox{nDCG} = \frac{\mbox{DCG}}{\mbox{ideal DCG}}.
-\end{equation}
-As shown in \Cref{table:cables:ndcg}, Capsule outperforms the baselines.
-\begin{table*}[bt]
+where $L_T^{\textrm{method}}$ is the ranked list of time intervals
+according to the method and $\textrm{rank}\left(e,
+L_T^{\textrm{method}}\right)$ is the rank of the $e^{\textrm{th}}$
+real-world event in $L_T^{\textrm{method}}$. Finally, we divided the
+DCG by the ideal DCG---i.e., $\sum_{e=1}^{39}
+\frac{1}{\log{\left(e\right)}}$---to obtain the normalized
+DCG. \Cref{table:cables:ndcg} shows that Capsule outperforms the
+baselines.
+
+\begin{table*}[t]
 \centering
 \begin{tabular}{l c}
 \toprule
-\textbf{Method} & \textbf{nDCG} \\
+\textbf{Method} & \textbf{normalized DCG} \\
 \midrule
 Capsule & 0.693 \\
 Average tf-idf weighted word count deviation & 0.652 \\
@@ -199,14 +204,11 @@ Average unweighted word count deviation & 0.642 \\
 Single term maximum tf-idf weighted deviation & 0.561 \\
 Random (10k ave) & 0.557 \\
 Single term maximum unweighted deviation & 0.555 \\
-%Total tf-idf weighted word count deviation; \Cref{eq:tfidfwordev}\footnotemark & 0.543626 \\
-%Total unweighted word count deviation; \Cref{eq:wordev} & 0.540892 \\
 \bottomrule
 \end{tabular}
 \caption{Evaluation of Capsule and comparison baselines on a collection of 39 real-world events.  Capsule performs best.}
 \label{table:cables:ndcg}
 \end{table*}
-%\footnotetext{Note that this metric performed best on simulated data.}
 
 Additionally, we computed held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
 \begin{table}[bt]
