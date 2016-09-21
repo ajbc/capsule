@@ -132,30 +132,20 @@ where $\theta_{dk}$ is message $d$'s strength for general topic $k$,
 $\zeta_{d}$ is message $d$'s strength for $a_d$'s entity topic, and
 $\epsilon_{dt}$ is message $d$'s strength for event topic $t$. The
 function $f(\cdot)$ ensures that the events influences decay over
-time. As described in \cref{sec:additional_results}, we
-
-We found that an exponential decay function, as in \cref{eq:f},
-works well in practice.
-
-% I think this paragraph should be moved to the model section.
-As described in \Cref{sec:additional_results}, we assessed the
-sensitivity of o\
-ur model to different settings of event duration $\tau$ three
-different decay f\
-unctions $f$: exponential, linear, and step functions.  We found that
-fitting C\
-apsule with an exponential decay function, or
+time. As we describe in \cref{sec:additional_results}, we compared
+several different decay functions (exponential, linear, and step) and
+found that the following exponential decay function works well in
+practice:
 \begin{equation}
-  f(i_d, t) =
-  \begin{cases}
-        0,                  & \text{if } t \le i_d < t + \tau\\
-            \exp\left\{\frac{-(i_d - t)}{\tau/5}\right\},          &
-            \text{otherwise,}
-            \end{cases}
-  \label{eq:f}
+  f(t_d, t) = \begin{cases}
+    0 & \textrm{$t \le t_d < t + \tau$}\\
+    \exp{\left( \frac{-(t_d - t)}{\tau\,/\,5}\right)} &
+    \textrm{otherwise.}
+    \end{cases}
   \end{equation}
-provided the best performance and the most interpretable results.
-
+Dividing $\tau$ by five means that we can interpret it as the number
+of time intervals after which an event will have little impact on the
+content of the messages.
 
 We place hierarchical gamma priors over the message-specific
 strengths, introducing entity-specific strengths $\mathbold{\phi}_1,
