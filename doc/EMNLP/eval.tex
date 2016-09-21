@@ -172,7 +172,7 @@ we can validate Capsule on this real-world data.  Here, we focus on event detect
 and held-out data likelihood.
 
 The History Lab at Columbia University provided us with a list of
-thirty-nine real-world events during that took place between 1973 and
+thirty-nine well-known real-world events during that took place between 1973 and
 1978. These events are present in at least one of six reputable
 collections of historic events, such as the Office of the Historian's
 Milestones in the History of U.S. Foreign
@@ -227,9 +227,9 @@ Event Only & -1.79e7 & -- \\
 
 \subsection{Exploration}
 
-Having validated that Capsule can detect real-world events, we now
+Having validated that Capsule can detect well-known real-world events, we now
 turn to our primary goal---using Capsule to explore and understand a
-corpus of messages.
+corpus of messages, including discovering obscure, but potentially significant events.
 
 \Cref{fig:cables_events} shows the ``eventness'' measure described in
 \cref{sec:detecting} over time. High values---which are often
@@ -312,7 +312,8 @@ at July 8 UNSC consideration of Israeli Rescue Operation. ...
 \end{shaded*}
 Capsule assumes that only one event occurs in each time interval---this example is a clear violation of this assumption, but it also demonstrates that the model successfully captures both events, even when they overlap.
 
+In addition to characterizing known events, such as Operation Entebbe and the Mayaguez incident, Capsule identifies and characterizes obscure but potentially important events.  For example, it characterizes the kidnapping of Tenneco employees in 1974 and Operation Fluid Drive in 1976, both of which were previously unknown to our expert historian.  It also reveals that the UN held a Security Council meeting in Panama in 1973---our expert historian did not previously know that the UN had held any meetings in this country.
 
-In addition to events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in \Cref{sec:additional_results}, \Cref{tab:topics} and entity-exclusive topics are shown in \Cref{sec:additional_results}, \Cref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
+In addition to investigating events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in \Cref{sec:additional_results}, \Cref{tab:topics} and entity-exclusive topics are shown in \Cref{sec:additional_results}, \Cref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
 
 These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.
