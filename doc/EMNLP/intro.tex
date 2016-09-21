@@ -3,9 +3,12 @@
 Foreign embassies of the United States government communicate with one
 another and with the U.S. State Department through diplomatic cables.
 The National Archive collects these cables in a corpus, which traces
-the (declassified) diplomatic history of the United States. The corpus
-contains, for example, over two million cables sent between 1973 and
-1978.
+the (declassified) diplomatic history of the United States.\footnote{
+  The National Archives' corpus also includes messages sent by
+  diplomatic pouch; however, for brevity, and at the risk of being
+  imprecise, we also refer to these messages as
+  ``cables.''}  The corpus contains, for example, over two million
+cables sent between 1973 and 1978.
 
 Most of these cables describe diplomatic ``business as usual,'' such
 as arrangements for visiting officials, recovery of lost or stolen
@@ -47,7 +50,10 @@ about this event:
 \begin{figure*}[ht]
 \centering
 \includegraphics[width=\linewidth]{fig/cables_events.pdf}
-\caption{Measure of ``eventness,'' or time interval impact on cable content (Eq.~\ref{eq:eventness}).  Grey background indicates the number of cables sent over time.  This comes from the model fit we discuss in \Cref{sec:eval}.  Capsule successful detects real-world events from National Archive diplomatic cables.}
+\caption{Capsule's analysis  (described in detail in \cref{sec:eval}) of two million cables from the National
+  Archives' corpus. The $y$-axis represents a loose measure of
+  ``eventness'' (\cref{eq:eventness}). The gray background depicts the
+  number of cables sent over time.}
 \label{fig:cables_events}
 \end{figure*}
 
@@ -66,16 +72,15 @@ cables deviate from typical diplomatic ``business as usual'' to
 discuss some matter that is common to many embassies. (We describe
 this measure of ``eventness'' in detail in \cref{sec:model}.)
 
-% THIS PARAGRAPH IS UNTOUCHED...
-The figure shows that Capsule detects many of the important moments
-during this five-year span, including the Air France hijacking and
-Israeli rescue operation ``Operation Entebbe'' (June 27--July 4,
-1976), and the fall of Saigon (April 30, 1975). It also identifies
-other moments, such as the U.S. sharing lunar rocks with other
-countries (March 21, 1973) and the death of Mao Tse-tung (Sept. 9,
-1976). Broadly speaking, Capsule gives a picture of the diplomatic
-history of these five years; it identifies and characterizes moments
-and source material that might be of interest to a historian.
+This figure shows that Capsule detects many of the significant events
+between 1973 and 1978, including the Air France hijacking and Israeli
+rescue operation ``Operation Entebbe'' (June 27--July 4, 1976) and the
+fall of Saigon (April 30, 1975). Capsule also finds other important
+events, such as the U.S. sharing lunar rocks with other countries
+(March 21, 1973) and the death of Mao Tse-tung (September 9,
+1976). Broadly speaking, Capsule provides a way to detect and
+characterize historical moments that might be of interest to
+historians, political scientists, and journalists.
 
 The intuition behind Capsule is this: Embassies write cables
 throughout the year, usually describing typical diplomatic business,
