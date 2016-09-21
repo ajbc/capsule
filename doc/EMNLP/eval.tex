@@ -1,6 +1,6 @@
 %!TEX root = emnlp2016.tex
 
-\section{Model Validation}
+\section{Model Validation with Simulated Data}
 \label{sec:valid}
 
 %In this section we explore the performance of Capsule on simulated data and a collection of over 2 million U.S. State Department diplomatic cables from the 1970s.
@@ -14,17 +14,24 @@ using simulated data.
 
 We used the generative process in \cref{fig:generative-model} to
 create ten data sets, each with 100 time intervals, ten general
-topics, ten entities, and roughly 20,000 messages. For each data set,
-we constructed a ranked list of the $m$ most eventful time intervals,
-for $m = 1, \ldots, T$, using the ``eventness'' measure described in
-\cref{sec:detecting}.
+topics, ten entities, and roughly 20,000 messages. 
 
-We then compared Capsule's ability to detect significant ``events'' in
-these data sets to that of several baselines, including an
-``event-only'' version of Capsule that retains only the third term in
-\cref{eq:poisrate}. We used this baseline to explicitly test whether
+Using this data, we evaluate Capsule and comparison methods on two prediction tasks: event detection and document recovery.  
+In this context, the goal of event detection is to predict the ordering of the time intervals, from most ``eventful'' to least ``eventful;''
+for each simulated data set, we defined the target ranked list of the time intervals using the known simulation parameters and the ``eventness'' measure shown in \cref{eq:eventness}.
+The goal of document recovery is to predict which documents are most relevant to a given time interval; we define the target documents using known simulation parameters and the weighted message-specific strength shown in \cref{eq:docrecovery}.
+
+We compared Capsule's ability to detect significant ``events'' 
+to several baselines, including an ``event-only'' version of 
+Capsule that retains only the third term in
+\cref{eq:poisrate}.
+We used this baseline to explicitly test whether
 modeling ``business as usual'' discussion makes it easier to detect
-significant events. The other two baselines involved computing the
+significant events.
+
+The other two baselines for event detection involved ranking time intervals by
+the average deviation of word counts in that time interval.
+Specifically, we computed the
 sum, over all vocabulary terms and messages, of the absolute
 difference between the number of times $n_{dv}$ that vocabulary term
 $v$ occurs in message $d$ and the average number of times vocabulary
@@ -41,28 +48,29 @@ and
   n_{dv} \right\rvert.
 \label{eq:wordev}
 \end{equation}
-We also considered baselines that involved deviations on the entity
-and document level, but found that they were not competitive. We also
-found that topic-based approaches~\cite{dou2012leadline} do not work
+The analogous document recovery baseline methods order documents in a time interval by
+their document-specific word count deviation---if we omit the first sum over documents in 
+each of \cref{eq:tfidfwordev,eq:wordev}, then these baselines can be used to order documents.
+We also considered baselines that involved deviations on the entity,
+and document level, but found that they were not competitive. We
+found that topic-based approaches~\cite{dou2012leadline} do not work,
 well for event detection because their reduced dimensionality is too
 coarse to provide a meaningful signal.
 
-To evaluate event detection, we created a ranked list of all time intervals and computed the overlap between a method and the simulated ground at every threshold; this generates an curve under which we can compute the area and normalized based on ideal performance---we refer to this metric as event detection AUC:
+
+To evaluate event detection for a given method, we compare the ranked list of time intervals and the simulated ground truth list.  At every threshold---i.e., only consider the top $i$ time intervals---we compute the overlap between the two lists; this generates an curve under which we can compute the area and normalized based on ideal performance.  We refer to this metric as event detection AUC:
 \begin{equation}
 \frac{\sum_{i=1}^T \vert \mbox{Truth}_i \cap \mbox{Model}_i \vert}{\sum_{i=1}^T i},
 \end{equation}
-where $\mbox{Model}_i$ is a set of the top $i$ most eventful intervals
+where $\mbox{Model}_i$ is the set of the top $i$ most eventful intervals
 according to the model, and $\mbox{Truth}_i$ is the known set of the
 top $i$ most eventful intervals.
 
 \Cref{fig:sim_eventdetect} shows that Capsule outperforms the
-baselines at event detection.\footnote{The model was
+comparison methods at event detection.\footnote{The model was
   set with the same number of topics $K=10$ and exponential decay $f$
   used to simulate the data.  More details on the decay function
-  surround its formal definition in \Cref{eq:f}.}
-
-
-
+  surround its formal definition in \cref{eq:f}.}
 
 \begin{figure}[ht]
 \centering
@@ -71,15 +79,13 @@ baselines at event detection.\footnote{The model was
 \label{fig:sim_eventdetect}
 \end{figure}
 
-Once events have been identified, our next task is to identify
-relevant documents; to evaluate this, we calculate precision of
+To evaluate this document recovery, we calculate precision of
 recovering the top $N$ documents.  Both Capsule and its event-only
 partial model outperform all comparison methods in terms of document
 recovery.  For Capsule, average precision at 10 documents was 0.44;
 the event-only model had average precision of 0.09.  LDA performed
 slightly worse than the event-only model, and the other comparison
-methods (similar to Equations~\ref{eq:wordev}
-and~\ref{eq:tfidfwordev}) recovered zero relevant
+methods (similar to \cref{eq:tfidfwordev,eq:wordev}) recovered zero relevant
 documents--equivalent to random.
 
 
@@ -136,6 +142,10 @@ the algorithm took about an hour.\footnote{Each iteration of our
 
 \subsection{Quantitative Results}
 
+Similar to the validation on simulated data discussed in \cref{sec:valid}, 
+we can validate Capsule on this real-world data.  Here, we focus on event detection
+and held-out data likelihood.
+
 The History Lab at Columbia University provided us with a list of
 thirty-nine real-world events during that took place between 1973 and
 1978. These events are present in at least one of six reputable
@@ -173,12 +183,12 @@ Single term maximum unweighted deviation & 0.555 \\
 \end{table*}
 %\footnotetext{Note that this metric performed best on simulated data.}
 
-Additionally, we can compute held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
-\begin{table*}[bt]
+Additionally, we computed held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
+\begin{table}[bt]
 \centering
 \begin{tabular}{l c c}
 \toprule
-\textbf{Model} & \textbf{LL at 10 iterations} & \textbf{LL at convergence} \\
+\textbf{Model} & \textbf{LL, 10 iter.} & \textbf{LL, final} \\
 \midrule
 Full Capsule & -1.62e7 & -1.52e7 \\
 Entity Topics Only & -1.64e7 & -- \\
@@ -188,7 +198,7 @@ Event Only & -1.79e7 & -- \\
 \end{tabular}
 \caption{Log likelihood (LL) computed on validation data at 10 iterations and at convergence---the event only and entity only models are small enough that they converge with very few iterations. The full Capsule model achieves the lowest log likelihood in both cases.}
 \label{table:cables:ll}
-\end{table*}
+\end{table}
 
 \subsection{Exploration}
 
@@ -227,7 +237,7 @@ $f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf
 \label{tab:decol}
 \end{table*}
 
-\begin{table*}[tb]
+\begin{table*}[ht]
 \small
 \centering
 \begin{tabular}{cccl}
