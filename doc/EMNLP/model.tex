@@ -63,7 +63,11 @@ $n_{dv}$ that each vocabulary term $v$ occurs in each message
 $d$. Each message is associated with an author entity $a_d$ and a time
 interval $t_d$ within which that message was sent.
 
-We model each message with a bank of Poisson distributions\footnote{Readers familiar with topic modeling may expect a multinomial model of word tokens, but Poisson models of word counts better capture documents of different lengths \cite{canny2004gap}.}---one for
+We model each message with a bank of Poisson
+distributions\footnote{Readers familiar with topic modeling may expect
+  a multinomial model of term occurrences, but Poisson models of
+  counts better capture messages with different lengths
+  \cite{canny2004gap}.}---one for
 each vocabulary term:
 \begin{align}
   n_{dv} \sim \textrm{Poisson}\left(\lambda_{dv}\right).

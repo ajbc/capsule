@@ -82,10 +82,10 @@ a set of the top $r$ time intervals according to the method.
 \centering
 \includegraphics[width=\linewidth]{fig/sim_eventdetect.pdf}
 \caption{Event detection performance using ten simulated data
-  sets. Each dot represents the performance (\cref{eq:detection}) of
-  a single method on a single data set; the shaded green area
-  summarizes the distribution of performance for a single method.
-  Capsule outperforms all baseline methods.}
+  sets. Each dot represents the performance (\cref{eq:detection};
+  higher is better) of a single method on a single data set; each
+  shaded green area summarizes the distribution of performance for a
+  single method.  Capsule outperforms all four baseline methods.}
 \label{fig:sim_eventdetect}
 \end{figure}
 
@@ -209,9 +209,9 @@ random & 0.557\\
 ``event-only'' Capsule (this paper) & 0.426\\
 \bottomrule
 \end{tabular}
-\caption{Event detection performance (higher is better) using
-  thirty-nine events that took place between 1973 and 1978.
-  Capsule outperforms all baseline methods.}
+\caption{Event detection performance (nDCG; higher is better) using
+  thirty-nine well-known events that took place between 1973 and 1978.
+  Capsule outperforms all four baseline methods.}
 \label{table:cables:ndcg}
 \end{table}
 
@@ -332,18 +332,18 @@ and characterize more obscure, but potentially significant,
 events. For example, the kidnapping of Tenneco employees in 1974 and
 Operation Fluid Drive in 1976, both of which appear in
 \cref{fig:cables_events}, were previously unknown to our expert
-historian at the History Lab. Capsule's analysis also revealed that
-the United Nations held a Security Council meeting in Panama in
+historian at the History Lab. Capsule's analysis also reveals that
+the United Nations held a Security Council meeting in Panama during
 1973---our expert historian did not previously know that the United
 Nations had held any meetings in this country.
 
 Capsule also provides a way to explore ``business-as-usual''
 discussion using the posterior expected values of the general topics
 $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$ and the entity topics
-$\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$. Examples of these
-types of topics are in \cref{sec:additional_results}
-(\cref{tab:topics,tab:entities}, respectively); these
-examples illustrate that, as desired, the entity topics absorb
+$\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$. Examples of each of
+these types of topics are in \cref{sec:additional_results}
+(\cref{tab:topics,tab:entities}, respectively); these examples
+illustrate that, as desired, the entity topics absorb
 location-specific terms, preventing them from overwhelming the general
 topics.
 
