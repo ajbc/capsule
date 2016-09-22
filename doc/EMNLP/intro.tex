@@ -26,9 +26,9 @@ with Dr.~John P.~Klus RE list of persons to be invited.}
 But, hidden in the corpus are also cables about important diplomatic
 events---the cables and events that are most interesting to
 historians, political scientists, and journalists. For example, during
-that same week, the U.S. was in the last moments of the Vietnam war
+that same week, the U.S. was in the last moments of the Vietnam War
 and, on April 30, 1975, lost its hold on Saigon. This marked the
-end of the war and a mass exodus of refugees. Here is one of the cables
+end of the war and induced a mass exodus of refugees. Here is one cables
 about this event:
 \begin{shaded*}
   \tt{GOA program to move Vietnamese Refugees to Australia
@@ -82,7 +82,7 @@ events, such as the U.S. sharing lunar rocks with other countries
 characterize historical moments that might be of interest to
 historians, political scientists, and journalists.
 
-The intuition behind Capsule is this: Embassies write cables
+The intuition behind Capsule is this: embassies write cables
 throughout the year, usually describing typical diplomatic business,
 such as visits from government officials. Sometimes, however,
 important events occur, such as the fall of Saigon, that pull
@@ -90,7 +90,7 @@ embassies away from their typical activities and lead them to write
 cables that discuss these events and their consequences. Capsule
 therefore operationalizes an ``event'' as a moment in history when
 multiple embassies deviate from their usual topics of discussion and
-each embassy deviates in the same way.
+each embassy deviates in a similar way.
 
 Capsule embeds this intuition into a Bayesian model that uses latent
 variables to encode what ``business as usual'' means for each embassy,
@@ -113,8 +113,8 @@ generated over time by known entities. This includes email, consumer
 behavior, social media posts, and opinion articles.
 
 \section{Related Work}
-
-% I prefer having this as a stand-alone section
+\label{sec:relatedwork}
+% Hanna: I prefer having this as a stand-alone section
 
 %\parhead{Related work.}
 
@@ -143,10 +143,12 @@ on events as anomalies.
 Event detection in the context of news
 articles~\cite{zhao2012novel,zhao2007temporal,zhang2002novelty,li2005probabilistic,wang2007mining,allan1998line}
 and social media
-posts~\cite{VanDam:2012,lau2012line,jackoway2011identification,sakaki2010earthquake,reuter2012event,becker2010learning,sayyadi2009event}
+posts~\cite{atefeh2015survey,VanDam:2012,lau2012line,jackoway2011identification,sakaki2010earthquake,reuter2012event,becker2010learning,sayyadi2009event}
 usually means identifying clusters of documents. For news, the goal is
-to create new clusters as novel stories appear, without distinguishing
-between typical content and rare events; for social media, the goal is
+to create new clusters as novel stories appear; each article is assumed
+to be relevant to one event, which does not allow for a distinction
+between typical content and rare events.
+For social media, the goal is
 to identify rare events, but the resultant methods are intended for
 short documents, and are not appropriate for longer documents that
 contain information about a variety of subjects.
