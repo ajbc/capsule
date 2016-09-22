@@ -100,7 +100,7 @@ model and its implementation.
 %  definition in \cref{eq:f}.}
 
 \subsection{Identifying Relevant Messages}
-
+\label{sec:relevant_messages}
 For each data set, we created a list of the most relevant messages for
 each time interval $t$ by computing $f(t_d, t)\,\epsilon_{dt}$ for
 each message $d$ (using the simulated values of $\epsilon_{dt}$) and
@@ -127,7 +127,7 @@ versions of \cref{eq:wordev,eq:tfidfwordev}.
 
 For each data set, we compared each method's ranked list of messages
 for each time interval to the corresponding ``ground-truth'' list, by
-computing precision at 10 messages. The average precision for Capsule
+computing precision at ten messages. The average precision for Capsule
 was was 0.44, while the average precision for the ``event-only''
 version of the model was 0.09. The other baselines recovered zero
 relevant messages.
@@ -302,7 +302,7 @@ Batjer
 
 
 A third week of interest occurs in early July, 1976.  On July 4th, the
-US celebrated its Bicentennial, but on the same day, Israeli forces
+U.S. celebrated its Bicentennial, but on the same day, Israeli forces
 completed a hostage rescue mission because an Air France flight from
 Tel Aviv had been hijacked and taken to Entebbe,
 Uganda.\footnote{Capsule assumes that only one event occurs during
