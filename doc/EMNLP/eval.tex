@@ -143,18 +143,18 @@ corpus of over two million U.S. State Department cables from the
 \subsection{Data}
 
 The National Archive collects diplomatic cables sent between the
-U.S. State Department and its foreign embassies. We obtained a subset
+U.S.~State Department and its foreign embassies. We obtained a subset
 of this corpus from the Central Foreign Policy Files at the National
 Archives, via the History Lab at Columbia
-University.\footnote{http://history-lab.org} The subset contains over
-two million cables sent between 1973 and 1978. In addition to the text
+University;\footnote{http://history-lab.org} the subset contains
+cables sent between 1973 and 1978. In addition to the text
 of the cables, each message is labeled with its author (e.g., the
-U.S. State Department, a particular embassy, or a named individual),
-its recipients (often several), and the date the cable was sent. We
+U.S.~State Department, a particular embassy, or an individual),
+the date the cable was sent, and other meta-data. We
 used a vocabulary of 6,293 terms and omitted cables with fewer than
-three terms, resulting in 2,021,852 cables sent between 22,961
+three terms, resulting in 2,021,852 cables sent by 22,961
 entities. We used weekly time intervals, as few cables were sent on
-the weekends.
+weekends.
 
 \subsection{Model Settings}
 
@@ -178,7 +178,8 @@ U.S. Foreign
 Relations.\footnote{\url{https://history.state.gov/milestones/1969-1976}}
 We treated this list of events as ``ground truth'' and assessed how
 well Capsule and each of the baselines described in
-\cref{sec:detecting_events} were able to recover them.
+\cref{sec:detecting_events} were able to recover them.  Or in other words, 
+how well Capsule identifies these eventful weeks, compared to more typical weeks.
 
 Specifically, we used each method to construct a ranked list of time
 intervals. Then, for each method, we computed the discounted
@@ -328,14 +329,11 @@ at July 8 UNSC consideration of Israeli Rescue Operation. ...
 
 In addition to detecting and characterizing well-known events, such
 the S.S.~Mayaguez incident and Operation Entebbe, Capsule can detect
-and characterize more obscure, but potentially significant,
-events. For example, the kidnapping of Tenneco employees in 1974 and
-Operation Fluid Drive in 1976, both of which appear in
-\cref{fig:cables_events}, were previously unknown to our expert
-historian at the History Lab. Capsule's analysis also reveals that
-the United Nations held a Security Council meeting in Panama during
-1973---our expert historian did not previously know that the United
-Nations had held any meetings in this country.
+and characterize obscure but significant events, such as when Eritrean rebels 
+kidnapped Tenneco oil employees (April 8, 1974), and when the U.S. Navy evacuated citizens 
+from Lebanon (``Operation Fluid Drive,'' June 20, 1976),
+both shown in \cref{fig:cables_events}.
+Capsule uncovers events where analysts might not otherwise look.
 
 Capsule also provides a way to explore ``business-as-usual''
 discussion using the posterior expected values of the general topics
