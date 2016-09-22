@@ -1,16 +1,16 @@
 %!TEX root = supplemental.tex
 
-In this appendix, we present non-crucial experimental results for Capsule.
+In this appendix, we provide additional results for
+ Capsule. \Cref{tab:entebbe} lists the highest-ranked messages for an
+ event described in \cref{sec:eval}. \Cref{tab:topics,tab:entities}
+ contain examples of general topics and entity topics, respectively.
 
-\Cref{tab:entebbe} lists top documents for an event described in \Cref{sec:eval}.  \Cref{tab:topics} shows a selection of general topics and \Cref{tab:entities} shows a selection of entity topics.
-
-
-\begin{table*}[tb]
+\begin{table*}[htb]
 \small
 \centering
-\begin{tabular}{cccl}
+\begin{tabular}{cccc}
 \toprule
-$f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
+$f(t_d, t)\,\E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
 \midrule
 6.86 & 1976-07-07 & Cairo & Possible SC meeting on Israeli rescue operation \\
 6.18 & 1976-07-10 & Kuwait & Media reaction to Bicentennial summary \\
@@ -32,17 +32,19 @@ $f *\epsilon$ & \textbf{Date} & \textbf{Entity} & \textbf{Subject} \\
 4.09 & 1976-07-10 & Moscow & Pravda and Krasnaya Zvezda on Entebbe rescue oper... \\
 \bottomrule
 \end{tabular}
-\caption{Top documents for the week after the US bicentennial celebration and Operation Entebbe.  Capsule identifies documents relevant to both these real-world events.}
+\caption{Highest-ranked messages for the week immediately following the U.S.
+Bicentennial Celebration and Operation Entebbe. Capsule accurately
+recovers messages related to both of these real-world events. Typos
+are intentionally copied from the data.}
 \label{tab:entebbe}
-\end{table*} 
-
+\end{table*}
 
 \begin{table*}
 \centering
 \small
 \begin{tabular}{c}
 \toprule
-\textbf{top terms} \\
+\textbf{Top Terms} \\
 \midrule
 church, vatican, catholic, bishop, pope, ford, cardinal, ban, religious, archbishop \\
 program, university, grant, education, school, post, institute, research, center, american \\
@@ -64,7 +66,12 @@ soviet, moscow, press, ussr, soviet union, american, one, war, communist, articl
 sea, zone, marine, maritime, fish, coastal, continental, territorial, mile, fishery \\
 \bottomrule
 \end{tabular}
-\caption{Top vocabulary terms for a selection of general topics, one per row, according to topic distributions $\beta_k$.  Capsule identifies general diplomatic themes that can be relevant to any entity.}
+\caption{The highest-probability vocabulary terms
+for a selection of
+general topics (one per row) according to
+$\E[\mathbold{\beta}_1], \ldots, \E[\mathbold{\beta}_K]$. These
+examples come from the analysis described in \cref{sec:eval}. Capsule identifies diplomatic
+themes that are relevant to any entity.}
 \label{tab:topics}
 \end{table*}
 
@@ -73,7 +80,7 @@ sea, zone, marine, maritime, fish, coastal, continental, territorial, mile, fish
 \small
 \begin{tabular}{cc}
 \toprule
-\textbf{entity} & \textbf{top terms} \\
+\textbf{Entity} & \textbf{Top Terms} \\
 \midrule
 Ankara & turkish, turkey, ankara, government, cyprus, greek, party, one, time \\
 Athens & greek, athens, greece, gog, government, cyprus, turkish, press, minister \\
@@ -120,52 +127,77 @@ Zagreb & yugoslav, yugoslavia, croatian, fair, belgrade, american, one, ina, sum
 Zurich & swiss, congen, consulate, general, american, bern, dollar, shipment \\
 \bottomrule
 \end{tabular}
-\caption{Top vocabulary terms for a selection of entities according to entity-exclusive topics $\eta_n$.  Capsule identifies entity-specific themes and interests.}
+\caption{The highest-probability vocabulary terms
+for a selection of
+entity topics (one per row) according to
+$\E[\mathbold{\eta}_1], \ldots, \E[\mathbold{\eta}_A]$. These
+examples come from the analysis described in \cref{sec:eval}. Capsule
+identifies themes and interests that are specific to the entities.}
 \label{tab:entities}
 \end{table*}
 
+\subsection{Decay Functions}
 
-\parhead{Model Sensitivity.}  We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration. 
-We considered a step function,
-\begin{equation}
-f(t_d, t) = 
+We assessed Capsule's sensitivity to several decay
+functions. We considered an exponential function,
+\begin{align}
+f(t_d, t) &=
 \begin{cases}
-    1,			& \text{if } t \le t_d < t+\tau  \\
-    0,          & \text{otherwise,}
-\end{cases}
-\label{eq:fstep}
-\end{equation}
-as well as linear decay,
-\begin{equation}
-f(t_d, t) = 
-\begin{cases}
-    1 - \frac{t_d - t}{\tau},			& \text{if } t \le t_d < t+\tau  \\
-    0,          & \text{otherwise.}
-\end{cases}
-\label{eq:flinear}
-\end{equation}
-and an exponential decay function:
-\begin{equation}
-f(t_d, t) = 
-\begin{cases}
-    0,			& \text{if } t \le t_d < t + \tau\\
-    \exp\left\{\frac{-(t_d - t)}{\tau/5}\right\},          & \text{otherwise.}\footnotemark
+    0			& t \leq t_d < t + \tau\\
+    \exp{\left(\frac{-(t_d - t)}{\tau\,/\,5}\right)}          & \textrm{otherwise,}\footnotemark
 \end{cases}
 \label{eq:fexp}
-\end{equation}
-\footnotetext{Unlike the linear and step functions, the exponential function could be evaluated for any time interval $t$ after a document's appearance at $t_d$; the function is truncated for computational reasons.  The mean lifetime of this exponential decay is the duration $\tau$ is divided by 5---this ensures that 99.3\% of the area under the curve is reached before the function is truncated at duration $\tau$.}
+\intertext{a linear function,}
+f(t_d, t) &=
+\begin{cases}
+    1 - \frac{(t_d - t)}{\tau}			& t \leq t_d < t+\tau  \\
+    0          & \textrm{otherwise,}
+\end{cases}
+\label{eq:flinear}
+\intertext{and a step function,}
+f(t_d, t) &=
+\begin{cases}
+    1			& t \leq t_d < t+\tau  \\
+    0          & \textrm{otherwise.}
+\end{cases}
+\label{eq:fstep}
+\end{align}
+\footnotetext{Unlike the linear and step functions, the exponential
+    function could be evaluated for any time interval $t$ after
+    messsage $d$'s appearance at $t_d$; however, we truncate the
+    function for computational reasons.  The mean lifetime of the
+    exponential decay is $\tau$ divided by five, which ensures that
+    99.3\% of the area under the curve has occurred before we truncate
+    the function at $\tau$.}  For each decay function, we used
+    Capsule's generative process, with $\tau = 3$, to create ten
+    simulated data
+    sets. We used three versions of our approximate inference
+    algorithm---one for each decay function---to obtain a fitted
+    variational distribution for each data set. We experimented with
+    $\tau = 1, \ldots, 5$. \Cref{fig:sensitivity} shows event
+    detection results (using \cref{eq:detection}) and message
+    identification results (using precision at ten messages).
 
-
-We used duration $\tau=3$ and simulated ten data sets for each of the three functions $f$.  In fitting the models, we also considered all three functions $f$ and varied the decay duration $\tau$ from 1 to 5.  \Cref{fig:sensitivity} shows the results of these experiments, using both event detection and document recovery metrics discussed previously.
+As expected, Capsule performs best when the decay function used in the
+inference algorithm matches the decay function used to generate the
+data. For both event detection and message identification, the
+exponential function is least sensitive to the value of $\tau$ used to
+generate the data and the value of $\tau$ used in the inference
+algorithm. We also found that the exponential function gave the most
+interpretable results for real messages.
 
 \begin{figure*}[th]
 \centering
 \includegraphics[width=\linewidth]{fig/sim_sensitivity.pdf}
-\caption{Assessment of model parameter sensitivity on simulated data--Capsule performs best when the model decay function matches the function used to generate the data.   The exponential decay is least sensitive to the setting of duration $\tau$ and the true function $f$.}
+\caption{Capsule's sensitivity to several different decay functions
+(exponential, linear, and step) using simulated data. Capsule performs
+best when the decay function used in the inference algorithm matches
+the decay function used to generate the data. The exponential function
+is least sensitive to the value of $\tau$ used to generate the data
+and the value of $\tau$ used in the inference algorithm.}
 \label{fig:sensitivity}
 \end{figure*}
 
-As expected, the model performs best when the model decay function matches the function used to generate the data.   For both event detection and document recovery, the exponential decay was least sensitive to the setting of duration $\tau$ used in fitting the data; it was also the least sensitive to the function used in simulating the data.  In exploring results on the real-world cable data, we found that the exponential decay provided the most interpretable results.
 
 
 
@@ -199,7 +231,7 @@ As expected, the model performs best when the model decay function matches the f
 
 % Another peak in \Cref{fig:cables_events} occurs the week of April 17, 1978 surrounding a UN special session on disarmament; the top three words under event its description $\pi$ are \emph{SSOD} (acronym for ``special session on disarmament'', \emph{disarmament}, and \emph{ICS} (likely an acronym for ``incident command system''); \Cref{tab:ssod} shows the top cables for this time interval, sorted by event relevancy $\epsilon$.  Most of these cables concern attendance, such as the first cable, which is from Bangkok:
 % \begin{shaded*} \tt{
-% Thai Ministry of Foreign Affairs official in International Organizations Department told EmbOff Apr 19 that his Dept had recommended that Foriegn Minister Uppadit attend SSOD. 
+% Thai Ministry of Foreign Affairs official in International Organizations Department told EmbOff Apr 19 that his Dept had recommended that Foriegn Minister Uppadit attend SSOD.
 % Uppadit, however, had just arrived back from trip to Asean
 % countries and had not yet considered composition of delegation.
 % MFA official expected the Foreign Minister would not decided
@@ -277,7 +309,7 @@ As expected, the model performs best when the model decay function matches the f
 
 % Similar to the sequence of Sinai events, another sequence of events occurs surrounding opium production; in March 1974, Capsule detects that Turkey plans to lift a ban on growing opium poppy.  Two months later, the model detects another event when the U.S. makes a policy statement on the domestic production of opium poppy.  For the first event, the top three cables for this interval have subjects \emph{Turkey to resume cultivation of the opium poppy}, \emph{Cultivation of opium poppy in Turkey}, and \emph{Ban on opium cultivation in Turkey}. Another cable further down the list has the subject, \emph{US funds to Turkey to halt opium production}.  On March 12, 1975, the London embassy reports the the State Department:
 % \begin{shaded*}
-% \tt{1.  Pursuant to RefTel, we spoke to W.~N.~Hillier-Fry, 
+% \tt{1.  Pursuant to RefTel, we spoke to W.~N.~Hillier-Fry,
 % head of Middle East and Mediterranean Department
 % of Overseas Development Administration, who will
 % head UK delegation to meeting of OECD consortium for
@@ -302,7 +334,7 @@ As expected, the model performs best when the model decay function matches the f
 % \tt{In conversation with Sisco reported RefTel Esenbel referred
 % to division within got on handling of opium problems.  At
 % one point he identified Orhan Eyuboglu as leader of hard
-% liners who wished immediate resumption of poppy cultivation.  
+% liners who wished immediate resumption of poppy cultivation.
 % By implication he identified Fonmin Gunes and
 % himself as members of those seeking cooperate with united
 % states, e.g. Gunes ``very pleased'' with decision not to
@@ -360,15 +392,15 @@ As expected, the model performs best when the model decay function matches the f
 % Algiers & algerian, algeria, say, one, embassy, do \\
 % Amman & jordanian, visit, make, say, time, do, meet \\
 % Bangkok & bangkok, thailand, thai, refugee, follow \\
-% Barcelona & spain, spanish, lane, repatriation \\ 
+% Barcelona & spain, spanish, lane, repatriation \\
 % Beirut & beirut, lebanon, lebanese, say, report \\
 % Brussels & belgian, brussels, belgium, meet, embassy \\
 % Budapest & hungarian, embassy, hungary, visit, mudd \\
 % Cape Town & cape, town, africa, say, african, make \\
-% Caracas & venezuelan, venezuela, caracas, embassy \\ 
+% Caracas & venezuelan, venezuela, caracas, embassy \\
 % Casablanca & casablanca, morocco, moroccan, request \\
 % Dublin & irish, goi, make, say, government, time, \\
-% Dusseldorf & opportunity, license, german, reverse \\ 
+% Dusseldorf & opportunity, license, german, reverse \\
 % Florence & consulate, italian, party, italy, communist \\
 % Fukuoka & japan, consulate, tokyo, billion, resale \\
 % Geneva & meet, geneva, follow, make, state, take, \\
@@ -388,15 +420,15 @@ As expected, the model performs best when the model decay function matches the f
 % Ndjamean & chadian, chad, lagos, drought, austerity \\
 % New Delhi & india, indian, delhi, goi, make, say, state \\
 % Oslo & norwegian, norway, embassy, meet, minister, say \\
-% Panama & panama, panamanian, embassy, canal, gop, meet \\ 
+% Panama & panama, panamanian, embassy, canal, gop, meet \\
 % Paris & paris, french, rush, meet, france, make, say \\
 % Rome & italian, rome, meet, italy, make, follow, state \\
 % Seoul & korean, korea, seoul, rok, rokg, embassy, make \\
 % State & request, follow, embassy, meet, make \\
 % Stockholm & swedish, sweden, trade, meet, embassy \\
 % Vancouver & government, canada, canadian, columbia, say \\
-% Vienna & vienna, austrian, meet, make, follow, state \\ 
-% Zagreb & yugoslavia, yugoslav, general, note, croatian \\ 
+% Vienna & vienna, austrian, meet, make, follow, state \\
+% Zagreb & yugoslavia, yugoslav, general, note, croatian \\
 % Zurich & swiss, congen, bern, bank, franc, dollar, sec \\
 % \bottomrule
 % \end{tabular}
@@ -446,7 +478,7 @@ As expected, the model performs best when the model decay function matches the f
 
 % \parhead{Model Sensitivity.}  Using simulated data, we assessed the sensitivity of our model to different decay functions $f$ and decay durations $\tau$.  We simulated data following the description in \Cref{sec:eval}.  We considered an exponential decay function, shown in \Cref{eq:f}, as well as linear decay,
 % \begin{equation}
-% f(i_d, t) = 
+% f(i_d, t) =
 % \begin{cases}
 %     1 - \frac{i_d - t}{\tau + 1},			& \text{if } t \le i_d < t+\tau  \\
 %     0,          & \text{otherwise.}
@@ -455,7 +487,7 @@ As expected, the model performs best when the model decay function matches the f
 % \end{equation}
 % and a step function,
 % \begin{equation}
-% f(i_d, t) = 
+% f(i_d, t) =
 % \begin{cases}
 %     1,			& \text{if } t \le i_d \le t+\tau  \\
 %     0,          & \text{otherwise.}
