@@ -1,56 +1,122 @@
 %!TEX root = supplemental.tex
 
-In this appendix, we describe the details of the inference algorithm for Capsule.
+In this appendix, we describe the details of the approximate inference
+algorithm for Capsule.
 
-Conditional on a collection of observed documents, our goal is to estimate the posterior values of the hidden parameters, according to the Capsule model.   Recall that our data is observed as word counts $n_{dv}$ for document $d$ and vocabulary term $v$, with corresponding author and time interval information for each document---$a_d$ and $t_d$, respectively.
-The latent parameters of the model include general topics $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$, entity topics $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$, and event topics $\mathbold{\gamma}_1, \ldots, \mathbold{\gamma}_T$, as well as message-specific strengths in each of these spaces: document relevancy to general topics $\mathbold{\theta}_d$, entity topics $\zeta_d$, and interval topics $\mathbold{\epsilon}_d$.  The latent parameters also include entity concerns with general topics $\mathbold{\phi}_1, \ldots, \mathbold{\phi}_A$ and with entity-specific topics $\xi_1, \ldots, \xi_A$, and overall event strength $\psi_1, \ldots, \psi_T$.  See \Cref{fig:generative-model} for the full generative model.
+Conditioned on the observed term counts---$n_{dv}$ for vocabulary term
+$v$ in message $d$; collectively $\mathbf{N}$---our goal is to learn
+the posterior distribution of the latent variables. Each message is
+associated with an author entity $a_d$ and a time interval $t_d$
+within which that messages was sent. The latent variables are the
+general topics $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$, the
+entity topics $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$, and the
+event topics $\mathbold{\gamma}_1, \ldots, \mathbold{\gamma}_T$, as
+well as the message-specific strengths
+$\mathbold{\theta}_{1}, \ldots, \mathbold{\theta}_D$,
+$\zeta_{1}, \ldots, \zeta_D$, and
+$\mathbold{\epsilon}_{1}, \ldots, \mathbold{\epsilon}_D$, the
+entity-specific strengths
+$\mathbold{\phi}_1, \ldots, \mathbold{\phi}_A$ and
+$\xi_1, \ldots, \xi_A$, and the event strengths
+$\psi_1, \ldots, \psi_T$. See \cref{fig:graphicalmodel,fig:generative-model}
+for the graphical model and generative process.
 
-As for many Bayesian models, the exact posterior for Capsule is not tractable to compute; we must instead approximate it.  Thus, we develop an approximate inference algorithm for Capsule based on variational methods~\cite{Jordan:1999,Wainwright:2008}.
-
-Variational inference approaches the problem of posterior inference by minimizing the KL divergence from an approximating distribution $q$ to the true posterior $p$.
-This is equivalent to maximizing the ELBO,
+As for many Bayesian models, the posterior distribution is not
+tractable to compute; we must instead approximate it. We therefore
+introduce an approximate inference algorithm for Capsule, based on
+variational methods~\cite{Jordan:1999,Wainwright:2008}. Variational
+methods approximate the true posterior distribution $p$ with a
+(simpler) variational distribution $q$. Inference then consists of
+minimizing the KL divergence from $q$ to $p$. This is equivalent to
+maximizing the evidence lower bound (ELBO):
 \begin{equation}
-	\mathcal{L}(q)  = \E_{q}\bigl[\log p(\mathbf{W}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta})
-	- \log q(\mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta})\bigr].
-	\label{eq:cables:elbo}
+\mathcal{L}(q)  = \E_{q}\left[\log{
+p(\mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi},
+\mathbold{\psi})}
+- \log{q(\mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi},
+\mathbold{\psi})}\right].  \label{eq:cables:elbo}
 \end{equation}
 
-
-We define the approximating distribution $q$ using the mean field assumption:
-\begin{multline}
-	q(\mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}) = 
-	 	\prod_{d=1}^D \left[q(\zeta_d \g \lambda_d)
+We define $q$ using the mean field assumption:
+\begin{align}
+&q(\mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi},
+\mathbold{\psi})
+= \notag\\
+&\quad
+        	 	\prod_{d=1}^D \left(q(\zeta_d \g \lambda_d)
 				\prod_{k=1}^K q(\theta_{dk} \g \lambda^\theta_{dk})
 				\prod_{t=1}^T q(\epsilon_{dt} \g \lambda^\epsilon_{dt})
-			\right] \\
-		\prod_{t=1}^T \left[ q(\mathbold{\gamma}_{t} \g \lambda^\gamma_t) q(\psi_t \g \lambda^\psi_t) \right] 
-		\prod_{a=1}^A \left[ q(\xi_{a} \g \lambda^\xi_{a})~q(\mathbold{\eta}_a \g \lambda^{\eta}_{a}) \right] 
-		\prod_{k=1}^K \left[ q(\mathbold{\beta}_{k} \g \lambda^\beta_k) \prod_{a=1}^A q(\phi_{ak} \g \lambda^\phi_{ak}) \right]
+			\right) \times{}\notag \\
+&\quad \prod_{k=1}^K \left(
+q(\mathbold{\beta}_k \g \lambda_k^{\beta}) \prod_{a=1}^A
+q(\phi_{ak} \g \lambda_{ak}^{\phi})\right) \prod_{a=1}^A \left(q(\mathbold{\eta}_a
+\g \lambda_a^{\eta})\,q(\xi_a \g \lambda_a^{\xi}) \right) \prod_{t=1}^T \left(
+q(\mathbold{\gamma}_t \g \lambda_t^{\gamma})\,q(\psi_t \g \lambda_t^{\gamma}\right)
 	\label{eq:q}
-\end{multline}
+\end{align}
 
-The variational distributions for the topics $q(\mathbold{\gamma}_t)$, $q(\mathbold{\beta}_k)$ and $q(\mathbold{\eta}_a)$ are all Dirichlet-distributed with free variational parameters $\lambda^\gamma$, $\lambda^\beta$, and $\lambda^\eta$ respectively.  Similarly, the variational distributions $q(\psi_t)$, $q(\phi_{ak})$, $q(\xi_a)$, $q(\theta_{dk})$, $q(\epsilon_{dt})$, and $q(\zeta_d)$ are all gamma-distributed with corresponding free variational parameters $\lambda^\psi$, $\lambda^\phi$, $\lambda^\xi$, $\lambda^\theta$, $\lambda^\epsilon$ and $\lambda^\zeta$.  For these gamma-distributed variables, each free parameter $\lambda$ has two components: shape $s$ and rate $r$.
+The variational distributions for the topics $q(\mathbold{\beta}_k)$,
+$q(\mathbold{\eta}_a)$, and $q(\mathbold{\gamma}_t)$ are all Dirichlet
+distributions with free variational parameters $\lambda_{k}^{\beta}$,
+$\lambda_a^{\eta}$, and $\lambda_t^{\gamma}$, respectively. The
+variational distributions for the strengths $q(\theta_{dk})$,
+$q(\zeta_{d})$, $q(\epsilon_{dt})$, $q(\phi_{ak})$, $q(\xi_a)$, and
+$q(\psi_t)$ are all gamma distributions with free variational
+parameters $\lambda_{dk}^{\theta}$, $\lambda_d^{\zeta}$,
+$\lambda_{dt}^{\epsilon}$, $\lambda_{ak}^{\phi}$, $\lambda_a^{\xi}$,
+and $\lambda_{t}^{\psi}$, respectively. Each of these parameters has
+two components: shape $s$ and rate $r$.
 
-The expectations under $q$, which are needed to maximize the ELBO, have closed form analytic updates--we update each parameter in turn, following standard coordinate ascent variational inference techniques, as the Capsule model is specified with the required conjugate relationships that make this approach possible~\cite{Ghahramani:2001}.
+The expectations under $q$, which we need to maximize the ELBO, have
+closed analytic forms. We therefore update each free variational
+parameter in turn, following a standard coordinate-ascent approach.
 
-
-To obtain simple updates, we first rely on auxiliary latent variables $z$. These variables, when marginalized out, leave the original model intact. The Poisson distribution has an additive property; specifically if $w \sim \mbox{Poisson}(a+b)$, then $w = z_1 + z_2$, where $z_1 \sim \mbox{Poisson}(z_1)$ and $z_2 \sim \mbox{Poisson}(z_2)$.  We apply this property to the word count rate in \Cref{eq:poisrate} and define Poisson variables for each component of the word count:
-\[ z^\mathcal{K}_{dvk} \sim \mbox{Poisson}(\theta_{dk}\beta_{kv}), \]
-\[ z^\mathcal{A}_{dv} \sim \mbox{Poisson}(\zeta_{d}\eta_{a_dv}), \]
-\[ z^\mathcal{T}_{dvt} \sim \mbox{Poisson}\left(f(t_d, t) \epsilon_{dt} \gamma_{tv}\right). \]
-The $\mathcal{K}$, $\mathcal{A}$, and $\mathcal{T}$ superscripts indicate the contributions from general, entity, and event topics, respectively.  Given these variables, the total word count is deterministic:
-\[ n_{dv} = \sum_{k=1}^K z^\mathcal{K}_{dvk} + z^\mathcal{A}_{d} + \sum_{t=1}^T z^\mathcal{T}_{dvt}. \]
-
-Coordinate-ascent variational inference is derived from complete conditionals, i.e., the conditional distributions of each variable given the other variables and observations. These conditionals define both the form of each variational factor and their updates. The following are the complete conditional for each of the gamma- and Dirchlet-distributed latent parameters.  The notation $D(n)$ is used for the set of documents sent by entity $n$; $D(t)$ is the set of documents sent impacted by events at time $t$ (e.g., all documents after the event in the case of exponential decay).
+To obtain update equations for the free variational parameters, we
+introduce auxiliary latent variables:
+\begin{align}
+z_{dkv}^{\mathcal{K}}
+&\sim \textrm{Poisson}\left(\theta_{dk}\beta_{kv}\right)\\
+z_{dv}^{\mathcal{A}}
+&\sim \textrm{Poisson}\left(\zeta_{d}\eta_{a_d v}\right)\\
+z_{dtv}^{\mathcal{T}}
+&\sim \textrm{Poisson}\left(f(t_d, t)\,\epsilon_{d t} \gamma_{tv}\right),
+\end{align}
+where the superscripts $\mathcal{K}$, $\mathcal{A}$, and $\mathcal{T}$
+indicate the general, entity, and event topics, respectively. When
+marginalized out, these variables leave the original model
+specification intact. Because the Poisson distribution has an additive
+property, the value of $n_{dv}$ is completely determined by the values
+of these variables:
 \begin{equation}
-\mathbold{\gamma}_t \g \mathbf{N}, \mathbold{\psi}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+n_{dv} = \sum_{k=1}^K z_{dkv}^{\mathcal{K}} + z_{dv}^{\mathcal{A}}
++ \sum_{t=1}^T z_{dtv}^{\mathcal{T}}.
+\end{equation}
+
+Coordinate-ascent variational inference depends on the conditional
+distribution of each latent variable given the values of the other
+latent variables and the data. We use $D(a)$ to denote the set of
+messages sent by entity $a$ and $D(t)$ to denote the set of messages
+potentially affected by event $t$ (e.g., all messages sent after time
+interval $t$, in the case of an exponential decay function). The
+conditional distributions are:
+\begin{align}
+(\mathbold{\beta}_k \g \mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Dirichlet}_V\left(\alpha + \sum_{d=1}^D, \ldots, \alpha
++ \ldots\right)\\
+\end{align}
+
+$\mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi},
+\mathbold{\psi}$
+
+\begin{equation}
+\mathbold{\gamma}_t \g \mathbf{N}, \mathbold{\psi}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Dirichlet}_V\left(\alpha + \sum_{d=1}^D
 		z^\mathcal{T}_{d1t}, \dots, \alpha + \sum_{d=1}^D z^\mathcal{T}_{dVt}
 	\right)
 \label{eq:pi}
 \end{equation}
 \begin{equation}
-\mathbold{\eta}_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+\mathbold{\eta}_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Dirichlet}_V\left(\alpha + \sum_{d\in D(n)}
 		z^\mathcal{A}_{dv}, \dots, \alpha + \sum_{d\in D(n)} z^\mathcal{A}_{dv}
 	\right)
@@ -64,7 +130,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:beta}
 \end{equation}
 \begin{equation}
-\psi_t \g \mathbf{N}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+\psi_t \g \mathbf{N}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + |D(t)| s,
 		r + \sum_{d\in D(t)} \epsilon_{dt}
@@ -72,7 +138,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:psi}
 \end{equation}
 \begin{equation}
-\xi_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+\xi_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + |D(n)| s,
 		r + \sum_{d\in D(n)} \zeta_{d}
@@ -80,7 +146,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:xi}
 \end{equation}
 \begin{equation}
-\phi_{nk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+\phi_{nk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + |D(n)| s,
 		r + \sum_{d\in D(n)} \theta_{dk}
@@ -88,7 +154,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:phi}
 \end{equation}
 \begin{equation}
-\theta_{dk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim 
+\theta_{dk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + \sum_{v=1}^V z^\mathcal{K}_{dvk},
 		\phi_{a_d k} + \sum_{v=1}^V \beta_{kv}
@@ -96,7 +162,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:theta}
 \end{equation}
 \begin{equation}
-\epsilon_{dt} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\zeta}, \mathbf{z} \sim 
+\epsilon_{dt} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\zeta}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + \sum_{v=1}^V z^\mathcal{T}_{dvt},
 		\psi_t + f(t_d, t) \sum_{v=1}^V \gamma_{tv}
@@ -104,7 +170,7 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 \label{eq:epsilon}
 \end{equation}
 \begin{equation}
-\zeta_{d} \g \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbf{z} \sim 
+\zeta_{d} \g \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbf{z} \sim
 	\mbox{Gamma}\left(
 		s + \sum_{v=1}^V z^\mathcal{A}_{dv},
 		\xi_{a_d} + \sum_{v=1}^V \eta_{a_d v}
@@ -115,8 +181,8 @@ Coordinate-ascent variational inference is derived from complete conditionals, i
 The complete conditional for the auxiliary variables has the form
 \[\mathbf{z}_{dv} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta} \sim \mbox{Mult}(n_{dv}, \mathbold{\omega}_{dv}),\] where
 \begin{equation}
-\mathbold{\omega}_{dv} \propto \langle 
-\theta_{d1} \beta_{1v}, \dots, \theta_{dK} \beta_{Kv}, \zeta_d \eta_{a_d v}, 
+\mathbold{\omega}_{dv} \propto \langle
+\theta_{d1} \beta_{1v}, \dots, \theta_{dK} \beta_{Kv}, \zeta_d \eta_{a_d v},
 f(t_d, 1) \epsilon_{d1} \gamma_{1v}, \dots, f(t_d, T) \epsilon_{dT} \gamma_{Tv}\rangle.
 \label{eq:omega}
 \end{equation}
@@ -157,11 +223,11 @@ This algorithm uses the notation $\mathbold{\lambda}$ to refer to the set of var
 		\textbf{set} $\lambda^{\theta,rate}_{dk} = \E[\phi_{a_d k}] +\sum_v \E[\beta_{kv}]$ for all $k$ [\cref{eq:theta}]\;
 		\textbf{set} $\lambda^{\epsilon,rate}_{dt} = \E[\psi_t] + f\sum_v \E[\gamma_{tv}]$ for all $t$ [\cref{eq:epsilon}]\;
 		\textbf{set} $\lambda^{\zeta,rate}_{d} = \E[\xi_{a_d}] + \sum_v\E[\eta_{a_d v}]$ [\cref{eq:zeta}]\;
-		
+
 		\textbf{set} $\E[\theta_{dk}] = \lambda^{\theta,shape}_{dk} / \lambda^{\theta,rate}_{dk}$ for all $k$\;
 		\textbf{set} $\E[\epsilon_{dt}] = \lambda^{\epsilon,shape}_{dt} / \lambda^{\epsilon,rate}_{dt}$ for all $t$\;
 		\textbf{set} $\E[\zeta_d] = \lambda^{\zeta,shape}_d / \lambda^{\zeta,rate}_d$ \;
-		
+
 		\textbf{update} $\lambda^{\phi,shape}_{a_d k} \pluseq s$ for all $k$ [\cref{eq:phi}] \;
 		\textbf{update} $\lambda^{\psi,shape}_{t} \pluseq s \forall t : f(t_d, t) \neq 0$ [\cref{eq:psi}] \;
 		\textbf{update} $\lambda^{\xi,shape}_{a_d} \pluseq s$ [\cref{eq:xi}] \;
@@ -184,5 +250,3 @@ This algorithm uses the notation $\mathbold{\lambda}$ to refer to the set of var
 \end{algorithm}
 
 This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  Source code is available at \url{https://github.com/ajbc/capsule}.
-
-

@@ -11,11 +11,11 @@ posterior distribution of the latent variables.
 \includegraphics[width=\linewidth]{fig/cartoon.pdf}
 \caption{Cartoon intuition. The $y$-axis represents the stacked
   proportions of cables about various topics, while the $x$-axis
-  represents time. The Bangkok embassy, Honk Kong embassy, and
+  represents time. The Bangkok embassy, Hong Kong embassy, and
   U.S. State Department all have typical diplomatic business, about
   which they usually send cables. When an event occurs during time
   interval $t$, the cables alter to cover the event before returning
-  to ``business as usual.'' Capsule discovers the embassies' typical
+  to ``business as usual.'' Capsule discovers the entities' typical
   concerns, as well as the timing and content of events.}
 \label{fig:cartoon}
 \end{figure}
@@ -63,7 +63,11 @@ $n_{dv}$ that each vocabulary term $v$ occurs in each message
 $d$. Each message is associated with an author entity $a_d$ and a time
 interval $t_d$ within which that message was sent.
 
-We model each message with a bank of Poisson distributions\footnote{Readers familiar with topic modeling may expect a multinomial model of word tokens, but Poisson models of word counts better capture documents of different lengths \cite{canny2004gap}.}---one for
+We model each message with a bank of Poisson
+distributions\footnote{Readers familiar with topic modeling may expect
+  a multinomial model of term occurrences, but Poisson models of
+  counts better capture messages with different lengths
+  \cite{canny2004gap}.}---one for
 each vocabulary term:
 \begin{align}
   n_{dv} \sim \textrm{Poisson}\left(\lambda_{dv}\right).
