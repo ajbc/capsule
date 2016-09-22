@@ -128,32 +128,32 @@ Zurich & swiss, congen, consulate, general, american, bern, dollar, shipment \\
 \parhead{Model Sensitivity.}  We assessed the sensitivity of our model to three different decay functions $f$: exponential, linear, and step functions.  We simulated data for each function and then fit Capsule using every permutation of $f$ and multiple settings for event decay duration. 
 We considered a step function,
 \begin{equation}
-f(i_d, t) = 
+f(t_d, t) = 
 \begin{cases}
-    1,			& \text{if } t \le i_d < t+\tau  \\
+    1,			& \text{if } t \le t_d < t+\tau  \\
     0,          & \text{otherwise,}
 \end{cases}
 \label{eq:fstep}
 \end{equation}
 as well as linear decay,
 \begin{equation}
-f(i_d, t) = 
+f(t_d, t) = 
 \begin{cases}
-    1 - \frac{i_d - t}{\tau},			& \text{if } t \le i_d < t+\tau  \\
+    1 - \frac{t_d - t}{\tau},			& \text{if } t \le t_d < t+\tau  \\
     0,          & \text{otherwise.}
 \end{cases}
 \label{eq:flinear}
 \end{equation}
 and an exponential decay function:
 \begin{equation}
-f(i_d, t) = 
+f(t_d, t) = 
 \begin{cases}
-    0,			& \text{if } t \le i_d < t + \tau\\
-    \exp\left\{\frac{-(i_d - t)}{\tau/5}\right\},          & \text{otherwise.}\footnotemark
+    0,			& \text{if } t \le t_d < t + \tau\\
+    \exp\left\{\frac{-(t_d - t)}{\tau/5}\right\},          & \text{otherwise.}\footnotemark
 \end{cases}
 \label{eq:fexp}
 \end{equation}
-\footnotetext{Unlike the linear and step functions, the exponential function could be evaluated for any time interval $t$ after a document's appearance at $i_d$; the function is truncated for computational reasons.  The mean lifetime of this exponential decay is the duration $\tau$ is divided by 5---this ensures that 99.3\% of the area under the curve is reached before the function is truncated at duration $\tau$.}
+\footnotetext{Unlike the linear and step functions, the exponential function could be evaluated for any time interval $t$ after a document's appearance at $t_d$; the function is truncated for computational reasons.  The mean lifetime of this exponential decay is the duration $\tau$ is divided by 5---this ensures that 99.3\% of the area under the curve is reached before the function is truncated at duration $\tau$.}
 
 
 We used duration $\tau=3$ and simulated ten data sets for each of the three functions $f$.  In fitting the models, we also considered all three functions $f$ and varied the decay duration $\tau$ from 1 to 5.  \Cref{fig:sensitivity} shows the results of these experiments, using both event detection and document recovery metrics discussed previously.
