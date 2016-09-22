@@ -83,8 +83,8 @@ z_{dtv}^{\mathcal{T}}
 \end{align}
 where the superscripts $\mathcal{K}$, $\mathcal{A}$, and $\mathcal{T}$
 indicate the general, entity, and event topics, respectively. When
-marginalized out, these variables leave the original model
-specification intact. Because the Poisson distribution has an additive
+marginalized out, these variables---collectively $\mathbf{z}$---leave the model
+intact. Because the Poisson distribution has an additive
 property, the value of $n_{dv}$ is completely determined by the values
 of these variables:
 \begin{equation}
@@ -100,98 +100,79 @@ potentially affected by event $t$ (e.g., all messages sent after time
 interval $t$, in the case of an exponential decay function). The
 conditional distributions are:
 \begin{align}
-(\mathbold{\beta}_k \g \mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
-&\sim \textrm{Dirichlet}_V\left(\alpha + \sum_{d=1}^D, \ldots, \alpha
-+ \ldots\right)\\
+\label{eq:beta}
+(\mathbold{\beta}_k \g \mathbf{N}, \mathbf{z}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Dirichlet}_V\left(\alpha + \sum_{d=1}^D z_{dk1}^{\mathcal{K}}, \ldots, \alpha
++ \sum_{d=1}^D z_{dkV}^{\mathcal{K}}\right)\\
+\label{eq:eta}
+(\mathbold{\eta}_a \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Dirichlet}_V\left(\alpha + \sum_{d \in D(a)}
+z_{d1}^{\mathcal{A}}, \ldots, \alpha + \sum_{d \in D(a)}
+z_{dV}^{\mathcal{A}}\right)\\
+\label{eq:pi}
+(\mathbold{\gamma}_t \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Dirichlet}_V\left(\alpha + \sum_{d \in D(t)}
+z_{d1t}^{\mathcal{T}}, \ldots, \alpha + \sum_{d \in D(t)}
+z_{dVt}^{\mathcal{T}}\right)\\
+% should this really be a sum over D rather than D(t)?
+\label{eq:theta}
+(\theta_{dk} \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Gamma}\left(s + \sum_{v=1}^V
+z_{dkv}^{\mathcal{K}},\, \phi_{a_d k}
++ \sum_{v=1}^V \beta_{kv} \right)\\
+\label{eq:zeta}
+(\zeta_d \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Gamma}\left(s + \sum_{v=1}^V
+z_{dv}^{\mathcal{A}},\, \xi_{a_d} + \sum_{v=1}^V \eta_{a_d
+v} \right)\\
+\label{eq:epsilon}
+(\epsilon_{dt} \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Gamma}\left(s + \sum_{v=1}^V
+z_{dtv}^{\mathcal{T}},\, \psi_t + f(t_d,
+t)\sum_{v=1}^V \gamma_{tv} \right)\\
+\label{eq:phi}
+(\phi_{ak} \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\xi}, \mathbold{\psi})
+&\sim \textrm{Gamma}\left(s + \lvert D(a) \rvert\,s,\,r + \sum_{d \in
+D(a)} \theta_{dk} \right)\\
+\label{eq:xi}
+(\xi_a \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\psi})
+&\sim \textrm{Gamma}\left(s + \lvert D(a) \rvert\,s,\, r + \sum_{d \in
+D(a)} \zeta_d \right)\\
+\label{eq:psi}
+(\psi_t \g \mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi})
+&\sim \textrm{Gamma}\left(s + \lvert D(t) \rvert\,s,\,r + \sum_{d \in
+D(t)} \epsilon_{dt} \right).
 \end{align}
 
-$\mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi},
-\mathbold{\psi}$
+%\mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi}
 
-\begin{equation}
-\mathbold{\gamma}_t \g \mathbf{N}, \mathbold{\psi}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Dirichlet}_V\left(\alpha + \sum_{d=1}^D
-		z^\mathcal{T}_{d1t}, \dots, \alpha + \sum_{d=1}^D z^\mathcal{T}_{dVt}
-	\right)
-\label{eq:pi}
-\end{equation}
-\begin{equation}
-\mathbold{\eta}_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Dirichlet}_V\left(\alpha + \sum_{d\in D(n)}
-		z^\mathcal{A}_{dv}, \dots, \alpha + \sum_{d\in D(n)} z^\mathcal{A}_{dv}
-	\right)
-\label{eq:eta}
-\end{equation}
-\begin{equation}
-\mathbold{\beta}_k \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Dirichlet}_V\left(\alpha + \sum_{d=1}^D
-		z^\mathcal{K}_{d1k}, \dots, \alpha + \sum_{d=1}^D z^\mathcal{K}_{dVk}
-	\right)
-\label{eq:beta}
-\end{equation}
-\begin{equation}
-\psi_t \g \mathbf{N}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + |D(t)| s,
-		r + \sum_{d\in D(t)} \epsilon_{dt}
-	\right)
-\label{eq:psi}
-\end{equation}
-\begin{equation}
-\xi_n \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + |D(n)| s,
-		r + \sum_{d\in D(n)} \zeta_{d}
-	\right)
-\label{eq:xi}
-\end{equation}
-\begin{equation}
-\phi_{nk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + |D(n)| s,
-		r + \sum_{d\in D(n)} \theta_{dk}
-	\right)
-\label{eq:phi}
-\end{equation}
-\begin{equation}
-\theta_{dk} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\epsilon}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + \sum_{v=1}^V z^\mathcal{K}_{dvk},
-		\phi_{a_d k} + \sum_{v=1}^V \beta_{kv}
-	\right)
-\label{eq:theta}
-\end{equation}
-\begin{equation}
-\epsilon_{dt} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\zeta}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + \sum_{v=1}^V z^\mathcal{T}_{dvt},
-		\psi_t + f(t_d, t) \sum_{v=1}^V \gamma_{tv}
-	\right)
-\label{eq:epsilon}
-\end{equation}
-\begin{equation}
-\zeta_{d} \g \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbf{z} \sim
-	\mbox{Gamma}\left(
-		s + \sum_{v=1}^V z^\mathcal{A}_{dv},
-		\xi_{a_d} + \sum_{v=1}^V \eta_{a_d v}
-	\right)
-\label{eq:zeta}
-\end{equation}
+\pagebreak
 
-The complete conditional for the auxiliary variables has the form
-\[\mathbf{z}_{dv} \g \mathbf{N}, \mathbold{\psi}, \mathbold{\gamma}, \mathbold{\phi}, \mathbold{\beta}, \mathbold{\xi}, \mathbold{\eta}, \mathbold{\theta}, \mathbold{\epsilon}, \mathbold{\zeta} \sim \mbox{Mult}(n_{dv}, \mathbold{\omega}_{dv}),\] where
+The conditional distribution of the auxiliary latent variables is:
 \begin{equation}
-\mathbold{\omega}_{dv} \propto \langle
-\theta_{d1} \beta_{1v}, \dots, \theta_{dK} \beta_{Kv}, \zeta_d \eta_{a_d v},
-f(t_d, 1) \epsilon_{d1} \gamma_{1v}, \dots, f(t_d, T) \epsilon_{dT} \gamma_{Tv}\rangle.
+(\langle \mathbf{z}_{dv}^{\mathcal{K}}, \mathbf{z}_{dv}^{\mathcal{A}}, \mathbf{z}_{dv}^{\mathcal{T}}\rangle \g \mathbf{N}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi}) \sim \textrm{Mult}\left(n_{dv}, \mathbold{\omega}_{dv} \right),
+\end{equation}
+where
+\begin{equation}
+\mathbold{\omega}_{dv}
+\propto \langle \theta_{d1} \beta_{1v}, \ldots, \theta_{dK} \beta_{Kv}, \zeta_d \eta_{a_d
+v}, f(t_d, 1)\,\epsilon_{d1}\gamma_{1v}, \ldots, f(t_d,
+T)\,\epsilon_{dT}\gamma_{Tv} \rangle.
 \label{eq:omega}
 \end{equation}
-Intuitively, these variables allocate the data to one of the entity concerns or events, and thus can be used to explore the data.
 
-Given these conditionals, the algorithm sets each parameter to the expected conditional parameter under the variational distribution. The mean field assumption guarantees that this expectation will not involve the parameter being updated.  \Cref{alg:capsule} shows our variational inference algorithm.
+Given the conditional distributions, coordinate-ascent variational
+inference involves setting each free variational parameter to the
+expected value of the corresponding model parameter under the
+variational distribution. We provide pseudeocode
+in \cref{alg:capsule}; we use $\mathbold{\lambda}$ to denote the
+entire set of free variational parameters and $V(d)$ to denote the set
+of vocabulary terms present in document $d$. Our approximate inference
+algorithm produces a fitted variational posterior distribution which
+can then be used as a proxy for the true posterior distribution. The
+source code is available online at \url{https://github.com/ajbc/capsule}.
 
-This algorithm uses the notation $\mathbold{\lambda}$ to refer to the set of variational parameters,
-\[\mathbold{\lambda} = \{\lambda^\gamma, \lambda^\eta, \lambda^\beta, \lambda^\psi, \lambda^\zeta, \lambda^\phi, \lambda^\theta, \lambda^\epsilon, \lambda^\xi\}.\] The notation $V(d)$ is the set of vocabulary indices for the collection of words in document $d$.  We could also iterate over all $V$, but as zero word counts give $\E[\mathbf{z}_{dv}] = 0~\forall v \not\in V(d)$, the two are equivalent.
+%We could also iterate over all $V$, but as zero word counts give $\E[\mathbf{z}_{dv}] = 0~\forall v \not\in V(d)$, the two are equivalent.
 
 %TODO: check for consistent indexing of variables (e.g., beta_{v,k} vs beta_{k,v})
 
@@ -199,54 +180,103 @@ This algorithm uses the notation $\mathbold{\lambda}$ to refer to the set of var
 \begin{algorithm}[p]
 \small
 \DontPrintSemicolon
-\KwIn{word counts $w$}
-%($\psi$, $\gamma$, $\xi$, $\eta$, $\phi$, $\beta$, $\theta$, $\zeta$, $\epsilon$)
-\KwOut{approximate posterior of latent parameters in terms of variational parameters $\mathbold{\lambda}$}
-\textbf{Initialize} $\E[\mathbold{\beta}_k]$ to slightly random around uniform for each $k$\;
-\textbf{Initialize} $\E[\mbox{all other parameters}]$ to uniform \;
-\For {iteration $m=1, dots, M$}{
-	\textbf{set} all $\mathbold{\lambda}$ to respective priors, excluding $\lambda^{\theta,rate}$, $\lambda^{\zeta,rate}$, and $\lambda^{\epsilon,rate}$, which are set to 0 \;
-	\textbf{update} $\lambda^{\theta,rate}_{dk} \pluseq \sum_V \E[\mathbold{\beta}_{kv}]$  for all messages $d$ and topics $k$\;
-	\For {each message $d=1, \dots, D$}{
-		\For {each term $v\in V(d)$\footnotemark}{
-			\textbf{set} $(K+T+1)$-vector $\mathbold{\omega}_{dv}$ as shown in \cref{eq:omega}, using $\E$ of parameters\;
-			\textbf{set} $(K+T)$-vector $\E[\mathbf{z}_{dv}] = n_{dv} * \mathbold{\omega}_{dv}$ \;
-			\textbf{update} $\lambda^{\theta,shape}_{dk} \pluseq \E[z^\mathcal{K}_{dvk}]$ for all $k$ [\cref{eq:theta}]\;
-			\textbf{update} $\lambda^{\epsilon,shape}_{dt} \pluseq \E[z^\mathcal{K}_{dvt}]$ for all $t$ [\cref{eq:epsilon}]\;
-			\textbf{update} $\lambda^{\zeta,shape}_d \pluseq \E[z^\mathcal{A}_{dv}]$ [\cref{eq:zeta}]\;
-
-			\textbf{update} $\lambda^{\beta}_{kv} \pluseq \E[z^\mathcal{K}_{dvk}]$ for all $k$ [\cref{eq:beta}]\;
-			\textbf{update} $\lambda^{\gamma}_{tv} \pluseq \E[z^\mathcal{T}_{dvt}]$ for all $t$ [\cref{eq:pi}]\;
-			\textbf{update} $\lambda^{\eta}_{a_d v} \pluseq \E[z^\mathcal{A}_{dv}]$ [\cref{eq:eta}]\;
+\KwIn{observed term counts $\mathbf{N}$}
+\KwOut{approximate posterior distribution of the latent variables, in terms of free variational parameters $\mathbold{\lambda}$}
+\textbf{Initialize} $\E[\mathbold{\beta}_k]$ to slightly random around
+uniform for each general topic $k$\;
+\textbf{Initialize} $\E[\textrm{\,all other latent variables\,}]$ to uniform \;
+\For {\textrm{iteration} $m=1, \dots, M$}{
+	\textbf{set}  $\lambda^{\theta,r}$, $\lambda^{\zeta,r}$, and
+	$\lambda^{\epsilon,r}$ to 0 and set remaining $\mathbold{\lambda}$ using priors\;
+	\textbf{update}
+	$\lambda^{\theta,r}_{dk} \pluseq \sum_V \E[\mathbold{\beta}_{kv}]$
+	for each message $d$ and general topic $k$\;
+	\For {\textrm{message} $d=1, \dots, D$}{
+		\For {\textrm{term} $v\in V(d)$}{
+			\textbf{set} $\mathbold{\omega}_{dv}$ using expected
+	values of the latent variables (\cref{eq:omega})\;
+			\textbf{set}
+	$\E[\langle \mathbf{z}_{dv}^{\mathcal{K}}, \mathbf{z}_{dv}^{\mathcal{A}},
+	\mathbf{z}_{dv}^{\mathcal{T}} \rangle] = n_{dv} \mathbold{\omega}_{dv}$ \;
+			\textbf{update}
+	$\lambda^{\beta}_{kv} \pluseq \E[z^\mathcal{K}_{dkv}]$ for
+	each general topic $k$ (\cref{eq:beta})\;
+			\textbf{update} $\lambda^{\eta}_{a_d
+	v} \pluseq \E[z^\mathcal{A}_{dv}]$ (\cref{eq:eta})\;
+			\textbf{update}
+	$\lambda^{\gamma}_{tv} \pluseq \E[z^\mathcal{T}_{dtv}]$ for
+	each time interval $t$ (\cref{eq:pi})\;
+	\textbf{update}
+	$\lambda^{\theta,s}_{dk} \pluseq \E[z^\mathcal{K}_{dkv}]$ for
+	each general topic $k$ (\cref{eq:theta})\;
+			\textbf{update}
+	$\lambda^{\zeta,s}_d \pluseq \E[z^\mathcal{A}_{dv}]$ (\cref{eq:zeta})\;
+			\textbf{update}
+	$\lambda^{\epsilon,s}_{dt} \pluseq \E[z^\mathcal{K}_{dtv}]$
+	for each time interval $t$ (\cref{eq:epsilon})\;
 		}
 
-		\textbf{set} $\lambda^{\theta,rate}_{dk} = \E[\phi_{a_d k}] +\sum_v \E[\beta_{kv}]$ for all $k$ [\cref{eq:theta}]\;
-		\textbf{set} $\lambda^{\epsilon,rate}_{dt} = \E[\psi_t] + f\sum_v \E[\gamma_{tv}]$ for all $t$ [\cref{eq:epsilon}]\;
-		\textbf{set} $\lambda^{\zeta,rate}_{d} = \E[\xi_{a_d}] + \sum_v\E[\eta_{a_d v}]$ [\cref{eq:zeta}]\;
+		\textbf{set} $\lambda^{\theta,r}_{dk} = \E[\phi_{a_d
+		k}] +\sum_v \E[\beta_{kv}]$ for each general topic $k$
+		(\cref{eq:theta})\;
+		\textbf{set} $\lambda^{\zeta,r}_{d} = \E[\xi_{a_d}]
+		+ \sum_v\E[\eta_{a_d v}]$  (\cref{eq:zeta})\;
+		\textbf{set} $\lambda^{\epsilon,r}_{dt} = \E[\psi_t] +
+		f(t_d, t) \sum_v \E[\gamma_{tv}]$ for each time
+		interval $t$ (\cref{eq:epsilon})\;
 
-		\textbf{set} $\E[\theta_{dk}] = \lambda^{\theta,shape}_{dk} / \lambda^{\theta,rate}_{dk}$ for all $k$\;
-		\textbf{set} $\E[\epsilon_{dt}] = \lambda^{\epsilon,shape}_{dt} / \lambda^{\epsilon,rate}_{dt}$ for all $t$\;
-		\textbf{set} $\E[\zeta_d] = \lambda^{\zeta,shape}_d / \lambda^{\zeta,rate}_d$ \;
+		\textbf{set} $\E[\theta_{dk}]
+		= \lambda^{\theta,s}_{dk}
+		\,/\, \lambda^{\theta,r}_{dk}$ for each general topic $k$\;
+		\textbf{set} $\E[\zeta_d] = \lambda^{\zeta,s}_d \,/\, \lambda^{\zeta,r}_d$ \;
+		\textbf{set} $\E[\epsilon_{dt}]
+		= \lambda^{\epsilon,s}_{dt}
+		\,/\, \lambda^{\epsilon,r}_{dt}$ for each time interval $t$\;
 
-		\textbf{update} $\lambda^{\phi,shape}_{a_d k} \pluseq s$ for all $k$ [\cref{eq:phi}] \;
-		\textbf{update} $\lambda^{\psi,shape}_{t} \pluseq s \forall t : f(t_d, t) \neq 0$ [\cref{eq:psi}] \;
-		\textbf{update} $\lambda^{\xi,shape}_{a_d} \pluseq s$ [\cref{eq:xi}] \;
-		\textbf{update} $\lambda^{\phi,rate}_{a_d k} \pluseq \theta_{dk}$ for all $k$ [\cref{eq:phi}] \;
-		\textbf{update} $\lambda^{\psi,rate}_t \pluseq \epsilon_{dt}$ for all $t$ [\cref{eq:psi}] \;
-		\textbf{update} $\lambda^{\xi,rate}_{a_d} \pluseq \zeta_d$ [\cref{eq:xi}] \;
+
+		\textbf{update} $\lambda^{\phi,s}_{a_d k} \pluseq s$
+		for each general topic $k$ (\cref{eq:phi}) \;
+		\textbf{update} $\lambda^{\xi,s}_{a_d} \pluseq s$
+		(\cref{eq:xi})\;
+		\textbf{update} $\lambda^{\psi,s}_{t} \pluseq
+		s$ for each time interval $t$ where $f(t_d, t) \neq 0$
+		(\cref{eq:psi}) \;
+
+		\textbf{update} $\lambda^{\phi,r}_{a_d
+		k} \pluseq \theta_{dk}$ for each general topic $k$ (\cref{eq:phi}) \;
+		\textbf{update}
+		$\lambda^{\xi,r}_{a_d} \pluseq \zeta_d$
+		(\cref{eq:xi}) \;
+		\textbf{update}
+		$\lambda^{\psi,r}_t \pluseq \epsilon_{dt}$ for each
+		time interval $t$ (\cref{eq:psi}) \;
 
 	}
 
-	\textbf{set} $\E[\phi_{ak}] = \lambda^{\phi,shape}_{ak} / \lambda^{\phi,rate}_{ak}$ for all $a$ and $k$ \;
-	\textbf{set} $\E[\mathbold{\beta}_{k}] = \mathbold{\lambda}^{\beta}_{k} / \sum_v \lambda^{\beta}_{kv}$ for all $k$ \;
-	\textbf{set} $\E[\xi_{d}] = \lambda^{\xi,shape}_d / \lambda^{\xi,rate}_d$ for all $d$ \;
-	\textbf{set} $\E[\mathbold{\eta}_{a}] = \mathbold{\lambda}^{\eta}_{a} / \sum_v \lambda^{\eta}_{nv}$ for all $a$ \;
-	\textbf{set} $\E[\psi_a] = \lambda^{\psi,shape}_a / \lambda^{\psi,rate}_a$ for all $a$\;
-	\textbf{set} $\E[\mathbold{\gamma}_t] = \mathbold{\lambda}^{\gamma}_t / \sum_v \lambda^{\gamma}_{tv}$ for all $t$ \;
+	\textbf{set} $\E[\mathbold{\beta}_{k}]
+	= \mathbold{\lambda}^{\beta}_{k} \,/\, \sum_v \lambda^{\beta}_{kv}$
+	for each general topic $k$ \;
+
+	\textbf{set} $\E[\mathbold{\eta}_{a}]
+	= \mathbold{\lambda}^{\eta}_{a} \,/\, \sum_v \lambda^{\eta}_{av}$
+	for each entity $a$ \;
+
+	\textbf{set} $\E[\mathbold{\gamma}_t]
+	= \mathbold{\lambda}^{\gamma}_t \,/\, \sum_v \lambda^{\gamma}_{tv}$
+	for each time interval $t$ \;
+
+	\textbf{set} $\E[\phi_{ak}] = \lambda^{\phi,s}_{ak}
+	\,/\, \lambda^{\phi,r}_{ak}$ for each entity $a$ and general
+	topic $k$ \;
+
+	\textbf{set} $\E[\xi_{a}] = \lambda^{\xi,s}_a
+	\,/\, \lambda^{\xi,r}_a$ for each entity $a$\;
+
+	\textbf{set} $\E[\psi_t]
+	= \lambda^{\psi,s}_t \,/\, \lambda^{\psi,r}_t$ for each time interval $t$\;
+
 }
 \Return{$\mathbold{\lambda}$} \;
-\caption{Variational Inference for Capsule}
+\caption{Coordinate-ascent variational inference for Capsule.}
 \label{alg:capsule}
 \end{algorithm}
-
-This algorithm produces a fitted variational distribution which can then be used as a proxy for the true posterior, allowing us to explore a collection of documents with Capsule.  Source code is available at \url{https://github.com/ajbc/capsule}.
