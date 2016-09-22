@@ -19,7 +19,7 @@ identify the most relevant messages for each event.
 
 For each data set, we ordered the time intervals from most to least
 eventful, using the ``eventness'' measure described in
-\cref{eq:eventness} and the simulated values of the latent
+\cref{sec:detecting} and the simulated values of the latent
 variables. We then treated these ranked lists of time intervals as
 ``ground truth'' and assessed how well each method was able to recover
 them.
@@ -44,14 +44,15 @@ time interval's deviation in term counts from the
 average. Specifically, we ordered the time intervals $1, \ldots, T$
 for each simulated data set according to this measure:
 \begin{equation}
-  m_t = \sum_{v=1}^V \sum_{\substack{d=1\\t_d \!=\! t}}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
+  \sum_{v=1}^V \sum_{\substack{d=1\\t_d \!=\! t}}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
   n_{dv} \right\rvert.
 \label{eq:wordev}
 \end{equation}
 
 We added tf-idf term weights for our third baseline:
 \begin{equation}
-  m_t = \sum_{v=1}^V \textrm{tf-idf}\,(v) \sum_{\substack{d=1\\t_d\!=\!t}}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
+  \sum_{v=1}^V \textrm{tf-idf}\,(v)
+  \sum_{\substack{d=1\\t_d\!=\!t}}^D \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
   n_{dv} \right\rvert.
 \label{eq:tfidfwordev}
 \end{equation}
@@ -61,7 +62,7 @@ serve as a straw-man baseline.
 
 We also experimented with baselines that involved term-count
 deviations on the entity level and topic-usage deviations on the
-document level~\cite{dou2012leadline}, but found that they were not
+message level~\cite{dou2012leadline}, but found that they were not
 competitive.
 
 For each data set, we compared each method's ranked list of time
@@ -89,8 +90,8 @@ a set of the top $r$ time intervals according to the method.
 
 
 \Cref{fig:sim_eventdetect} shows that Capsule outperforms all four
-baseline methods. These results serve as a sanity check for the model
-and its implementation.
+baseline methods. These results serve as a sanity check for both the
+model and its implementation.
 
 %\footnote{The model was set with the same
 %  number of topics $K=10$ and exponential decay $f$ used to simulate
@@ -107,24 +108,25 @@ of messages as ``ground truth'' and assessed how well Capsule and the
 baseline methods were able to recover them.
 
 For Capsule, we used our approximate inference algorithm to obtain a
-fitted variational distribution for each simulated data set, and then,
-for each time interval, ordered the messages according to $f(t_d,
+fitted variational distribution for each data set, and then, for each
+time interval, ordered the messages according to $m_{dt} = f(t_d,
 t)\,\E[\epsilon_{dt}]$. For our second and third baselines, we ordered
-the messages according per-document versions of \cref{eq:wordev} and
-\cref{eq:tfidfwordev}---i.e.,
-\begin{equation}
-  m_{dt} = \sum_{v=1}^V \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
-  n_{dv} \right\rvert
-\end{equation}
-and
-\begin{equation}
-  m_{dt} = \sum_{v=1}^V \textrm{tf-idf}\,(v) \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
-  n_{dv} \right\rvert.
-\end{equation}
+the messages sent during each time interval according message-specific
+versions of \cref{eq:wordev,eq:tfidfwordev}.
+%---i.e.,
+%\begin{equation}
+%  \sum_{v=1}^V \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}^D
+%  n_{dv} \right\rvert
+%\end{equation}
+%and
+%\begin{equation}
+%  \sum_{v=1}^V \textrm{tf-idf}\,(v) \left\lvert n_{dv} - \frac{1}{D}\sum_{d=1}%^D
+%  n_{dv} \right\rvert.
+%\end{equation}
 
-For each data set, we compared each method's ranked list of documents
+For each data set, we compared each method's ranked list of messages
 for each time interval to the corresponding ``ground-truth'' list, by
-computing precision at 10 documents. The average precision for Capsule
+computing precision at 10 messages. The average precision for Capsule
 was was 0.44, while the average precision for the ``event-only''
 version of the model was 0.09. The other baselines recovered zero
 relevant messages.
@@ -139,7 +141,7 @@ corpus of over two million U.S. State Department cables from the
 
 \subsection{Data}
 
-The National Archive collects diplomatic cables\footnote{The corpus also includes messages sent by diplomatic pouch, which we include in our analysis.} sent between the
+The National Archive collects diplomatic cables sent between the
 U.S. State Department and its foreign embassies. We obtained a subset
 of this corpus from the Central Foreign Policy Files at the National
 Archives, via the History Lab at Columbia
@@ -167,15 +169,15 @@ the algorithm took about an hour.\footnote{Each iteration of our
 \subsection{Detecting Well-Known Events}
 
 To evaluate Capsule's ability to detect well-known events, we used a
-list, provided to us by the History Lab at the University of Columbia,
-of thirty-nine real-world events that took place between 1973 and
-1978. Each event is present in at least one of six reputable
-collections of historic events, such as the Office of the Historian's
-Milestones in the History of U.S. Foreign
+list, provided to us by the History Lab, of thirty-nine well-known
+events that took place between 1973 and 1978. Each event is present in
+at least one of six reputable collections of historic events, such as
+the Office of the Historian's Milestones in the History of
+U.S. Foreign
 Relations.\footnote{\url{https://history.state.gov/milestones/1969-1976}}
-We treated this list as ``ground truth'' and assessed how well Capsule
-and each of the baselines described in \cref{sec:detecting_events}
-were able to recover them.
+We treated this list of events as ``ground truth'' and assessed how
+well Capsule and each of the baselines described in
+\cref{sec:detecting_events} were able to recover them.
 
 Specifically, we used each method to construct a ranked list of time
 intervals. Then, for each method, we computed the discounted
@@ -184,32 +186,32 @@ computing
 \begin{equation}
   \sum_{e=1}^{39} \frac{1}{\log{\left(\textrm{rank}\left(e, L_T^{\textrm{method}}\right)\right)}},
 \end{equation}
-where $L_T^{\textrm{method}}$ is the ranked list of time intervals
-according to the method and $\textrm{rank}\left(e,
-L_T^{\textrm{method}}\right)$ is the rank of the $e^{\textrm{th}}$
-real-world event in $L_T^{\textrm{method}}$. Finally, we divided the
-DCG by the ideal DCG---i.e., $\sum_{e=1}^{39}
-\frac{1}{\log{\left(e\right)}}$---to obtain the normalized
-DCG (nDCG). \Cref{table:cables:ndcg} shows that Capsule outperforms the
-baselines.
+where $L_T^{\textrm{method}}$ is the method's ranked list of time
+intervals and $\textrm{rank}\left(e, L_T^{\textrm{method}}\right)$ is
+the rank of the $e^{\textrm{th}}$ well-known event in
+$L_T^{\textrm{method}}$. Finally, we divided the DCG by the ideal
+DCG---i.e., $\sum_{e=1}^{39} \frac{1}{\log{\left(e\right)}}$---to
+obtain the normalized DCG (nDCG). \Cref{table:cables:ndcg} shows that
+Capsule outperforms all four baseline methods.
 
-\begin{table*}[t]
+\begin{table}[t]
 \centering
-\begin{tabular}{l c}
+\small
+\begin{tabular}{cc}
 \toprule
-\textbf{Method} & \textbf{normalized DCG} \\
+\textbf{Method} & \textbf{nDCG} \\
 \midrule
 Capsule & 0.693 \\
-Average tf-idf weighted word count deviation & 0.652 \\
-Average unweighted word count deviation & 0.642 \\
-Single term maximum tf-idf weighted deviation & 0.561 \\
-Random (10k ave) & 0.557 \\
-Single term maximum unweighted deviation & 0.555 \\
+Baseline one (``event-only'') & ???\\
+Baseline two (\cref{eq:wordev}) & 0.642 \\
+Baseline three (\cref{eq:tfidfwordev}) & 0.652 \\
+Baseline four (random) & 0.557\\
 \bottomrule
 \end{tabular}
-\caption{Evaluation of Capsule and comparison baselines on a collection of 39 real-world events.  Capsule performs best.}
+\caption{Event detection performance (higher is better) using
+  thirty-nine events that took place between 1973 and 1978.}
 \label{table:cables:ndcg}
-\end{table*}
+\end{table}
 
 %Additionally, we computed held-out validation data likelihood on the model and each of its component parts; \Cref{table:cables:ll} shows that the full Capsule model captures the data better than any of its component parts individually.
 %\begin{table}[bt]
@@ -230,26 +232,22 @@ Single term maximum unweighted deviation & 0.555 \\
 
 \subsection{Exploration}
 
-Having validated that Capsule can detect well-known real-world events, we now
-turn to our primary goal---using Capsule to explore and understand a
-corpus of messages, including discovering obscure, but potentially significant events.
-
-\Cref{fig:cables_events} shows the ``eventness'' measure described in
-\cref{sec:detecting} over time. High values---which are often
-anomalous peaks---correspond to real-world events. One of the tallest
-peaks occurs during the week of December 1, 1975, when the United
-Nations General Assembly (UNGA) discussed omnibus decolonization. As
+We now turn to our primary goal---using Capsule to explore and
+understand a corpus of messages. \Cref{fig:cables_events} shows our
+``eventness'' measure (\cref{eq:eventness}) over time. One of the
+tallest peaks occurs during the week of December 1, 1975, when the
+United Nations General Assembly discussed omnibus decolonization. As
 described in \cref{sec:detecting}, we can characterize this event by
-computing $f(t_d, t)\,\E[\epsilon_{dt}]$ for each message $d$ and then
-sorting the messages accordingly. \Cref{tab:decol} lists the
-top-ranked cables.
+computing $m_{dt} = f(t_d, t)\,\E[\epsilon_{dt}]$ for each message $d$
+and then ordering the messages accordingly. \Cref{tab:decol} lists the
+highest-ranked messages.
 
 \begin{table*}[tb]
 \small
 \centering
-\begin{tabular}{cccl}
+\begin{tabular}{cccc}
 \toprule
-$f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
+$f(t_d, t)\, \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
 \midrule
 4.60 & 1975-12-05 & Canberra & 30th UNGA: Item 23, Guam, Obmibus Decolonization and ... \\
 4.26 & 1975-12-05 & Mexico & 30th UNGA-Item 23: Guam, Omnibus Decolonization and ... \\
@@ -258,9 +256,9 @@ $f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf
 4.08 & 1975-12-04 & Monrovia & 30th UNGA: Item 23: Resolutions on decolonization and A...\\
 \bottomrule
 \end{tabular}
-\caption{Top-ranked cables for the week of December 1, 1975, when the
-  United Nations General Assembly discussed decolonization
-  resolutions. Capsule accurately recovers cables related to this
+\caption{Highest-ranked messages for the week of December 1, 1975,
+  when the United Nations General Assembly discussed
+  decolonization. Capsule accurately recovers messages related to this
   real-world event. Typos are intentionally copied from the data.}
 \label{tab:decol}
 \end{table*}
@@ -268,9 +266,9 @@ $f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf
 \begin{table*}[ht]
 \small
 \centering
-\begin{tabular}{cccl}
+\begin{tabular}{cccc}
 \toprule
-$f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
+$f(t_d, t)\, \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf{Subject} \\
 \midrule
 5.06 & 1975-05-15 & Sofia & Seizure of US merchant vessel by Cambodian forces \\
 5.05 & 1975-05-15 & Dar es Salaam & Seizure of U.S.~merchant vessel by Cambodian forces \\
@@ -279,19 +277,19 @@ $f(t_d, t) \E[\epsilon_{dt}]$ & \textbf{Date} & \textbf{Author Entity} & \textbf
 4.59 & 1975-05-15 & State & eizure of US merchant Vessel by Cambodian forces \\
 \bottomrule
 \end{tabular}
-\caption{Top-ranked cables for the week of May 12, 1975, when the
+\caption{Highest-ranked messages for the week of May 12, 1975, when the
   S.S.~Mayaguez, an American merchant vessel, was captured. Capsule
-  accurately recovers cables related to this real-world event. Typos
+  accurately recovers messages related to this real-world event. Typos
   are intentionally copied from the data.}
 \label{tab:mayaguez}
 \end{table*}
 
 Another notable event was the seizure of the S.S.~Mayaguez, an
 American merchant vessel, during May, 1975, at the end of the Vietnam
-War. The top-ranked cables for this event are in
-\cref{tab:mayaguez}. We can examine the individual cables to confirm
-their relevancy and learn more about the event. For example, here is
-the most relevant cable, according to Capsule:
+War. \Cref{tab:mayaguez} lists the highest-ranked messages for this
+event. We can examine these messages to confirm their relevancy and
+learn more about the event. For example, here is the content of the
+most relevant message:
 \begin{shaded*} \tt{In absence of MFA Chief of Eighth Department Avramov, I
 informed American desk officer Yankov of circumstances surrounding seizure
 and recovery of merchant ship Mayaguez and its crew.  Yankov promised to
@@ -301,8 +299,20 @@ Batjer
 \end{shaded*}
 
 
-A third week of interest occurs in early July of 1976.  On July 4th, the US celebrated its Bicentennial, but on the same day, Israeli forces completed a hostage rescue mission---an Air France flight from Tel Aviv had been hijacked and taken to Entebbe, Uganda.  This event, like many events, is mostly discussed the week following the real-world event; relevant cables are shown in \Cref{sec:additional_results}, \Cref{tab:entebbe}.
-The cable from Stockholm describing the ``Ugandan role in Air France hijacking'' begins with the following content, which reveals further information about the event.
+A third week of interest occurs in early July, 1976.  On July 4th, the
+US celebrated its Bicentennial, but on the same day, Israeli forces
+completed a hostage rescue mission because an Air France flight from
+Tel Aviv had been hijacked and taken to Entebbe,
+Uganda.\footnote{Capsule assumes that only one event occurs during
+  each time interval. This example is a clear violation of this
+  assumption, but also serves to demonstrate that Capsule can
+  successfully detect and characterize multiple events, even when they
+  overlap.} This event was mostly discussed the week after the event
+took place; the most relevant messages are listed in
+\cref{sec:additional_results} (\cref{tab:entebbe}). The cable from
+Stockholm describing the ``Ugandan role in Air France hijacking''
+begins with the following content, which reveals further information
+about this event:
 \begin{shaded*} \tt{
 1. We provided MFA Director of Political Affairs
 Leifland with Evidence of Ugandan assistance to
@@ -313,10 +323,23 @@ early this morning to determine position GOS will take
 at July 8 UNSC consideration of Israeli Rescue Operation. ...
 }
 \end{shaded*}
-Capsule assumes that only one event occurs in each time interval---this example is a clear violation of this assumption, but it also demonstrates that the model successfully captures both events, even when they overlap.
 
-In addition to characterizing known events, such as Operation Entebbe and the Mayaguez incident, Capsule identifies and characterizes obscure but potentially important events.  For example, it characterizes the kidnapping of Tenneco employees in 1974 and Operation Fluid Drive in 1976, both of which were previously unknown to our expert historian.  It also reveals that the UN held a Security Council meeting in Panama in 1973---our expert historian did not previously know that the UN had held any meetings in this country.
+In addition to detecting and characterizing well-known events, such
+the S.S.~Mayaguez incident and Operation Entebbe, Capsule can detect
+and characterize more obscure, but potentially significant,
+events. For example, the kidnapping of Tenneco employees in 1974 and
+Operation Fluid Drive in 1976, both of which appear in
+\cref{fig:cables_events}, were previously unknown to our expert
+historian at the History Lab. Capsule's analysis also revealed that
+the United Nations held a Security Council meeting in Panama in
+1973---our expert historian did not previously know that the United
+Nations had held any meetings in this country.
 
-In addition to investigating events, Capsule can be used to explore the general themes of a corpus and entities' typical concerns.  Examples of general topics of conversation are shown in \Cref{sec:additional_results}, \Cref{tab:topics} and entity-exclusive topics are shown in \Cref{sec:additional_results}, \Cref{tab:entities}; these show us how entity topics absorb location-specific words, preventing these terms from overwhelming the general topics.
+Capsule also provides a way to explore ``business-as-usual''
+discussion using the posterior expected values of the general topics
+and the entity topics. Examples of these types of topics are in
+\cref{sec:additional_results} (\cref{tab:topics} and
+\cref{tab:entities}); these examples illustrate that the entity topics
+absorb location-specific terms, preventing them from overwhelming the
+general topics.
 
-These exploratory results show that our model is successfully capturing when multiple entities are discussing the same subjects and that our model can be used to explore the underlying data by providing a structured scaffold from which to view the data.

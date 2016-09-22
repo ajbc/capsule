@@ -255,43 +255,41 @@ distribution.
 \subsection{Detecting and Characterizing Events}
 \label{sec:detecting}
 
-Having approximated the posterior distribution of the latent
-variables, we can use the mean of this distribution to explore the
-data. Specifically, we can explore ``business-as-usual'' content using
-the posterior expected values of the general topics
+We can use the mean of the fitted variational distribution to explore
+the data. Specifically, we can explore ``business-as-usual'' content
+using the posterior expected values of the general topics
 $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$ and the entity topics
 $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$, and we can detect and
-characterize significant events using the posterior expected values of
-the event strengths and event topics.
+characterize events using the posterior expected values of the event
+strengths and the event topics.
 
-% the key here is that we use two metrics:
-%   1. "eventness" \label{eq:eventness} to assess how much a time interval is related to real-world events (we're still working on getting the perfect metric here)
-%   2.  document relevancy for an event: $f(t_d,t)\,\E[\epsilon_{dt}]$ \label{eq:docrecovery}.  For a given time interval, we order all documents by this metric, and the top ones are most relevant to the time interval (or event)
-
-To detect events, we consider the proportion of a document $d$ about an event at time interval $t$, or
-% TODO: I don't like using p
+To detect events, we define an measure that quantifies the
+``eventness'' of time interval $t$. Specifically, we first compute how
+relevant each message $d$ is to that time interval: $m_{dt} = f(t_d,
+t)\,\E[\epsilon_{dt}]$. Using these relevancy values, we then compute
+the proportion of each message's term counts that are associated with
+the event topic specific to time interval $t$:
 \begin{equation}
-p_{dt} = \frac{f(t_d, t) \E[\epsilon_{d,t}]}{\E[\zeta_d] + \sum_{i=1}^T f(t_d, i) \E[\epsilon_{d,i}] + \sum_{k=1}^K \E[\theta_{d,k}] }
+  p_{dt}= \frac{m_{dt}}{\sum_{k}
+    \E[\theta_{dk}] + \E[\zeta_d] +
+    \sum_{t'} m_{dt'}}.
 \end{equation}
-and take a weighted average of these proportions to measure ``eventness'' at time $t$:
+Finally, we aggregate these values over messages:
 \begin{equation}
-m_t = \frac{1}{\sum_{d} f(t_d, t)} \sum_{d} p_{dt}.
-\label{eq:eventness}
+  \frac{1}{\sum_{d} f(t_d, t)}\sum_{d=1}^D p_{dt},
+  \label{eq:eventness}
 \end{equation}
-This measure of ``eventness'' estimates the fraction of term
-occurrences that are related to the event in time interval
-$t$. \Cref{fig:cables_events} illustrates real-world events detected
-using this measure.
+where the multiplicative fraction ensures that messages that were sent
+during time intervals that are further from $t$ contribute less than
+than messages that were sent during time intervals that are closer to
+$t$.
 
 We can characterize an event $t$ by selecting the highest-probability
-vocabulary terms from $\E[\mathbold{\gamma}_t]$. We can also identify
-the most strongly-associated messages by computing an event relevancy metric
-for each message $d$ and ordering the messages with this metric.
-For event $t$ and document $d$, we define this metric as
-\begin{equation}
-m_{dt} = f(t_d, t)\,\E[\epsilon_{dt}].
-\label{eq:docrecovery}
-\end{equation}
+vocabulary terms from $\E[\mathbold{\gamma}_t]$. By ordering the
+messages according to $m_{dt} = f(t_d, t)\,\E[\epsilon_{dt}]$, we can
+also identify the messages that are most strongly associated with
+event $t$.
+
 In \cref{sec:eval}, we explore the cables associated with
 significant events in the National Archives' corpus of diplomatic
 cables. To make Capsule more accessible for historians, political
@@ -309,7 +307,7 @@ of the tool's browsing interface.
 \includegraphics[width=\linewidth]{fig/viz.png}
 \caption{Screenshots of the Capsule visualization tool used to explore
   U.S. State Department cables. Top left: events over time (similar to
-  \Cref{fig:cables_events}). Top right: entities located on a
+  \cref{fig:cables_events}). Top right: entities located on a
   map. Bottom: summary of the week of May 12, 1975, including top
   vocabulary terms, relevant cables, and text from Wikipedia.}
 \label{fig:viz}
