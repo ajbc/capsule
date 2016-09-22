@@ -84,7 +84,8 @@ a set of the top $r$ time intervals according to the method.
 \caption{Event detection performance using ten simulated data
   sets. Each dot represents the performance (\cref{eq:detection}) of
   a single method on a single data set; the shaded green area
-  summarizes the distribution of performance for a single method.}
+  summarizes the distribution of performance for a single method.
+  Capsule outperforms all baseline methods.}
 \label{fig:sim_eventdetect}
 \end{figure}
 
@@ -201,15 +202,16 @@ Capsule outperforms all four baseline methods.
 \toprule
 \textbf{Method} & \textbf{nDCG} \\
 \midrule
-Capsule & 0.693 \\
-Baseline one (``event-only'') & ???\\
-Baseline two (\cref{eq:wordev}) & 0.642 \\
-Baseline three (\cref{eq:tfidfwordev}) & 0.652 \\
-Baseline four (random) & 0.557\\
+Capsule (this paper) & 0.693 \\
+term count deviation + tf-idf (\cref{eq:tfidfwordev}) & 0.652 \\
+term count deviation (\cref{eq:wordev}) & 0.642 \\
+random & 0.557\\
+``event-only'' Capsule (this paper) & 0.426\\
 \bottomrule
 \end{tabular}
 \caption{Event detection performance (higher is better) using
-  thirty-nine events that took place between 1973 and 1978.}
+  thirty-nine events that took place between 1973 and 1978.
+  Capsule outperforms all baseline methods.}
 \label{table:cables:ndcg}
 \end{table}
 
@@ -340,7 +342,7 @@ discussion using the posterior expected values of the general topics
 $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$ and the entity topics
 $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$. Examples of these
 types of topics are in \cref{sec:additional_results}
-(\cref{tab:topics} and \cref{tab:entities}, respectively); these
+(\cref{tab:topics,tab:entities}, respectively); these
 examples illustrate that, as desired, the entity topics absorb
 location-specific terms, preventing them from overwhelming the general
 topics.

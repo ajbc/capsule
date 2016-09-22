@@ -30,14 +30,14 @@ regarding southeast Asia more generally. We can think of a topic as
 being a probability distribution over vocabulary terms.
 
 Now imagine that an event, such as the capture of Saigon during the
-Vietnam war, occurs during a particular time interval $t$. We cannot
+Vietnam War, occurs during a particular time interval $t$. We cannot
 directly observe the occurrence of this event, but we can observe the
 stream of cables and the event's impact on it. When the event occurs,
 multiple entities deviate from their usual topics of discussion
 simultaneously, before returning to their usual behavior, as depicted
 in \cref{fig:cartoon}. For example, the day after the capture of
 Saigon, the majority of the diplomatic cables written by the Bangkok
-embassy and several other entities were about Vietnam war refugees. If
+embassy and several other entities were about Vietnam War refugees. If
 we think of the event as another probability distribution over
 vocabulary terms, then each entity's stream of cables reflects its
 typical concerns, as well as any significant events.
@@ -63,7 +63,7 @@ $n_{dv}$ that each vocabulary term $v$ occurs in each message
 $d$. Each message is associated with an author entity $a_d$ and a time
 interval $t_d$ within which that message was sent.
 
-We model each message with a bank of Poisson distributions---one for
+We model each message with a bank of Poisson distributions\footnote{Readers familiar with topic modeling may expect a multinomial model of word tokens, but Poisson models of word counts better capture documents of different lengths \cite{canny2004gap}.}---one for
 each vocabulary term:
 \begin{align}
   n_{dv} \sim \textrm{Poisson}\left(\lambda_{dv}\right).
@@ -101,7 +101,7 @@ Each message blends 1) general topics $\mathbold{\beta}_1, \ldots,
 \mathbold{\beta}_K$ about diplomacy (e.g., terms about diplomats,
 terms about communication), 2) an entity topic $\mathbold{\eta}_{a_d}$
 specific to the author of that message (e.g., terms about
-Asia),\footnote{The entity-specific topics play a similar role to the
+Hong Kong),\footnote{The entity-specific topics play a similar role to the
   background topics introduced by Paul and
   Dredze~\shortcite{paul2012model}.} and 3) event topics
 $\mathbold{\gamma}_1, \ldots, \mathbold{\gamma}_T$ that are specific
@@ -160,7 +160,7 @@ generative process is in \cref{fig:generative-model}.
 % NEED TO REMAKE THIS to use A rathre than N and n rather than w
 \begin{figure}[bt]
 \centering
-\includegraphics[width=0.5\linewidth]{fig/graphicalmodel.pdf}
+\includegraphics[width=0.6\linewidth]{fig/graphicalmodel.pdf}
 \caption{Graphical model for Capsule. Observed term counts depend on
   general topics $\mathbold{\beta}_1, \ldots, \mathbold{\beta}_K$,
   entity topics $\mathbold{\eta}_1, \ldots, \mathbold{\eta}_A$, and
