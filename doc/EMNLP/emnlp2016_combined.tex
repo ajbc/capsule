@@ -1,0 +1,99 @@
+%
+% File emnlp2016.tex
+%
+
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage{emnlp2016}
+\usepackage{times}
+\usepackage{latexsym}
+
+\input{preamble/preamble.tex}
+\input{preamble/preamble_math.tex}
+\input{preamble/preamble_acronyms.tex}
+
+
+% Uncomment this line for the final submission:
+\emnlpfinalcopy
+
+%  Enter the EMNLP Paper ID here:
+\def\emnlppaperid{***} % TODO
+
+
+\title{Detecting and Characterizing Events}
+
+\author{
+Allison J.~B. Chaney\\
+    Princeton University\\
+	\href{mailto:achaney@cs.princeton.edu}{\nolinkurl{achaney@cs.princeton.edu}}
+\And
+Hanna Wallach\\
+    Microsoft Research\\
+    \href{mailto:wallach@microsoft.com}{\nolinkurl{wallach@microsoft.com}}
+\AND
+Matthew Connelly\\
+    Columbia University\\
+    \href{mailto:mjc96@columbia.edu}{\nolinkurl{mjc96@columbia.edu}}
+\And
+David M. Blei\\
+    Columbia University\\
+    \href{mailto:david.blei@columbia.edu}{\nolinkurl{david.blei@columbia.edu}}
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{abstract.tex}
+\end{abstract}
+
+
+
+\section{Introduction}
+\label{sec:intro}
+\input{intro.tex}
+
+\section{The Capsule Model}
+\label{sec:model}
+\input{model.tex}
+
+%\section{Evaluation}
+%\label{sec:eval}
+\input{eval.tex}
+
+\section{Conclusion}
+\label{sec:discussion}
+\input{discussion.tex}
+
+%TODO:
+% go through and check citation styles [ ~\cite{Gusfield:97} and Gusfield~\shortcite{Gusfield:97} ]
+
+% \small
+\section*{Acknowledgments}
+This work was supported by NSF IIS-1247664; ONR N00014-11-1-0651;
+DARPA FA8750-14-2-0009 and N66001-15-C-4032; Adobe; the Alfred
+P. Sloan Foundation; the Columbia Global Policy Initiative.
+
+\onecolumn
+\vspace*{20px}
+\section*{\Large\centering Appendices}
+\vspace{50px}
+
+\appendix
+\section{Inference}
+\label{sec:inference}
+\input{inference.tex}
+
+\section{Additional Results}
+\label{sec:additional_results}
+\input{additional_results.tex}
+
+\twocolumn
+\bibliography{library.bib}
+\bibliographystyle{emnlp2016}
+
+
+\end{document}
