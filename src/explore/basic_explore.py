@@ -57,6 +57,7 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
 # WARNING: this requires daily time intervals
 def get_date(time):
     if time not in date_map:
+        return "date %d not found" % time
         #date_map[time] = get_date(time-1) + timedelta(days=1)
         date_map[time] = get_date(time-1) + timedelta(days=7)
     return date_map[time]
@@ -71,7 +72,7 @@ for line in open(os.path.join(fit_dir, "pi-%s.dat" % iter_id)):
 
     terms = dict(zip(vocab, [float(t) for t in terms.split('\t')]))
     topterms = sorted(terms, key=lambda t: -terms[t])[:N_terms]
-    fout.write("%s\t%s\n" % (date_map[time], ' / '.join(topterms)))
+    fout.write("%s\t%s\n" % (dt, ' / '.join(topterms)))
 fout.close()
 
 # general topics

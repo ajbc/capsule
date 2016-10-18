@@ -77,8 +77,9 @@ for line in open(os.path.join(data_dir, 'dates.tsv')):
 # WARNING: this requires daily time intervals
 def get_date(time):
     if time not in date_map:
+        date_map[time] = "date %d not found" % time
         #date_map[time] = get_date(time-1) + timedelta(days=1)
-        date_map[time] = get_date(time-1) + timedelta(days=7)
+        #date_map[time] = get_date(time-1) + timedelta(days=7)
     return date_map[time]
 
 # event topics
@@ -95,7 +96,7 @@ for line in open(os.path.join(fit_dir, "pi-%s.dat" % iter_id)):
     excl_cdf = ECDF(tt/ctopics)
     terms = dict(zip(vocab, 1.0/(((1.0-vv)/freq_cdf) + vv/excl_cdf)))
     topterms = sorted(terms, key=lambda t: -terms[t])[:N_terms]
-    fout.write("%s\t%s\n" % (date_map[time], ' / '.join(topterms)))
+    fout.write("%s\t%s\n" % (dt, ' / '.join(topterms)))
 fout.close()
 
 # general topics
@@ -113,7 +114,8 @@ fout.close()
 
 # get top docs for each event
 docmap = {}
-for line in open(os.path.join(data_dir, 'doc_map.tsv')):
+#for line in open(os.path.join(data_dir, 'doc_map.tsv')):
+for line in open(os.path.join(data_dir, 'doc_ids.tsv')):
     doc, idx = line.strip().split('\t')
     docmap[int(doc)] = idx
 
@@ -138,31 +140,32 @@ for doc, time, eps, feps in epsilon:
     scores2[int(time)][int(doc)] = feps
     scores3[int(time)][int(doc)] = feps * Nwords[int(doc)] / cumulative[int(doc)]
 
-con = sqlite3.connect(doc_db)
-cur = con.cursor()
+#con = sqlite3.connect(doc_db)
+#cur = con.cursor()
 
 fout = open(os.path.join(fit_dir, "top_docs_unw_%s.dat" % iter_id), 'w+')
-fout2 = open(os.path.join(fit_dir, "top_docs_raw_%s.dat" % iter_id), 'w+')
-fout3 = open(os.path.join(fit_dir, "top_docs_wgh_%s.dat" % iter_id), 'w+')
+#fout2 = open(os.path.join(fit_dir, "top_docs_raw_%s.dat" % iter_id), 'w+')
+#fout3 = open(os.path.join(fit_dir, "top_docs_wgh_%s.dat" % iter_id), 'w+')
 for week in sorted(scores):
-    fout.write("date %d\n" % week)
-    fout2.write("date %d\n" % week)
-    fout3.write("date %d\n" % week)
+    fout.write("date %d, %s\n" % (week, date_map[week]))
+    #fout2.write("date %d\n" % week)
+    #fout3.write("date %d\n" % week)
     for doc in sorted(scores[week], key=lambda x: -scores[week][x])[:20]:
-        for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
-            fout.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
-                (docmap[doc], scores[week][doc], row[0], row[1], row[2], row[3]))
-    for doc in sorted(scores2[week], key=lambda x: -scores2[week][x])[:20]:
-        for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
-            fout2.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
-                (docmap[doc], scores2[week][doc], row[0], row[1], row[2], row[3]))
-    for doc in sorted(scores3[week], key=lambda x: -scores3[week][x])[:20]:
-        for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
-            fout3.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
-                (docmap[doc], scores3[week][doc], row[0], row[1], row[2], row[3]))
+        fout.write("%s\n" % docmap[doc])
+        #for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
+        #    fout.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
+        #        (docmap[doc], scores[week][doc], row[0], row[1], row[2], row[3]))
+    #for doc in sorted(scores2[week], key=lambda x: -scores2[week][x])[:20]:
+    #    for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
+    #        fout2.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
+    #            (docmap[doc], scores2[week][doc], row[0], row[1], row[2], row[3]))
+    #for doc in sorted(scores3[week], key=lambda x: -scores3[week][x])[:20]:
+    #    for row in cur.execute("SELECT date, \"from\", \"to\", subject FROM docs where id='%s'" % docmap[doc]):
+    #        fout3.write("%s\t%f\t%s\t%s -> %s :: %s\n" % \
+    #            (docmap[doc], scores3[week][doc], row[0], row[1], row[2], row[3]))
     fout.write("\n")
-    fout2.write("\n")
-    fout3.write("\n")
+    #fout2.write("\n")
+    #fout3.write("\n")
 fout.close()
-fout2.close()
-fout3.close()
+#fout2.close()
+#fout3.close()
