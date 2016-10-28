@@ -1,5 +1,5 @@
 
-(C) Copytright 2016, Allison J.B. Chaney
+(C) Copyright 2016, Allison J.B. Chaney
 
 This software is distributed under the MIT license. See `LICENSE.txt` for details.
 
@@ -69,7 +69,7 @@ doc.id    term.id    count
 Each `term.id` refers to the index of a particular vocubuary term; like with topic models, this vocabulary should be chosen with care.  Capsule may require a larger vocabulary than a typical topic model, as terms related to events are more rare.
 We recommend spitting terms into roughly 90% training, 9% testing and 1% validation, if your data is sufficiently large.
 You should split by (document, vocabulary-term) pairs, not by entire documents; this way, document-specific parmeters are still learned.
-If you wish to train on the full data, and don't care about a testing set, the validation and test sets are allowed to contain duplicate data.
+If you wish to train on the full data, and do not care about a testing set, the validation and test sets are allowed to contain duplicate data.
 
 If you intend to use the [Capsule visualization](https://github.com/ajbc/capsule-viz), you should check that your author, time, and vocabulary term mappings are all consistent with its required format.
 
@@ -82,12 +82,11 @@ If you intend to use the [Capsule visualization](https://github.com/ajbc/capsule
 4. Run the executable, e.g.:
     `./capsule --data ~/my-data/ --out my-fit`
 
-Compilation requires (Armadillo)[http://arma.sourceforge.net], a C++ linear algebra library.
+Compilation requires [Armadillo](http://arma.sourceforge.net), a C++ linear algebra library.
 
 A note on notation: the paper uses γ (gamma) to represent event topics, but to avoid confusion with the gamma distribution, the code uses `pi` to represent this same variable.
 
 #### Capsule Options
-TODO
 |Option|Arguments|Help|Default|
 |---|---|---|---|
 |help||print help information||
@@ -96,7 +95,6 @@ TODO
 |data|dir|data directory, required||
 |svi||use stochastic VI (instead of batch VI)|off for < 10M doc-term counts in training|
 |batch||use batch VI (instead of SVI)|on for < 10M doc-term counts in training|
-
 |a_phi|a|shape hyperparameter to phi (entity general concerns)|0.3|
 |b_phi|b|rate hyperparameter to phi (entity general concerns)|0.3|
 |a_xi|a|shape hyperparameter to xi (entity-specific concern)|0.3|
@@ -128,7 +126,7 @@ TODO
 |svi_forget|kappa|SVI forgetting rate (0.5,1]|default 0.75|
 |K|K|the number of general topics|100|
 
-
+<!---
 ## Evaluating and Exploring the Results
 TODO
 
@@ -137,3 +135,4 @@ TODO
 
 #### Visualization
 We have developed a pipeline for [visualizing Capsule](https://github.com/ajbc/capsule-viz), which includes the model results alongide the original data.
+-->
