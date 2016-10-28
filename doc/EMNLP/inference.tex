@@ -144,8 +144,6 @@ D(a)} \zeta_d \right)\\
 D(t)} \epsilon_{dt} \right).
 \end{align}
 
-%\mathbf{N}, \mathbf{z}, \mathbold{\beta}, \mathbold{\eta}, \mathbold{\gamma}, \mathbold{\theta}, \mathbold{\zeta}, \mathbold{\epsilon}, \mathbold{\phi}, \mathbold{\xi}, \mathbold{\psi}
-
 \pagebreak
 
 The conditional distribution of the auxiliary latent variables is:
@@ -171,10 +169,6 @@ of vocabulary terms present in document $d$. Our approximate inference
 algorithm produces a fitted variational posterior distribution which
 can then be used as a proxy for the true posterior distribution. The
 source code is available online at \url{https://github.com/ajbc/capsule}.
-
-%We could also iterate over all $V$, but as zero word counts give $\E[\mathbf{z}_{dv}] = 0~\forall v \not\in V(d)$, the two are equivalent.
-
-%TODO: check for consistent indexing of variables (e.g., beta_{v,k} vs beta_{k,v})
 
 
 \begin{algorithm}[p]

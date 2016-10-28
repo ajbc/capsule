@@ -14,6 +14,6 @@ ggplot(dat, aes(x=reorder(method, value, FUN=max), y=value)) + geom_violin(alpha
   #stat_summary(fun.y="mean", colour="#156946", alpha=0.3, geom="point", size=5) +
   theme_bw() + #theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
   coord_flip() +
-  scale_x_discrete(labels=c("random", "\"event only\" Capsule (this paper)",  "term count deviation + tf-idf (Eq. 7)", "term count deviation (Eq. 6)","Capsule (this paper)")) +
+  scale_x_discrete(labels=c("random", "\"event only\" Capsule (this paper)",  "term-count deviation + tf-idf (eq. 7)", "term-count deviation (eq. 6)","Capsule (this paper)")) +
   ylab("event detection performance") + xlab("")
-ggsave("sim_eventdetect.pdf", width=5, height=2.5)
+ggsave("sim_eventdetect.pdf", width=5.5, height=2.5)

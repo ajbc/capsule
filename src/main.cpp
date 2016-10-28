@@ -29,18 +29,18 @@ void print_usage_and_exit() {
     printf("                    default on for < 10M doc-term counts in training\n");
 
     printf("\n");
-    printf("  --a_phi {a}       shape hyperparamter to phi (entity concerns); default 0.3\n");
-    printf("  --b_phi {b}       rate hyperparamter to phi (entity concerns); default 0.3\n");
-    printf("  --a_psi {a}       shape hyperparamter to psi (event strength); default 0.3\n");
-    printf("  --b_psi {b}       rate hyperparamter to psi (event strength); default 0.3\n");
-    printf("  --a_xi {a}        shape hyperparamter to xi (entity strength); default 0.3\n");
-    printf("  --b_xi {b}        rate hyperparamter to xi (entity strength); default 0.3\n");
-    printf("  --a_theta {a}     shape hyperparamter to theta (doc topics); default 0.3\n");
-    printf("  --a_epsilon {a}   shape hyperparamter to epsilon (doc events); default 0.3\n");
-    printf("  --a_zeta {a}      shape hyperparamter to epsilon (doc entity relevancy); default 0.3\n");
-    printf("  --a_beta {a}      shape hyperparamter to beta (topics); default 0.3\n");
-    printf("  --a_pi {a}        shape hyperparamter to pi (event description); default 0.3\n");
-    printf("  --a_eta {a}       shape hyperparamter to eta (entity description); default 0.3\n");
+    printf("  --a_phi {a}       shape hyperparameter to phi (entity concerns); default 0.3\n");
+    printf("  --b_phi {b}       rate hyperparameter to phi (entity concerns); default 0.3\n");
+    printf("  --a_psi {a}       shape hyperparameter to psi (event strength); default 0.3\n");
+    printf("  --b_psi {b}       rate hyperparameter to psi (event strength); default 0.3\n");
+    printf("  --a_xi {a}        shape hyperparameter to xi (entity strength); default 0.3\n");
+    printf("  --b_xi {b}        rate hyperparameter to xi (entity strength); default 0.3\n");
+    printf("  --a_theta {a}     shape hyperparameter to theta (doc topics); default 0.3\n");
+    printf("  --a_epsilon {a}   shape hyperparameter to epsilon (doc events); default 0.3\n");
+    printf("  --a_zeta {a}      shape hyperparameter to epsilon (doc entity relevancy); default 0.3\n");
+    printf("  --a_beta {a}      shape hyperparameter to beta (topics); default 0.3\n");
+    printf("  --a_pi {a}        shape hyperparameter to pi (event description); default 0.3\n");
+    printf("  --a_eta {a}       shape hyperparameter to eta (entity description); default 0.3\n");
 
     printf("\n");
     printf("  --no_topics       don't consider entity topics aspect of factorization\n");
@@ -49,7 +49,7 @@ void print_usage_and_exit() {
 
     printf("\n");
     printf("  --event_dur {d}   event duration; default 7\n");
-    printf("  --event_decay {d} event decay; options: \"exponential\", \"linear\" (default, triangle), \"step\" (square) \n");
+    printf("  --event_decay {d} event decay; options: \"exponential\" (default), \"linear\" (triangle), \"step\" (square) \n");
 
     printf("\n");
     printf("  --seed {seed}     the random seed, default from time\n");
@@ -110,8 +110,8 @@ int main(int argc, char* argv[]) {
     bool final_pass = 0;
     bool overwrite = 0;
 
-    int event_dur = 3;
-    string event_decay = "linear";
+    int event_dur = 7;
+    string event_decay = "exponential";
 
     time_t t; time(&t);
     long   seed = (long) t;

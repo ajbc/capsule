@@ -83,9 +83,6 @@ Capsule therefore provides a new way to detect and characterize historical
 moments that may be of interest to historians, political scientists,
 and journalists.\looseness=-1
 
-% Hanna: I re-capitalized ``Embassies'' because when the content
-% following a colon consists of multiple sentences, as is the case
-% here, there should be a capital letter.
 The intuition behind Capsule is this: Embassies write cables
 throughout the year, usually describing typical diplomatic business,
 such as visits from government officials. Sometimes, however,
@@ -118,15 +115,10 @@ behavior, social media posts, and opinion articles.
 
 \section{Related Work}
 \label{sec:relatedwork}
-% Hanna: I prefer having this as a stand-alone section
-
-%\parhead{Related work.}
 
 We first review previous work on automatic event detection and other
 related concepts, to contextualize our approach in general and Capsule
 in particular.
-
-% While Capsule uses text documents and associated metadata as input, event detection is often performed with univariate input data.  In this context, bursts that deviate from typical behavior (e.g., noisy constant or a repeating pattern) can define an event \cite{kleinberg2003bursty,ihler2007learning}; Poisson Processes~\cite{Kingman:1993} are often used to model events under this definition.  Alternatively, events can be construed as ``change points'' to mark when typical observations shift semi-permanently from one value to another~\cite{guralnik1999event}.
 
 In both univariate and multivariate settings, analysts often want to
 predict whether or not rare events will
@@ -138,11 +130,6 @@ Events can be construed as either anomalies---temporary deviations
 from usual behavior---or ``changepoints'' that mark persistent shifts
 in usual behavior~\cite{guralnik1999event,adams2007bayesian}. We focus
 on events as anomalies.
-
-% Text is often used in event detection, as it is an abundant source of data.
-% In some applications, documents themselves are considered to be observed events~\cite{mccallum1998comparison,peng2007event}, or events are predetermined and tracked through the documents~\cite{yang2000improving,VanDam:2012}.  We are interested in detecting \emph{unobserved} events which can be characterized by patterns in the data.
-%\newpage % note:when using hyperref, references can be split between
-%pages!
 
 Event detection in the context of news
 articles~\cite{zhao2012novel,zhao2007temporal,zhang2002novelty,li2005probabilistic,wang2007mining,allan1998line}
@@ -161,8 +148,6 @@ Many existing methods for detecting events from text focus on
 individual vocabulary terms, often weighted by tf-idf
 values~\cite{fung2005parameter,kumaran2004text,brants2003system,das2011dynamic,zhao2007temporal,zhao2012novel}.
 We characterize events by bursts in groups of terms.
-% Because language is high dimensional, using terms as features limits
-% scalability.
 
 Although groups of terms can be summarized
 directly~\cite{peng2007event,chakrabarti2011event,gao2012joint}, topic
@@ -192,11 +177,7 @@ Finally, there are connections between Capsule and recent work on
 Poisson processes. In particular, we can interpret Capsule as a
 collection of related discrete-time Poisson processes with random
 intensity measures. Further, marginalizing out the event strengths
-% IS THIS RIGHT?
 (described in \cref{sec:model_spec}) reveals that the use of a
 vocabulary term by one embassy can ``excite'' the use of that term by
 another. This suggests a close relationship to Hawkes
 processes~\cite{hawkes1971spectra}.
-
-
-% TODO: cite he2015hawkestopic
